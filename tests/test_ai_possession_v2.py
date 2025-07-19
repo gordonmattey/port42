@@ -15,13 +15,13 @@ TEST_CASES = [
     {
         "name": "Git Haiku (Simple)",
         "agent": "@ai-engineer",
-        "message": "Create a command called 'simple-git-haiku' that shows git commits in haiku format. Use only bash built-ins, no external dependencies like lolcat. Use printf with ANSI colors for formatting.",
+        "message": "I want to create a command called git-haiku that turns git commits into haikus.",
         "expect_command": True
     },
     {
         "name": "Disk Usage Tree",
         "agent": "@ai-engineer", 
-        "message": "Create a command called 'du-tree' that shows disk usage in tree format. Don't use the 'tree' command - implement it using du and awk/sed. Show sizes in human readable format.",
+        "message": "I need a command that shows disk usage as a tree.",
         "expect_command": True
     },
     {

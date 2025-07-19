@@ -60,7 +60,7 @@ func NewAnthropicClient() *AnthropicClient {
 	return &AnthropicClient{
 		apiKey:     apiKey,
 		apiURL:     "https://api.anthropic.com/v1/messages",
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: &http.Client{Timeout: 120 * time.Second}, // Increased timeout for Claude Opus
 	}
 }
 
@@ -70,7 +70,7 @@ type AnthropicMessage struct {
 	Content string `json:"content"`
 }
 
-// Send a message to Claude
+// Send a message to Claude with retry logic
 func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	// Convert our Message format to Anthropic's format (without timestamp)
 	anthropicMessages := make([]AnthropicMessage, len(messages))
@@ -87,7 +87,8 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	}
 	
 	req := AnthropicRequest{
-		Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
+		//  Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
+		Model:     "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet - faster
 		Messages:  anthropicMessages,
 		MaxTokens: 4096,
 		Stream:    false,
@@ -98,36 +99,64 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 		return nil, err
 	}
 	
-	httpReq, err := http.NewRequest("POST", c.apiURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
+	// Retry logic with exponential backoff
+	maxRetries := 3
+	baseDelay := 2 * time.Second
+	
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 2s, 4s, 8s
+			delay := baseDelay * time.Duration(1<<(attempt-1))
+			log.Printf("Retrying Claude API after %v (attempt %d/%d)", delay, attempt+1, maxRetries)
+			time.Sleep(delay)
+		}
+		
+		httpReq, err := http.NewRequest("POST", c.apiURL, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return nil, err
+		}
+		
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("x-api-key", c.apiKey)
+		httpReq.Header.Set("anthropic-version", "2023-06-01")
+		
+		resp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			// Network error - retry
+			if attempt < maxRetries-1 {
+				log.Printf("Network error (will retry): %v", err)
+				continue
+			}
+			return nil, err
+		}
+		defer resp.Body.Close()
+		
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		
+		var anthropicResp AnthropicResponse
+		if err := json.Unmarshal(body, &anthropicResp); err != nil {
+			return nil, fmt.Errorf("failed to parse response: %v", err)
+		}
+		
+		if anthropicResp.Error != nil {
+			// Check if it's a rate limit error (429) or server error (5xx)
+			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+				if attempt < maxRetries-1 {
+					log.Printf("API error %d (will retry): %s", resp.StatusCode, anthropicResp.Error.Message)
+					continue
+				}
+			}
+			return nil, fmt.Errorf("API error: %s - %s", anthropicResp.Error.Type, anthropicResp.Error.Message)
+		}
+		
+		// Success!
+		return &anthropicResp, nil
 	}
 	
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", c.apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-	
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	
-	var anthropicResp AnthropicResponse
-	if err := json.Unmarshal(body, &anthropicResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %v", err)
-	}
-	
-	if anthropicResp.Error != nil {
-		return nil, fmt.Errorf("API error: %s - %s", anthropicResp.Error.Type, anthropicResp.Error.Message)
-	}
-	
-	return &anthropicResp, nil
+	return nil, fmt.Errorf("failed after %d retries", maxRetries)
 }
 
 // Enhanced possession handler with real AI

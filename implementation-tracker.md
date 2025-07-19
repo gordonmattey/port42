@@ -102,23 +102,32 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
   - Clear error messages with install instructions
   - OS-aware installation (brew, apt, yum)
 
-### ⬜ Step 7: Memory Storage (6:00 PM - 7:00 PM)
+### 🟨 Step 7: Memory Storage (6:00 PM - 7:00 PM)
 **Goal**: Persist conversations
-- [ ] Create memory.go
-- [ ] JSON file storage
-- [ ] Session recording
-- [ ] Memory retrieval
-**Status**: Not started
+- [x] Create memory.go (using session management in server.go)
+- [x] JSON file storage (sessions stored in memory)
+- [x] Session recording (all messages tracked)
+- [x] Memory retrieval (/memory endpoint working)
+**Status**: PARTIAL - In-memory only, no persistence to disk
 **Notes**:
+- Session management is working in-memory
+- Sessions have 1hr TTL with cleanup goroutine
+- /memory endpoint shows all active sessions
+- Still need disk persistence for restart survival
 
-### ⬜ Step 8: Integration Test (7:00 PM - 8:00 PM)
+### 🟨 Step 8: Integration Test (7:00 PM - 8:00 PM)
 **Goal**: Full daemon test
-- [ ] Create test script
-- [ ] Test all endpoints
-- [ ] Fix any issues
-- [ ] Verify command generation
-**Status**: Not started
+- [x] Create test script (test_ai_possession_v2.py)
+- [x] Test all endpoints (status, possess, list, memory)
+- [x] Fix any issues (dependency handling added)
+- [x] Verify command generation (working but intermittent)
+**Status**: IN PROGRESS - Blocked by API timeout issues
 **Notes**:
+- Created comprehensive test suite with 4 test cases
+- Tests can be easily extended by adding to TEST_CASES list
+- Experiencing intermittent Claude API timeouts
+- 2 commands successfully generated before timeout issues
+- Need to resolve API connectivity before full test pass
 
 ---
 
@@ -220,6 +229,25 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 
 ## Blockers & Solutions
 
+### Claude API Timeout Issues (2025-07-19)
+**Problem**: Intermittent "context deadline exceeded" errors when connecting to Claude API
+**Attempted Solutions**:
+1. Increased HTTP client timeout from 30s to 120s
+2. Added retry logic with exponential backoff (3 attempts: 2s, 4s, 8s delays)
+3. Switched from Claude Opus 4 to Claude 3.5 Sonnet for faster responses
+4. Added better error logging and retry handling for rate limits (429) and server errors (5xx)
+
+**Current Status**: Still experiencing intermittent issues despite fixes
+**Files Modified**: 
+- daemon/possession.go: Timeout increased, retry logic added, model switched
+- Model changed from `claude-opus-4-20250514` to `claude-3-5-sonnet-20241022`
+
+**Next Steps**:
+- Consider adding request/response logging to debug API calls
+- Check if there are API rate limits being hit
+- Consider implementing a connection pool or queue
+- Add metrics to track API call success/failure rates
+
 ---
 
 ## Demo Script
@@ -241,3 +269,238 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - Implementation Plan: docs/implementationplan.md
 - Templates: templateideas.md
 - Narrative: docs/narrative.md
+
+---
+
+## Phase 2: Authentication & Multi-Model Architecture
+
+### Context & Requirements
+The current MVP uses a single ANTHROPIC_API_KEY from environment. For production, we need:
+1. **Secure credential storage** (OS keychain integration)
+2. **Multi-model support** (Claude, GPT, local models)
+3. **Account management** (multiple API keys, model preferences)
+4. **Dynamic model switching** (per-session or per-command)
+5. **Usage tracking & limits** (prevent bill shock)
+
+### Proposed Architecture
+
+#### 1. Keychain Integration (Phase 2.1)
+**Goal**: Move from env vars to secure OS keychain
+- macOS: Keychain Access API
+- Linux: Secret Service API (GNOME Keyring/KWallet)
+- Windows: Windows Credential Store
+- Fallback: Encrypted file in ~/.port42/keys.enc
+
+**Implementation**:
+```go
+// daemon/keystore.go
+type KeyStore interface {
+    GetKey(service, account string) (string, error)
+    SetKey(service, account, key string) error
+    DeleteKey(service, account string) error
+    ListAccounts(service string) ([]string, error)
+}
+
+// Platform-specific implementations
+type DarwinKeyStore struct{} // macOS Keychain
+type LinuxKeyStore struct{}  // Secret Service
+type FileKeyStore struct{}   // Encrypted file fallback
+```
+
+#### 2. Multi-Model Support (Phase 2.2)
+**Goal**: Support multiple AI providers dynamically
+
+**Model Registry**:
+```go
+// daemon/models.go
+type ModelProvider interface {
+    Name() string
+    Send(messages []Message, config ModelConfig) (*Response, error)
+    ValidateKey(key string) error
+    GetModels() []ModelInfo
+}
+
+type ModelRegistry struct {
+    providers map[string]ModelProvider
+    configs   map[string]ModelConfig
+}
+
+// Providers
+- AnthropicProvider (Claude models)
+- OpenAIProvider (GPT models)
+- OllamaProvider (local models)
+- GroqProvider (fast inference)
+- BedrockProvider (AWS)
+```
+
+**Model Selection**:
+```json
+// Request can specify model
+{
+  "type": "possess",
+  "payload": {
+    "agent": "@ai-engineer",
+    "model": "claude-3-5-sonnet-20241022",
+    "message": "Create a command"
+  }
+}
+```
+
+#### 3. Account Management (Phase 2.3)
+**Goal**: Multiple accounts with different keys/limits
+
+**Account Structure**:
+```go
+type Account struct {
+    ID          string
+    Name        string
+    Provider    string // anthropic, openai, etc
+    KeyID       string // Reference to keychain
+    Models      []string
+    RateLimits  RateLimits
+    Usage       Usage
+    Preferences Preferences
+}
+
+type AccountManager struct {
+    keyStore  KeyStore
+    accounts  map[string]*Account
+    current   string // Current active account
+}
+```
+
+**CLI Commands**:
+```bash
+# Account management
+port42 account add anthropic --name "personal"
+port42 account add openai --name "work" 
+port42 account list
+port42 account use personal
+port42 account remove work
+
+# Model management
+port42 model list
+port42 model set claude-3-5-sonnet
+port42 model info gpt-4-turbo
+```
+
+#### 4. Configuration System (Phase 2.4)
+**Goal**: User preferences and defaults
+
+**Config Location**: ~/.port42/config.toml
+```toml
+[defaults]
+account = "personal"
+model = "claude-3-5-sonnet-20241022"
+agent = "@ai-engineer"
+
+[accounts.personal]
+provider = "anthropic"
+models = ["claude-3-5-sonnet", "claude-3-opus"]
+rate_limit = 100 # requests per hour
+
+[accounts.work]
+provider = "openai"
+models = ["gpt-4-turbo", "gpt-4"]
+monthly_budget = 50.00
+
+[agents]
+[agents.engineer]
+preferred_model = "claude-3-5-sonnet"
+temperature = 0.3
+
+[agents.muse]
+preferred_model = "claude-3-opus"
+temperature = 0.8
+```
+
+### Implementation Timeline
+
+#### Phase 2.1: Keychain (Week 1)
+- Day 1-2: Research & design keychain abstractions
+- Day 3-4: Implement macOS Keychain support
+- Day 5: Add encrypted file fallback
+- Day 6-7: Testing & migration tool
+
+#### Phase 2.2: Multi-Model (Week 2)
+- Day 1-2: Model provider interface & registry
+- Day 3: Migrate Anthropic to provider pattern
+- Day 4: Add OpenAI provider
+- Day 5: Add Ollama for local models
+- Day 6-7: Testing & model switching UI
+
+#### Phase 2.3: Accounts (Week 3)
+- Day 1-2: Account manager implementation
+- Day 3: CLI commands for account management
+- Day 4: Rate limiting & usage tracking
+- Day 5: Budget alerts
+- Day 6-7: Testing & documentation
+
+#### Phase 2.4: Configuration (Week 4)
+- Day 1-2: TOML config system
+- Day 3: Per-agent preferences
+- Day 4: Model selection logic
+- Day 5: Migration from env vars
+- Day 6-7: Polish & release
+
+### Security Considerations
+
+1. **Key Storage**:
+   - Never store keys in plain text
+   - Use OS keychain when available
+   - Encrypted file with user passphrase as fallback
+   - Keys never leave the daemon process
+
+2. **Network Security**:
+   - All AI API calls over HTTPS
+   - Certificate pinning for known providers
+   - Request signing for audit trail
+
+3. **Access Control**:
+   - Daemon still localhost-only
+   - Optional token for CLI→daemon auth
+   - Session tokens expire after 1 hour
+
+4. **Audit & Compliance**:
+   - Log all model invocations
+   - Track token usage per account
+   - Export usage reports
+
+### Migration Path
+
+1. **Backwards Compatibility**:
+   - Continue supporting ANTHROPIC_API_KEY env var
+   - Auto-import to keychain on first run
+   - Gradual deprecation warnings
+
+2. **Data Migration**:
+   ```bash
+   port42 migrate --from-env
+   # Imports ANTHROPIC_API_KEY to keychain
+   # Creates default account
+   # Preserves existing commands
+   ```
+
+3. **User Communication**:
+   - Clear upgrade instructions
+   - Benefits explanation (security, multi-model)
+   - Video walkthrough
+
+### Future Phases (3+)
+
+**Phase 3: Team Features**
+- Shared command repositories
+- Team accounts with role-based access
+- Central billing
+
+**Phase 4: Advanced Features**
+- Model fine-tuning integration
+- Custom model hosting
+- Prompt caching & optimization
+- Command marketplace
+
+**Phase 5: Enterprise**
+- SSO integration
+- Audit logs
+- Compliance modes
+- Private model endpoints
