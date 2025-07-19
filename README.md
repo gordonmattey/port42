@@ -20,7 +20,7 @@ $ git-haiku
 
 ## Current Status: Building MVP (Day 1/2)
 
-### ✅ Completed
+### ✅ Completed (Day 1: 6/8 Done!)
 - **TCP Server**: Daemon listening on localhost:42
   - Handles concurrent connections
   - Graceful permission handling (sudo for port 42, fallback to 4242)
@@ -40,13 +40,25 @@ $ git-haiku
   - Session cleanup (1hr TTL)
   - Tested with 10+ concurrent sessions
 
+- **AI Possession**: Real AI integration via Anthropic Claude
+  - Natural conversation flow with AI agents
+  - Multiple personalities (@ai-muse, @ai-engineer, @ai-echo)
+  - Session persistence across requests
+  - Graceful fallback when no API key
+
+- **Command Generation**: Conversations become executable commands!
+  - AI generates command specifications in JSON
+  - Automatic file creation in ~/.port42/commands/
+  - Proper permissions and shebang lines
+  - Successfully generated git-haiku command
+  - Supports bash, python, node scripts
+
 ### 🚧 In Progress
-- Basic AI possession flow
+- Memory persistence to disk
 
 ### 📋 Upcoming
-- Command generation (forge)
-- Memory persistence
-- Rust CLI
+- Integration testing
+- Rust CLI (Day 2)
 - Interactive mode
 
 ## Quick Start (Development)
@@ -56,15 +68,49 @@ $ git-haiku
 git clone <repo-url>
 cd port42
 
-# Start the daemon (requires sudo for port 42)
+# Set up Anthropic API key (optional but recommended)
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Build and start the daemon
 cd daemon
-sudo go run main.go
+go build -o port42d .
+sudo -E ./port42d  # -E preserves environment variables
 
-# Or without sudo (uses port 4242)
-go run main.go
+# Test AI possession and command generation
+cd ..
+./tests/test_ai_possession.py
 
-# Test the TCP server
-echo "Hello dolphins" | nc localhost 42
+# Add generated commands to PATH
+export PATH="$PATH:$HOME/.port42/commands"
+
+# Try the generated command!
+git-haiku
+```
+
+## Creating Your First Command
+
+```python
+# Simple test script to create a command
+import json, socket
+
+def possess(message):
+    sock = socket.socket()
+    sock.connect(('localhost', 42))
+    req = {
+        "type": "possess",
+        "id": "test-1",
+        "payload": {
+            "agent": "@ai-muse",
+            "message": message
+        }
+    }
+    sock.send(json.dumps(req).encode() + b'\n')
+    return json.loads(sock.recv(8192))
+
+# Have a conversation
+resp = possess("I need a command that shows disk usage as a tree")
+print(resp['data']['message'])
+# AI will generate the command if it understands your need!
 ```
 
 ## Architecture
