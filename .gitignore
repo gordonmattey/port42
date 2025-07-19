@@ -1,0 +1,37 @@
+# Binaries
+daemon/port42d
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+vendor/
+
+# Rust
+cli/target/
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Port 42 generated (user-specific)
+# We'll track the structure but not personal commands
+# ~/.port42/
