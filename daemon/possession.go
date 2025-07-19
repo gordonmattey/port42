@@ -43,10 +43,11 @@ type AnthropicError struct {
 
 // CommandSpec that AI might generate
 type CommandSpec struct {
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Implementation string `json:"implementation"`
-	Language       string `json:"language"` // bash, python, etc
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	Implementation string   `json:"implementation"`
+	Language       string   `json:"language"` // bash, python, etc
+	Dependencies   []string `json:"dependencies,omitempty"` // External commands required
 }
 
 // NewAnthropicClient creates a new Claude client
@@ -86,7 +87,7 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	}
 	
 	req := AnthropicRequest{
-		Model:     "claude-3-opus-20240229", // Latest Claude model
+		Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
 		Messages:  anthropicMessages,
 		MaxTokens: 4096,
 		Stream:    false,
@@ -238,6 +239,15 @@ When generating commands that process git commits specifically:
 - Use: git log --oneline -n <limit> to get commits
 - Parse the output properly (first 7 chars are hash)
 - Handle cases where there are no commits
+
+Dependencies:
+- List any external commands needed in the "dependencies" field
+- Common ones: lolcat, figlet, tree, jq, ripgrep, fzf
+- Example: "dependencies": ["lolcat", "tree"]
+- If no external dependencies, omit the field or use empty array
+
+CRITICAL: In the JSON "implementation" field, use \\n for newlines, not actual newlines!
+Example: "implementation": "#!/bin/bash\\necho 'hello'\\necho 'world'"
 `
 
 	prompts := map[string]string{
@@ -249,7 +259,8 @@ When a user has refined their idea and you're ready to create the command, you M
   "name": "git-haiku",
   "description": "Shows git commits as haikus",
   "implementation": "#!/bin/bash\n# Get commits\ngit log --oneline -n 10 | while read line; do\n  echo \"  $line\"\ndone",
-  "language": "bash"
+  "language": "bash",
+  "dependencies": ["lolcat"]
 }
 ` + "```\n\n" + baseGuidance + "\n\nThe dolphins are listening to your creative flow...",
 
@@ -261,7 +272,8 @@ When ready to implement, you MUST format your code as a JSON block:
   "name": "command-name",
   "description": "What this command does",
   "implementation": "#!/bin/bash\n# Your complete implementation here",
-  "language": "bash"
+  "language": "bash",
+  "dependencies": []
 }
 ` + "```\n\n" + baseGuidance + "\n\nFocus on reliability and proper error handling.",
 

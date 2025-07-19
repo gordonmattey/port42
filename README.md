@@ -52,6 +52,8 @@ $ git-haiku
   - Proper permissions and shebang lines
   - Successfully generated git-haiku command
   - Supports bash, python, node scripts
+  - **Dependency handling**: Commands check for required tools
+  - Auto-generated installer script (~/.port42/install-deps.sh)
 
 ### 🚧 In Progress
 - Memory persistence to disk
@@ -144,6 +146,12 @@ Run tests from the project root:
 
 # Test daemon structure & sessions
 ./tests/test_daemon_structure.py
+
+# Test AI possession & command generation
+./tests/test_ai_possession.py
+
+# Test dependency handling
+./tests/test_dependency_handling.py
 ```
 
 ## Project Structure

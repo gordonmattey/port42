@@ -141,6 +141,39 @@ def test_different_agents():
             print(f"❌ {agent} failed to respond")
         print()
 
+def test_disk_usage_command():
+    """Test creating a disk usage tree command"""
+    print("🌳 Testing Disk Usage Tree Command Creation\n")
+    
+    session_id = f"disk-usage-{int(time.time())}"
+    
+    req = {
+        "type": "possess",
+        "id": session_id,
+        "payload": {
+            "agent": "@ai-engineer",
+            "message": "I need a command that shows disk usage as a tree"
+        }
+    }
+    
+    resp = send_json_request(req)
+    if resp.get("success"):
+        print("✅ Engineer responded")
+        print(f"Response: {resp.get('data', {}).get('message', '')[:300]}...")
+        
+        if resp.get("data", {}).get("command_generated"):
+            print("\n🎉 Disk usage command generated!")
+            spec = resp.get("data", {}).get("command_spec", {})
+            print(f"   Name: {spec.get('name')}")
+            print(f"   Description: {spec.get('description')}")
+            print(f"   Language: {spec.get('language')}")
+        else:
+            print("\n⚠️  No command generated yet")
+    else:
+        print("❌ Failed to contact engineer")
+    
+    print()
+
 def check_generated_command():
     """Check if commands were actually created on disk"""
     print("📁 Checking Generated Commands on Disk\n")
@@ -184,6 +217,7 @@ if __name__ == "__main__":
         # Run tests
         test_possession_flow()
         test_different_agents()
+        test_disk_usage_command()  # New test!
         check_generated_command()
         
         print("\n🎉 AI Possession tests complete!")

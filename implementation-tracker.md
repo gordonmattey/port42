@@ -96,6 +96,11 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - Automatic shebang and permissions
 - PATH setup instructions
 - git-haiku successfully generated and working!
+- **Enhanced with dependency handling!**
+  - Commands check for required tools (lolcat, tree, etc.)
+  - Auto-generated install script at ~/.port42/install-deps.sh
+  - Clear error messages with install instructions
+  - OS-aware installation (brew, apt, yum)
 
 ### ⬜ Step 7: Memory Storage (6:00 PM - 7:00 PM)
 **Goal**: Persist conversations
