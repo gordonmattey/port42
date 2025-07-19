@@ -13,21 +13,27 @@ import time
 # Define all test cases here
 TEST_CASES = [
     {
+        "name": "Rainbow Logs (Working Test)",
+        "agent": "@ai-engineer",
+        "message": "Create a command called 'rainbow-logs' that shows system logs with rainbow colors using lolcat. Make it show the last 20 lines of /var/log/system.log",
+        "expect_command": True
+    },
+    {
         "name": "Git Haiku (Simple)",
         "agent": "@ai-engineer",
-        "message": "I want to create a command called git-haiku that turns git commits into haikus.",
+        "message": "Create a command called 'git-haiku' that shows git commits in haiku format. Use git log --oneline -n 10 to get commits, then format each commit message into three lines like a haiku. Use only bash built-ins, no external dependencies.",
         "expect_command": True
     },
     {
         "name": "Disk Usage Tree",
         "agent": "@ai-engineer", 
-        "message": "I need a command that shows disk usage as a tree.",
+        "message": "Create a command called 'disk-tree' that shows disk usage in a tree format. Use du -h to get sizes and indent subdirectories with spaces to show hierarchy. Show only directories larger than 100MB. Use bash and standard unix tools only.",
         "expect_command": True
     },
     {
         "name": "System Info Dashboard",
-        "agent": "@ai-muse",
-        "message": "I want a command called 'sys-dash' that shows a beautiful dashboard with system info like CPU, memory, disk usage",
+        "agent": "@ai-engineer",
+        "message": "Create a command called 'sys-dash' that displays system information. Show CPU usage (from top -l 1), memory usage (from vm_stat), and disk usage (from df -h). Format it nicely with headers and ASCII borders using printf. Use only bash and standard unix commands.",
         "expect_command": True
     },
     {
@@ -102,8 +108,8 @@ def run_test_case(test_case):
     else:
         print(f"❌ Request failed: {resp.get('error', 'Unknown error')}")
     
-    # Small delay between tests
-    time.sleep(1)
+    # Longer delay between tests to avoid rate limiting
+    time.sleep(5)  # Increased from 1s to 5s
     return resp.get("data", {}).get("command_generated", False)
 
 def check_generated_commands():

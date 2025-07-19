@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,8 @@ type AnthropicClient struct {
 	apiKey     string
 	apiURL     string
 	httpClient *http.Client
+	lastRequest time.Time
+	requestMutex sync.Mutex
 }
 
 // AnthropicRequest represents a request to Claude
@@ -72,6 +75,19 @@ type AnthropicMessage struct {
 
 // Send a message to Claude with retry logic
 func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
+	// Rate limiting: ensure minimum time between requests
+	c.requestMutex.Lock()
+	timeSinceLastRequest := time.Since(c.lastRequest)
+	minDelay := 3 * time.Second // Minimum 3 seconds between requests for Opus
+	
+	if timeSinceLastRequest < minDelay {
+		waitTime := minDelay - timeSinceLastRequest
+		log.Printf("⏳ Rate limiting: waiting %v before next request", waitTime)
+		time.Sleep(waitTime)
+	}
+	c.lastRequest = time.Now()
+	c.requestMutex.Unlock()
+	
 	// Convert our Message format to Anthropic's format (without timestamp)
 	anthropicMessages := make([]AnthropicMessage, len(messages))
 	for i, msg := range messages {
@@ -87,7 +103,7 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	}
 	
 	req := AnthropicRequest{
-		//  Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
+		//Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
 		Model:     "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet - faster
 		Messages:  anthropicMessages,
 		MaxTokens: 4096,
@@ -97,6 +113,19 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	jsonData, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
+	}
+	
+	// Log request details for debugging
+	log.Printf("🔍 Claude API Request: model=%s, messages=%d, tokens=%d", 
+		req.Model, len(req.Messages), req.MaxTokens)
+	
+	// Log full payload for debugging
+	for i, msg := range req.Messages {
+		preview := msg.Content
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		log.Printf("  Message %d [%s]: %s", i+1, msg.Role, preview)
 	}
 	
 	// Retry logic with exponential backoff
@@ -111,6 +140,8 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 			time.Sleep(delay)
 		}
 		
+		startTime := time.Now()
+		
 		httpReq, err := http.NewRequest("POST", c.apiURL, bytes.NewBuffer(jsonData))
 		if err != nil {
 			return nil, err
@@ -121,15 +152,19 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 		httpReq.Header.Set("anthropic-version", "2023-06-01")
 		
 		resp, err := c.httpClient.Do(httpReq)
+		elapsed := time.Since(startTime)
+		
 		if err != nil {
 			// Network error - retry
+			log.Printf("❌ Network error after %v: %v", elapsed, err)
 			if attempt < maxRetries-1 {
-				log.Printf("Network error (will retry): %v", err)
 				continue
 			}
 			return nil, err
 		}
 		defer resp.Body.Close()
+		
+		log.Printf("✅ Claude API responded in %v with status %d", elapsed, resp.StatusCode)
 		
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
