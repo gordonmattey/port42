@@ -211,6 +211,29 @@ create_directories() {
     chmod 755 "$PORT42_HOME/commands"
     chmod 700 "$PORT42_HOME/memory"  # Private for user
     
+    # Create activation helper
+    cat > "$PORT42_HOME/activate.sh" << 'EOF'
+#!/bin/bash
+# Quick activation script for Port 42
+# Usage: source ~/.port42/activate.sh
+
+# Source shell profile based on current shell
+case "$(basename "$SHELL")" in
+    bash) [ -f ~/.bashrc ] && source ~/.bashrc || source ~/.bash_profile ;;
+    zsh) [ -f ~/.zshrc ] && source ~/.zshrc ;;
+    *) echo "Please source your shell profile manually" ;;
+esac
+
+# Restart daemon if API key is now available
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "✅ API key loaded"
+    command -v port42 >/dev/null 2>&1 && port42 daemon restart
+else
+    echo "⚠️  No API key found"
+fi
+EOF
+    chmod +x "$PORT42_HOME/activate.sh"
+    
     print_success "Port 42 directories ready at $PORT42_HOME"
 }
 
@@ -256,6 +279,9 @@ update_path() {
     fi
 }
 
+# Global variable to track if we saved to shell profile
+SAVED_TO_PROFILE=""
+
 # Configure API key
 configure_api_key() {
     # Check if already set in environment
@@ -294,8 +320,11 @@ configure_api_key() {
         fi
     fi
     
-    # Export for current session
+    # Export for current session AND any subshells
     export ANTHROPIC_API_KEY="$api_key"
+    
+    # IMPORTANT: The export above only affects this script's process
+    # We need to tell the user to source their profile or provide the key to the daemon
     
     # Offer to save to shell profile
     echo
@@ -327,11 +356,17 @@ configure_api_key() {
                 echo "# Port 42 - Anthropic API Key" >> "$shell_rc"
                 echo "export ANTHROPIC_API_KEY='$api_key'" >> "$shell_rc"
                 print_success "API key saved to $shell_rc"
+                SAVED_TO_PROFILE="$shell_rc"
             else
                 print_info "API key already exists in $shell_rc"
+                # Still need to activate in current session
+                SAVED_TO_PROFILE="$shell_rc"
             fi
         fi
     fi
+    
+    # Make sure the key is available for the daemon start
+    print_success "API key configured for this installation session"
     
     return 0
 }
@@ -487,10 +522,22 @@ main() {
     echo
     
     if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-        echo -e "${YELLOW}${BOLD}⚠️  Remember to set your API key:${NC}"
+        echo -e "${YELLOW}${BOLD}⚠️  No API key was configured${NC}"
+        echo -e "   To enable AI features:"
         echo -e "   export ANTHROPIC_API_KEY='your-key-here'"
-        echo -e "   port42d  # Start the daemon"
+        echo -e "   port42 daemon restart"
         echo
+    else
+        # Check if the key was just configured but shell needs sourcing
+        if [ -n "$SAVED_TO_PROFILE" ]; then
+            echo -e "${YELLOW}${BOLD}⚠️  One more step to activate AI features:${NC}"
+            echo
+            echo -e "${GREEN}${BOLD}Run this command:${NC}"
+            echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
+            echo
+            echo -e "${BLUE}This will load your API key and restart the daemon${NC}"
+            echo
+        fi
     fi
 }
 

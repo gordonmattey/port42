@@ -60,6 +60,11 @@ fn start_daemon(background: bool) -> Result<()> {
     
     println!("{}", "🐬 Starting Port 42 daemon...".blue().bold());
     
+    // Provide sudo hint
+    println!("{}", "💡 Tip: For port 42, use: sudo -E port42 daemon start -b".dimmed());
+    println!("{}", "   (Otherwise daemon will use port 4242)".dimmed());
+    println!();
+    
     if background {
         // Start in background using nohup
         let log_path = get_log_path();

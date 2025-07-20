@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	
+	"golang.org/x/term"
 )
 
 var (
@@ -26,23 +28,36 @@ func main() {
 	if err != nil {
 		// Check if it's specifically a permission error
 		if strings.Contains(err.Error(), "permission denied") {
-			fmt.Println("🔐 Port 42 requires elevated permissions.")
-			fmt.Println("🐬 The dolphins need permission to swim in the sacred waters of Port 42.")
-			fmt.Println("\nOptions:")
-			fmt.Println("1. Run with sudo: sudo go run main.go")
-			fmt.Println("2. Use port 4242 instead (no permissions needed)")
-			fmt.Print("\nPress Enter to use port 4242, or Ctrl+C to exit and run with sudo: ")
-			
-			// Wait for user input
-			fmt.Scanln()
-			
-			// Try port 4242
-			listener, err = net.Listen("tcp", "127.0.0.1:4242")
-			if err != nil {
-				log.Fatal("Failed to open Port 4242:", err)
+			// Check if running non-interactively (e.g., with nohup)
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				// Non-interactive mode - just fall back to 4242
+				log.Println("🔐 Port 42 requires elevated permissions. Falling back to port 4242...")
+				listener, err = net.Listen("tcp", "127.0.0.1:4242")
+				if err != nil {
+					log.Fatal("Failed to open Port 4242:", err)
+				}
+				port = "4242"
+				log.Println("🐬 Swimming on port 4242...")
+			} else {
+				// Interactive mode - show prompt
+				fmt.Println("🔐 Port 42 requires elevated permissions.")
+				fmt.Println("🐬 The dolphins need permission to swim in the sacred waters of Port 42.")
+				fmt.Println("\nOptions:")
+				fmt.Println("1. Run with sudo: sudo port42d")
+				fmt.Println("2. Use port 4242 instead (no permissions needed)")
+				fmt.Print("\nPress Enter to use port 4242, or Ctrl+C to exit and run with sudo: ")
+				
+				// Wait for user input
+				fmt.Scanln()
+				
+				// Try port 4242
+				listener, err = net.Listen("tcp", "127.0.0.1:4242")
+				if err != nil {
+					log.Fatal("Failed to open Port 4242:", err)
+				}
+				port = "4242"
+				log.Println("🐬 Swimming on port 4242...")
 			}
-			port = "4242"
-			log.Println("🐬 Swimming on port 4242...")
 		} else {
 			// Some other error (like port already in use)
 			log.Fatal("Failed to open Port 42:", err)
