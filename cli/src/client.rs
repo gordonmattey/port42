@@ -15,7 +15,11 @@ struct RecursionGuard;
 
 impl Drop for RecursionGuard {
     fn drop(&mut self) {
-        RECURSION_DEPTH.fetch_sub(1, Ordering::SeqCst);
+        // Saturating sub to prevent underflow
+        let current = RECURSION_DEPTH.load(Ordering::SeqCst);
+        if current > 0 {
+            RECURSION_DEPTH.fetch_sub(1, Ordering::SeqCst);
+        }
     }
 }
 
@@ -42,18 +46,18 @@ impl DaemonClient {
     pub fn ensure_connected(&mut self) -> Result<()> {
         // Guard against recursion
         let depth = RECURSION_DEPTH.fetch_add(1, Ordering::SeqCst);
+        
+        // Create guard immediately after incrementing
+        let _guard = RecursionGuard;
+        
         if std::env::var("PORT42_DEBUG").is_ok() {
             eprintln!("DEBUG: ensure_connected: Recursion depth = {}", depth);
         }
         
         // Prevent stack overflow from recursive calls
         if depth > 3 {
-            RECURSION_DEPTH.store(0, Ordering::SeqCst);
             return Err(anyhow!("Connection recursion detected - possible stack overflow"));
         }
-        
-        // Ensure we decrement on all exit paths
-        let _guard = RecursionGuard;
         
         // Check if we already have a connection
         if self.stream.is_some() {

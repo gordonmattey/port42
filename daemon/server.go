@@ -179,6 +179,9 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleMemory(req)
 	case RequestEnd:
 		return d.handleEnd(req)
+	case "ping":
+		// Simple ping handler for connection checks
+		return NewResponse(req.ID, true)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))

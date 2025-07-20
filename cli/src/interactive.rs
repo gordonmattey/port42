@@ -184,15 +184,23 @@ impl InteractiveSession {
     }
     
     fn send_message(&mut self, message: &str) -> Result<(String, Option<String>)> {
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: Interactive send_message: session_id={}, agent={}, depth={}", 
+                      self.session_id, self.agent, self.depth);
+        }
+        
         let request = Request {
             request_type: "possess".to_string(),
             id: self.session_id.clone(),
             payload: serde_json::json!({
                 "agent": self.agent,
-                "message": message,
-                "depth": self.depth,
+                "message": message
             }),
         };
+        
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: Interactive request built, calling client.request()");
+        }
         
         let response = self.client.request(request)?;
         
