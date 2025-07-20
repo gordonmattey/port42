@@ -68,13 +68,16 @@ $ git-haiku
   - Recent sessions automatically loaded on startup
 
 ### 🚧 In Progress (Day 2)
-- **Rust CLI**: Basic structure complete! ✅
+- **Rust CLI**: TCP client complete! ✅
   - Beautiful command-line interface with `clap`
   - All commands defined with help text
   - Status command working with real daemon
+  - List command shows all generated commands
+  - Possess command for AI interactions
   - Colored output and friendly error messages
-- TCP client implementation (next)
-- Interactive possession mode
+  - Robust TCP client with connection pooling
+  - Enhanced error handling with helpful messages
+- Interactive possession mode (next)
 - Installation script
 
 ## Quick Start (Development)
