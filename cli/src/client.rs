@@ -119,8 +119,20 @@ impl DaemonClient {
         // Read response (line-based protocol)
         let reader = self.reader.as_mut().unwrap();
         let mut line = String::new();
-        reader.read_line(&mut line)
+        
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: About to read response line");
+        }
+        
+        let bytes_read = reader.read_line(&mut line)
             .map_err(|e| self.enhance_io_error(e, "reading response"))?;
+            
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: Read {} bytes, has_newline={}", bytes_read, line.ends_with('\n'));
+            if bytes_read == 0 {
+                eprintln!("DEBUG: Got 0 bytes - connection closed by daemon");
+            }
+        }
         
         let elapsed = start.elapsed();
         
@@ -135,6 +147,8 @@ impl DaemonClient {
             eprintln!("DEBUG: Response line length: {} bytes", line.len());
             if line.len() > 1000 {
                 eprintln!("DEBUG: Large response detected! First 200 chars: {}", &line[..200.min(line.len())]);
+            } else if line.len() < 100 && line.len() > 0 {
+                eprintln!("DEBUG: Small response: '{}'", line.trim());
             }
         }
         
@@ -169,14 +183,72 @@ impl DaemonClient {
     
     /// Test if the connection is still alive
     fn ping(&mut self) -> Result<()> {
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: ping() called");
+        }
+        
         let req = Request {
             request_type: "ping".to_string(),
             id: "ping".to_string(),
             payload: serde_json::Value::Null,
         };
         
-        self.request_timeout(req, Duration::from_millis(500))?;
-        Ok(())
+        // Don't use request_timeout as it might cause recursion
+        // Instead, do a simple write/read test
+        let stream = self.stream.as_mut().ok_or_else(|| anyhow!("No stream for ping"))?;
+        let json = serde_json::to_string(&req)?;
+        
+        // Try to write
+        if let Err(e) = stream.write_all(json.as_bytes()) {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: ping write failed: {}", e);
+            }
+            return Err(anyhow!("Ping write failed"));
+        }
+        
+        if let Err(e) = stream.write_all(b"\n") {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: ping newline write failed: {}", e);
+            }
+            return Err(anyhow!("Ping write failed"));
+        }
+        
+        if let Err(e) = stream.flush() {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: ping flush failed: {}", e);
+            }
+            return Err(anyhow!("Ping flush failed"));
+        }
+        
+        // Try to read response
+        let reader = self.reader.as_mut().ok_or_else(|| anyhow!("No reader for ping"))?;
+        let mut line = String::new();
+        
+        match reader.read_line(&mut line) {
+            Ok(0) => {
+                if std::env::var("PORT42_DEBUG").is_ok() {
+                    eprintln!("DEBUG: ping read returned 0 bytes - connection closed");
+                }
+                Err(anyhow!("Connection closed"))
+            }
+            Ok(n) => {
+                if std::env::var("PORT42_DEBUG").is_ok() {
+                    eprintln!("DEBUG: ping read {} bytes: {}", n, line.trim());
+                }
+                // Just check if we got a response, don't parse it
+                if n > 0 {
+                    Ok(())
+                } else {
+                    Err(anyhow!("Empty ping response"))
+                }
+            }
+            Err(e) => {
+                if std::env::var("PORT42_DEBUG").is_ok() {
+                    eprintln!("DEBUG: ping read failed: {}", e);
+                }
+                Err(anyhow!("Ping read failed"))
+            }
+        }
     }
     
     /// Check if daemon is running (without connecting)
