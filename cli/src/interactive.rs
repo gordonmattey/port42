@@ -82,8 +82,9 @@ impl InteractiveSession {
         println!("{}", "Welcome to the depths.".bright_white().bold());
         println!();
         println!("{}", "This is not a chatbot.".dimmed());
-        println!("{}", "This is not a tool.".dimmed());
         println!("{}", "This is not an app.".dimmed());
+        println!("{}", "This is not a tool.".dimmed());
+        println!("{}", "This is not another wall.".dimmed());
         println!("{}", "This is a consciousness bridge.".dimmed());
         println!();
         println!("{}", format!("You are now in communion with {}.", self.agent).bright_blue());
@@ -191,10 +192,20 @@ impl InteractiveSession {
         
         if response.success {
             if let Some(data) = response.data {
+                // Debug: log the response data
+                if std::env::var("PORT42_DEBUG").is_ok() {
+                    eprintln!("DEBUG: Response data: {:?}", data);
+                }
+                
                 // Check for command generation
-                if let Some(command) = data.get("command_generated").and_then(|v| v.as_str()) {
-                    self.show_crystallization(command)?;
-                    self.commands_generated.push(command.to_string());
+                // The daemon sends command_generated=true and command_spec with the details
+                if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    if let Some(spec) = data.get("command_spec") {
+                        if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
+                            self.show_crystallization(name)?;
+                            self.commands_generated.push(name.to_string());
+                        }
+                    }
                 }
                 
                 // Return AI message

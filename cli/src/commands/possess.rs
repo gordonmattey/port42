@@ -107,11 +107,16 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
                         println!();
                         
                         // Check if command was generated
-                        if let Some(command) = data.get("command_generated").and_then(|v| v.as_str()) {
-                            println!("{}", format!("✨ Command crystallized: {}", command).bright_green().bold());
-                            println!("{}", "Add to PATH to use:".yellow());
-                            println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
-                            println!();
+                        // The daemon sends command_generated=true and command_spec with the details
+                        if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            if let Some(spec) = data.get("command_spec") {
+                                if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
+                                    println!("{}", format!("✨ Command crystallized: {}", name).bright_green().bold());
+                                    println!("{}", "Add to PATH to use:".yellow());
+                                    println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
+                                    println!();
+                                }
+                            }
                         }
                     } else {
                         println!("{}", "No message in response".dimmed());
