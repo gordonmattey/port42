@@ -319,8 +319,59 @@ func (d *Daemon) buildConversationContext(session *Session, agent string) []Mess
 		Content: systemPrompt,
 	})
 	
-	// Add conversation history
-	messages = append(messages, session.Messages...)
+	// Smart context selection based on token limits
+	const maxContextMessages = 20  // Configurable
+	const summaryThreshold = 10    // When to start summarizing
+	
+	sessionMessages := session.Messages
+	totalMessages := len(sessionMessages)
+	
+	if totalMessages <= maxContextMessages {
+		// Include all messages if under limit
+		messages = append(messages, sessionMessages...)
+		log.Printf("📚 Context: Including all %d messages", totalMessages)
+	} else {
+		// Intelligent selection strategy for long sessions
+		log.Printf("📚 Context: Session has %d messages, applying smart windowing", totalMessages)
+		
+		// 1. Always include first 2 messages (establish context)
+		firstMessages := 2
+		if totalMessages < firstMessages {
+			firstMessages = totalMessages
+		}
+		messages = append(messages, sessionMessages[:firstMessages]...)
+		
+		// 2. Add a summary message for skipped content
+		skippedCount := totalMessages - maxContextMessages
+		if skippedCount > summaryThreshold {
+			summaryMsg := Message{
+				Role: "assistant",
+				Content: fmt.Sprintf("[Session context: %d previous messages omitted. The conversation has covered command generation, session context, and user preferences. Continuing from recent messages...]", skippedCount),
+				Timestamp: time.Now(),
+			}
+			messages = append(messages, summaryMsg)
+		}
+		
+		// 3. Include recent messages (most important for continuity)
+		recentCount := maxContextMessages - firstMessages - 1 // -1 for potential summary
+		if recentCount > 0 {
+			recentStart := totalMessages - recentCount
+			messages = append(messages, sessionMessages[recentStart:]...)
+			log.Printf("📚 Context: Included %d recent messages (from index %d)", recentCount, recentStart)
+		}
+	}
+	
+	// Log context stats
+	var userMsgCount, assistantMsgCount int
+	for _, msg := range messages {
+		if msg.Role == "user" {
+			userMsgCount++
+		} else if msg.Role == "assistant" {
+			assistantMsgCount++
+		}
+	}
+	log.Printf("📊 Context built: %d total messages (%d user, %d assistant)", 
+		len(messages), userMsgCount, assistantMsgCount)
 	
 	return messages
 }

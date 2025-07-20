@@ -185,7 +185,7 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 
 ## Day 2: Rust CLI & Polish (10 hours)
 
-### ⬜ Step 10: Basic Rust CLI (9:00 AM - 10:00 AM)
+### ⬜ Step 10a: Basic Rust CLI (9:00 AM - 10:00 AM)
 **Goal**: CLI structure with clap
 - [ ] Create cli/Cargo.toml
 - [ ] Implement main.rs with subcommands
@@ -194,7 +194,7 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 **Status**: Not started
 **Notes**:
 
-### ⬜ Step 10: TCP Client (10:00 AM - 11:00 AM)
+### ⬜ Step 10b: TCP Client (10:00 AM - 11:00 AM)
 **Goal**: Connect CLI to daemon
 - [ ] TCP connection to localhost:42
 - [ ] Send/receive JSON

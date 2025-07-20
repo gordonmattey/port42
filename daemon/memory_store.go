@@ -167,16 +167,22 @@ func (m *MemoryStore) SaveSession(session *Session) error {
 	return nil
 }
 
-// LoadSession loads a specific session from disk
+// LoadSession loads a specific session by ID from disk
 func (m *MemoryStore) LoadSession(id string) (*PersistentSession, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Find session in index
+	// Search index for session file
 	for _, summary := range m.index.Sessions {
 		if summary.ID == id {
+			// summary.File already contains the relative path from sessions dir
 			filePath := filepath.Join(m.baseDir, "memory", "sessions", summary.File)
-			return m.loadSessionFromFile(filePath)
+			session, err := m.loadSessionFromFile(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load session %s: %v", id, err)
+			}
+			log.Printf("✅ Loaded session %s from disk: %s", id, filePath)
+			return session, nil
 		}
 	}
 

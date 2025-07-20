@@ -190,16 +190,52 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	
+	// Step 1: Check in-memory sessions
 	if session, exists := d.sessions[sessionID]; exists {
 		// Update last activity
 		session.LastActivity = time.Now()
 		if session.State == SessionIdle {
 			session.State = SessionActive
-			log.Printf("🔄 Session %s reactivated", sessionID)
+			log.Printf("🔄 Session %s reactivated from memory", sessionID)
 		}
 		return session
 	}
 	
+	// Step 2: Check on disk (NEW)
+	if d.memoryStore != nil {
+		if persistedSession, err := d.memoryStore.LoadSession(sessionID); err == nil {
+			// Convert from PersistentSession to Session
+			session := &Session{
+				ID:               persistedSession.ID,
+				Agent:            persistedSession.Agent,
+				CreatedAt:        persistedSession.CreatedAt,
+				LastActivity:     time.Now(), // Update to current time
+				State:            SessionActive, // Reactivate session
+				Messages:         persistedSession.Messages,
+				CommandGenerated: nil,
+				IdleTimeout:      30 * time.Minute,
+			}
+			
+			// Convert command info if exists
+			if persistedSession.CommandGenerated != nil {
+				// Note: CommandGenerationInfo only stores basic info (name, path, created_at)
+				// The full CommandSpec is not persisted, just tracking that a command was generated
+				session.CommandGenerated = &CommandSpec{
+					Name: persistedSession.CommandGenerated.Name,
+					// Other fields would need to be loaded from the actual command file if needed
+				}
+			}
+			
+			// Add to active sessions
+			d.sessions[sessionID] = session
+			
+			log.Printf("🔄 Session %s restored from disk (%d messages)", 
+				sessionID, len(session.Messages))
+			return session
+		}
+	}
+	
+	// Step 3: Create new session (existing logic)
 	now := time.Now()
 	session := &Session{
 		ID:           sessionID,

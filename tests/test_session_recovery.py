@@ -89,16 +89,22 @@ session_dir = os.path.join(memory_dir, today)
 
 session_found = False
 if os.path.exists(session_dir):
+    # Extract timestamp from session_id (e.g., "recovery-test-1752974212" -> "1752974212")
+    timestamp = session_id.split('-')[-1]
+    
     for filename in os.listdir(session_dir):
-        if session_id in filename:
-            session_found = True
+        # Check if timestamp is in filename
+        if timestamp in filename and filename.endswith('.json'):
             filepath = os.path.join(session_dir, filename)
+            # Verify it's actually our session by checking inside the file
             with open(filepath, 'r') as f:
                 session_data = json.load(f)
-                print(f"✅ Session file found: {filename}")
-                print(f"   Messages saved: {len(session_data.get('messages', []))}")
-                print(f"   State: {session_data.get('state')}")
-            break
+                if session_data.get('id') == session_id:
+                    session_found = True
+                    print(f"✅ Session file found: {filename}")
+                    print(f"   Messages saved: {len(session_data.get('messages', []))}")
+                    print(f"   State: {session_data.get('state')}")
+                    break
 
 if not session_found:
     print("❌ Session file not found on disk")
@@ -114,7 +120,7 @@ print("   c) Run the continuation test below")
 # Test 4: Test continuation (for manual testing after restart)
 print("\n4. Session continuation test (run after daemon restart)...")
 print(f"   Run this command to test continuation:")
-print(f'   echo \'{"type":"possess","id":"{session_id}","payload":{{"agent":"@ai-muse","message":"Do you still remember my favorite color and the animal?"}}}}\' | nc localhost 42 | jq .')
+print(f'   echo \'{{"type":"possess","id":"{session_id}","payload":{{"agent":"@ai-muse","message":"Do you still remember my favorite color and the animal?"}}}}\' | nc localhost 42 | jq .')
 
 # Test 5: Check what happens with a new session with same ID
 print("\n5. Testing new session with recovered ID...")
