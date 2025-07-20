@@ -57,12 +57,13 @@ $ git-haiku
   - **Dependency handling**: Commands check for required tools
   - Auto-generated installer script (~/.port42/install-deps.sh)
 
-- **Memory Persistence**: Sessions saved to disk! ✅
+- **Memory Persistence & Session Continuation**: True persistence! ✅
   - All conversations persisted to ~/.port42/memory/sessions/
   - JSON format for easy exploration and debugging
   - Sessions organized by date (2025-01-19/session-*.json)
   - Index file tracks all sessions with statistics
-  - Sessions survive daemon restarts
+  - **Session continuation after restart**: Pick up where you left off!
+  - **Smart context windowing**: Handles long conversations intelligently
   - Activity-based lifecycle: Active → Idle (30min) → Abandoned (60min)
   - Recent sessions automatically loaded on startup
 

@@ -122,6 +122,85 @@ type MemorySummarizer interface {
 - Pattern recognition across interactions
 - Compressed storage for old memories
 
+## Phase 2.5: Multi-User Support (Q2 2025)
+
+### Context
+Currently, Port 42 uses a single API key shared across all local users. Anthropic's API is stateless - no server-side session management or user isolation.
+
+### User Isolation Architecture
+**Goal**: Support multiple users with isolated sessions and API keys
+
+```go
+type MultiUserDaemon struct {
+    users    map[string]*UserContext
+    sessions map[string]*Session  // key: "userID:sessionID"
+}
+
+type UserContext struct {
+    ID          string
+    APIKey      string         // Each user's own API key
+    MemoryStore *MemoryStore   // Isolated memory
+    RateLimiter *RateLimiter   // Per-user limits
+    Usage       *UsageTracker  // Individual tracking
+}
+```
+
+### Implementation Plan
+
+#### 1. User Authentication
+- Local user accounts (no external auth initially)
+- Session tokens for CLI→daemon communication
+- Optional: OS user integration
+
+#### 2. Isolated Storage
+```
+~/.port42/users/{user-id}/
+├── memory/       # User's conversations
+├── commands/     # User's generated commands
+├── config.toml   # User preferences
+└── usage.json    # Usage statistics
+```
+
+#### 3. API Key Management
+- Each user provides their own API key
+- Secure storage in OS keychain
+- Optional: Shared pool with usage tracking
+
+#### 4. Session Namespacing
+```go
+// All sessions prefixed with user ID
+sessionID := fmt.Sprintf("%s:%s", userID, requestedSessionID)
+```
+
+#### 5. Rate Limiting & Usage
+- Per-user rate limits
+- Individual usage tracking
+- Cost allocation and billing
+
+### CLI Changes
+```bash
+# User management
+port42 user create --name alice
+port42 user login alice
+port42 user switch bob
+
+# Per-user commands
+port42 list --user alice
+port42 possess @ai-muse --user bob
+```
+
+### Security Considerations
+- Daemon still localhost-only
+- User tokens expire after inactivity
+- No cross-user session access
+- Audit logs per user
+
+### Migration Path
+1. Single-user mode remains default
+2. Multi-user opt-in via config
+3. Existing sessions migrate to "default" user
+4. Backwards compatible
+
 ## Phase 3: Shared Intelligence (Q3 2025)
 
 ### Collaborative Memory
