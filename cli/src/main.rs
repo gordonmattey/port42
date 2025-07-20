@@ -7,6 +7,7 @@ mod commands;
 mod client;
 mod types;
 mod interactive;
+mod shell;
 
 use commands::*;
 
@@ -213,9 +214,9 @@ fn main() -> Result<()> {
         }
         
         None => {
-            // No command provided - launch interactive mode
-            // Default to @claude as the agent
-            possess::handle_possess(port, "@claude".to_string(), None, None)?;
+            // No command provided - launch Port 42 shell
+            let mut shell = shell::Port42Shell::new(port);
+            shell.run()?;
         }
     }
     

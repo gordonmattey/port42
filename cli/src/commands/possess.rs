@@ -13,12 +13,33 @@ pub fn handle_possess(
     message: Option<String>, 
     session: Option<String>
 ) -> Result<()> {
-    // Show boot sequence for both interactive and non-interactive modes
-    let is_tty = atty::is(atty::Stream::Stdout);
-    let clear_screen = is_tty && message.is_none(); // Only clear screen for interactive mode
-    
-    show_boot_sequence(clear_screen, port)?;
-    show_connection_progress(&agent)?;
+    handle_possess_with_boot(port, agent, message, session, true)
+}
+
+pub fn handle_possess_no_boot(
+    port: u16, 
+    agent: String, 
+    message: Option<String>, 
+    session: Option<String>
+) -> Result<()> {
+    handle_possess_with_boot(port, agent, message, session, false)
+}
+
+fn handle_possess_with_boot(
+    port: u16, 
+    agent: String, 
+    message: Option<String>, 
+    session: Option<String>,
+    show_boot: bool
+) -> Result<()> {
+    // Show boot sequence only if requested
+    if show_boot {
+        let is_tty = atty::is(atty::Stream::Stdout);
+        let clear_screen = is_tty && message.is_none(); // Only clear screen for interactive mode
+        
+        show_boot_sequence(clear_screen, port)?;
+        show_connection_progress(&agent)?;
+    }
     
     let mut client = DaemonClient::new(port);
     
