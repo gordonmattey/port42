@@ -46,6 +46,8 @@ type SessionSummary struct {
 	State            string    `json:"state"`
 	File             string    `json:"file"`
 	CreatedAt        time.Time `json:"created_at"`
+	LastActivity     time.Time `json:"last_activity"`
+	MessageCount     int       `json:"message_count"`
 }
 
 // MemoryStats tracks usage statistics

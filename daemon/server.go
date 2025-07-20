@@ -43,6 +43,7 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+
 // Config holds daemon configuration
 type Config struct {
 	Port         string
@@ -473,28 +474,48 @@ func (d *Daemon) handleMemory(req Request) Response {
 	for id := range d.sessions {
 		log.Printf("   - %s", id)
 	}
-	sessions := make([]*Session, 0, len(d.sessions))
+	
+	// Create summaries for active sessions
+	activeSummaries := make([]SessionSummary, 0, len(d.sessions))
 	for _, session := range d.sessions {
-		sessions = append(sessions, session)
+		activeSummaries = append(activeSummaries, SessionSummary{
+			ID:           session.ID,
+			Agent:        session.Agent,
+			CreatedAt:    session.CreatedAt,
+			LastActivity: session.LastActivity,
+			MessageCount: len(session.Messages),
+			State:        string(session.State),
+		})
 	}
 	d.mu.RUnlock()
 	
 	// Get recent sessions from disk if memory store available
-	var recentSessions []*PersistentSession
+	var recentSummaries []SessionSummary
 	var stats *MemoryStats
 	
 	if d.memoryStore != nil {
 		// Load last 7 days of sessions
 		if sessions, err := d.memoryStore.LoadRecentSessions(7); err == nil {
-			recentSessions = sessions
+			// Convert to summaries
+			recentSummaries = make([]SessionSummary, 0, len(sessions))
+			for _, ps := range sessions {
+				recentSummaries = append(recentSummaries, SessionSummary{
+					ID:           ps.ID,
+					Agent:        ps.Agent,
+					CreatedAt:    ps.CreatedAt,
+					LastActivity: ps.LastActivity,
+					MessageCount: len(ps.Messages),
+					State:        string(ps.State),
+				})
+			}
 		}
 		stats = d.memoryStore.GetStats()
 	}
 	
 	data := map[string]interface{}{
-		"active_sessions": sessions,
-		"active_count":    len(sessions),
-		"recent_sessions": recentSessions,
+		"active_sessions": activeSummaries,
+		"active_count":    len(activeSummaries),
+		"recent_sessions": recentSummaries,
 		"stats":           stats,
 		"uptime":          time.Since(startTime).String(),
 	}

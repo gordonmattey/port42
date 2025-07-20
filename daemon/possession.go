@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+// Helper to get keys from map[string]interface{}
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // AnthropicClient handles communication with Claude
 type AnthropicClient struct {
 	apiKey     string
@@ -302,6 +311,14 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	if commandSpec != nil {
 		data["command_spec"] = commandSpec
 		data["command_generated"] = true
+	}
+	
+	// Debug: Log response size
+	if jsonBytes, err := json.Marshal(data); err == nil {
+		log.Printf("🔍 Possess response size: %d bytes", len(jsonBytes))
+		if len(jsonBytes) > 10000 {
+			log.Printf("⚠️  Large possess response detected! Keys: %v", getMapKeys(data))
+		}
 	}
 	
 	resp.SetData(data)
