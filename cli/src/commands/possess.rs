@@ -36,6 +36,7 @@ pub fn handle_possess(
     
     if let Some(msg) = message {
         // Single message mode
+        println!("{}", "Sending single message...".dimmed());
         send_message(&mut client, &session_id, &agent, &msg)?;
     } else {
         // Check if terminal supports interactive features
@@ -102,6 +103,10 @@ fn simple_interactive_mode(client: &mut DaemonClient, session_id: &str, agent: &
 }
 
 fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, message: &str) -> Result<()> {
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: Sending message to session: {}", session_id);
+    }
+    
     let request = Request {
         request_type: "possess".to_string(),
         id: session_id.to_string(),
@@ -110,6 +115,10 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
             "message": message
         }),
     };
+    
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: About to send request to daemon");
+    }
     
     match client.request(request) {
         Ok(response) => {
@@ -166,10 +175,14 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         Ok(response) => {
             if response.success {
                 if let Some(data) = response.data {
-                    // Debug: Check size of response
+                    // Debug: Check response without serializing
                     if std::env::var("PORT42_DEBUG").is_ok() {
-                        let json_size = serde_json::to_string(&data).map(|s| s.len()).unwrap_or(0);
-                        eprintln!("DEBUG: Memory response size: {} bytes", json_size);
+                        if let Some(obj) = data.as_object() {
+                            eprintln!("DEBUG: Memory response has {} keys", obj.len());
+                        }
+                        if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
+                            eprintln!("DEBUG: Found {} recent sessions", recent.len());
+                        }
                     }
                     
                     // Check recent_sessions array
