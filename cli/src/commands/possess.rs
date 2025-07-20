@@ -4,6 +4,7 @@ use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
 use crate::types::Request;
 use std::io::{self, Write};
+use chrono::{DateTime, Utc};
 
 pub fn handle_possess(
     port: u16, 
@@ -15,10 +16,23 @@ pub fn handle_possess(
     
     let mut client = DaemonClient::new(port);
     
-    // Generate session ID
-    let session_id = session.unwrap_or_else(|| {
-        format!("cli-{}", chrono::Utc::now().timestamp())
-    });
+    // Determine session ID: use provided, continue recent, or generate new
+    let session_id = if let Some(id) = session {
+        // User explicitly provided a session ID
+        id
+    } else {
+        // Try to find and continue the most recent session with this agent
+        match find_recent_session(&mut client, &agent)? {
+            Some(recent_id) => {
+                println!("{}", format!("↻ Continuing recent session: {}", recent_id).dimmed());
+                recent_id
+            }
+            None => {
+                // No recent session, create new
+                format!("cli-{}", chrono::Utc::now().timestamp())
+            }
+        }
+    };
     
     if let Some(msg) = message {
         // Single message mode
@@ -138,4 +152,73 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
     }
     
     Ok(())
+}
+
+fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<String>> {
+    // Query daemon for recent sessions
+    let request = Request {
+        request_type: "memory".to_string(),
+        id: "cli-memory-query".to_string(),
+        payload: serde_json::Value::Null,
+    };
+    
+    match client.request(request) {
+        Ok(response) => {
+            if response.success {
+                if let Some(data) = response.data {
+                    // Check recent_sessions array
+                    if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
+                        // Find the most recent session with this agent
+                        let mut best_session: Option<(String, DateTime<Utc>)> = None;
+                        
+                        for session in recent {
+                            if let (Some(session_agent), Some(id), Some(last_activity)) = (
+                                session.get("agent").and_then(|v| v.as_str()),
+                                session.get("id").and_then(|v| v.as_str()),
+                                session.get("last_activity").and_then(|v| v.as_str())
+                            ) {
+                                // Match agent (with @ prefix handling)
+                                let session_agent_normalized = if session_agent.starts_with('@') {
+                                    session_agent.to_string()
+                                } else {
+                                    format!("@{}", session_agent)
+                                };
+                                
+                                if session_agent_normalized == agent {
+                                    // Parse timestamp
+                                    if let Ok(activity_time) = last_activity.parse::<DateTime<Utc>>() {
+                                        // Only consider sessions less than 24 hours old
+                                        let age = Utc::now() - activity_time;
+                                        if age.num_hours() < 24 {
+                                            match &best_session {
+                                                None => best_session = Some((id.to_string(), activity_time)),
+                                                Some((_, best_time)) => {
+                                                    if activity_time > *best_time {
+                                                        best_session = Some((id.to_string(), activity_time));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Ok(best_session.map(|(id, _)| id))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            } else {
+                // If memory query fails, just create new session
+                Ok(None)
+            }
+        }
+        Err(_) => {
+            // If we can't query memory, just create new session
+            Ok(None)
+        }
+    }
 }
