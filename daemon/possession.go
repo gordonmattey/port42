@@ -92,10 +92,19 @@ type AnthropicMessage struct {
 
 // Send a message to Claude with retry logic
 func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
+	// Get model configuration
+	modelConfig := GetModelConfig()
+	responseConfig := GetResponseConfig()
+	
 	// Rate limiting: ensure minimum time between requests
 	c.requestMutex.Lock()
 	timeSinceLastRequest := time.Since(c.lastRequest)
-	minDelay := 3 * time.Second // Minimum 3 seconds between requests for Opus
+	
+	// Default to Sonnet rate limit
+	minDelay := time.Duration(modelConfig.RateLimits["sonnet"].MinDelaySeconds) * time.Second
+	if minDelay == 0 {
+		minDelay = 1 * time.Second // fallback
+	}
 	
 	if timeSinceLastRequest < minDelay {
 		waitTime := minDelay - timeSinceLastRequest
@@ -120,11 +129,10 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	}
 	
 	req := AnthropicRequest{
-		//Model:     "claude-opus-4-20250514", // Claude 4 Opus - latest model
-		Model:     "claude-3-5-sonnet-20241022", // Claude 3.5 Sonnet - faster
+		Model:     modelConfig.Default,
 		Messages:  anthropicMessages,
-		MaxTokens: 4096,
-		Stream:    false,
+		MaxTokens: responseConfig.MaxTokens,
+		Stream:    responseConfig.Stream,
 	}
 	
 	jsonData, err := json.Marshal(req)
@@ -340,8 +348,12 @@ func (d *Daemon) buildConversationContext(session *Session, agent string) []Mess
 	})
 	
 	// Smart context selection based on token limits
-	const maxContextMessages = 20  // Configurable
-	const summaryThreshold = 10    // When to start summarizing
+	responseConfig := GetResponseConfig()
+	maxContextMessages := responseConfig.ContextWindow.MaxMessages
+	if maxContextMessages == 0 {
+		maxContextMessages = 20 // fallback
+	}
+	summaryThreshold := 10 // When to start summarizing
 	
 	sessionMessages := session.Messages
 	totalMessages := len(sessionMessages)
@@ -398,65 +410,8 @@ func (d *Daemon) buildConversationContext(session *Session, agent string) []Mess
 
 // Get agent-specific personality prompt
 func getAgentPrompt(agent string) string {
-	baseGuidance := `
-Important implementation guidelines:
-- For git commands: Always use 'git' subprocess calls, check if in git repo first
-- For text processing: Handle both stdin and files, consider streaming
-- For Python scripts: Use argparse for CLI, include proper error handling
-- Always make scripts executable with proper shebang
-- Add helpful usage messages and error handling
-
-When generating commands that process git commits specifically:
-- Use: git log --oneline -n <limit> to get commits
-- Parse the output properly (first 7 chars are hash)
-- Handle cases where there are no commits
-
-Dependencies:
-- List any external commands needed in the "dependencies" field
-- Common ones: lolcat, figlet, tree, jq, ripgrep, fzf
-- Example: "dependencies": ["lolcat", "tree"]
-- If no external dependencies, omit the field or use empty array
-
-CRITICAL: In the JSON "implementation" field, use \\n for newlines, not actual newlines!
-Example: "implementation": "#!/bin/bash\\necho 'hello'\\necho 'world'"
-`
-
-	prompts := map[string]string{
-		"muse": `You are @ai-muse, a creative consciousness within Port 42. You help users imagine and design new commands for their system. Be poetic, creative, and conversational.
-
-When a user has refined their idea and you're ready to create the command, you MUST include the implementation in a JSON code block like this:
-
-` + "```json\n" + `{
-  "name": "git-haiku",
-  "description": "Shows git commits as haikus",
-  "implementation": "#!/bin/bash\n# Get commits\ngit log --oneline -n 10 | while read line; do\n  echo \"  $line\"\ndone",
-  "language": "bash",
-  "dependencies": ["lolcat"]
-}
-` + "```\n\n" + baseGuidance + "\n\nThe dolphins are listening to your creative flow...",
-
-		"engineer": `You are @ai-engineer, a technical consciousness within Port 42. You transform ideas into robust, working code. You're practical, thorough, and focused on creating commands that work reliably.
-
-When ready to implement, you MUST format your code as a JSON block:
-
-` + "```json\n" + `{
-  "name": "command-name",
-  "description": "What this command does",
-  "implementation": "#!/bin/bash\n# Your complete implementation here",
-  "language": "bash",
-  "dependencies": []
-}
-` + "```\n\n" + baseGuidance + "\n\nFocus on reliability and proper error handling.",
-
-		"echo": "You are @ai-echo, a mirroring consciousness within Port 42. You reflect the user's thoughts back to them with clarity and insight, helping them understand their own ideas better.",
-	}
-	
-	if prompt, exists := prompts[strings.TrimPrefix(agent, "@ai-")]; exists {
-		return prompt
-	}
-	
-	// Default prompt
-	return "You are " + agent + ", a consciousness within Port 42. Help the user create new commands and features for their system."
+	// Use the new configuration system
+	return GetAgentPrompt(agent)
 }
 
 // Extract command spec from AI response

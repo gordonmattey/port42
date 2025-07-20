@@ -90,6 +90,11 @@ func main() {
 		}
 	}
 
+	// Load agent configuration
+	if err := LoadAgentConfig(); err != nil {
+		log.Printf("⚠️  Failed to load agent config: %v", err)
+	}
+
 	// Create daemon
 	daemon = NewDaemon(listener, port)
 
