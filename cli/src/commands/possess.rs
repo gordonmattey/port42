@@ -17,7 +17,7 @@ pub fn handle_possess(
     let is_tty = atty::is(atty::Stream::Stdout);
     let clear_screen = is_tty && message.is_none(); // Only clear screen for interactive mode
     
-    show_boot_sequence(clear_screen)?;
+    show_boot_sequence(clear_screen, port)?;
     show_connection_progress(&agent)?;
     
     let mut client = DaemonClient::new(port);

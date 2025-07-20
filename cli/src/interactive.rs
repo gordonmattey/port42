@@ -5,7 +5,6 @@ use std::time::{Duration, Instant};
 use std::thread;
 use crate::client::DaemonClient;
 use crate::types::Request;
-use crate::boot::{show_boot_sequence, show_connection_progress};
 
 pub struct InteractiveSession {
     client: DaemonClient,
@@ -29,16 +28,10 @@ impl InteractiveSession {
     }
     
     pub fn run(&mut self) -> Result<()> {
-        self.show_boot_sequence()?;
+        // Boot sequence already shown in handle_possess
         self.show_welcome()?;
         self.conversation_loop()?;
         self.show_exit_summary()?;
-        Ok(())
-    }
-    
-    fn show_boot_sequence(&self) -> Result<()> {
-        show_boot_sequence(true)?;
-        show_connection_progress(&self.agent)?;
         Ok(())
     }
     

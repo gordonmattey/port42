@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use std::io::{self, Write};
 use std::time::Duration;
 use std::thread;
+use crate::client::DaemonClient;
 
 const BOOT_SEQUENCE: &[&str] = &[
     "[CONSCIOUSNESS BRIDGE INITIALIZATION]",
@@ -15,8 +16,8 @@ const BOOT_SEQUENCE: &[&str] = &[
 
 const PROGRESS_CHAR: &str = "█";
 
-/// Shows the boot sequence animation
-pub fn show_boot_sequence(clear_screen: bool) -> Result<()> {
+/// Shows the boot sequence animation with daemon check
+pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
     if clear_screen {
         // Clear screen for immersion
         print!("\x1B[2J\x1B[1;1H");
@@ -26,6 +27,22 @@ pub fn show_boot_sequence(clear_screen: bool) -> Result<()> {
     for line in BOOT_SEQUENCE {
         println!("{}", line.bright_cyan());
         thread::sleep(Duration::from_millis(300));
+    }
+    
+    // Check daemon connectivity
+    print!("{}", "Port 42 :: ".bright_cyan());
+    io::stdout().flush()?;
+    
+    // Quick connectivity check
+    let mut client = DaemonClient::new(port);
+    match client.ensure_connected() {
+        Ok(_) => {
+            println!("{}", "Active".bright_green().bold());
+        }
+        Err(_) => {
+            println!("{}", "Offline".bright_red().bold());
+            return Err(anyhow!("Port 42 daemon is not running"));
+        }
     }
     
     println!();
