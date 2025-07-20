@@ -363,28 +363,9 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 
 ### Scope Cuts
 - No authentication (localhost only)
-- No complex error handling
-- No UI beyond CLI
-- Memory is just JSON files - lets double check this!
 - No keychain / key management for APIs etc or user accounts - we need this tho ultimately for tracking usage and subscriptions
 - no RFC Port 42 spec implementation based on UERP, although we should consider this... 
 - quality of convo, aggressive command creation, continuing memoerys - recall not working
----
-
-## Blockers & Solutions
-
-### ✅ RESOLVED: Command Generation Bug (2025-07-19)
-**Problem**: Generated commands had literal \n characters instead of newlines
-**Root Cause**: JSON implementation field wasn't being unescaped before writing to file
-**Solution**: Added string unescaping in generateCommand() to convert:
-- `\n` → actual newlines
-- `\t` → actual tabs
-- `\"` → actual quotes
-
-**Files Modified**:
-- daemon/server.go: Added unescaping logic in generateCommand()
-
-**Status**: RESOLVED - All commands now generate and execute correctly!
 
 ---
 
