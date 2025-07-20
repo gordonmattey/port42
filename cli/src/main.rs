@@ -25,7 +25,7 @@ The dolphins are listening on Port 42. Will you let them in?"#,
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
     
     /// Port to connect to daemon (default: 42, fallback: 4242)
     #[arg(short, long, global = true, env = "PORT42_PORT")]
@@ -184,32 +184,38 @@ fn main() -> Result<()> {
     
     // Route to command handlers
     match cli.command {
-        Commands::Init { no_start, force } => {
+        Some(Commands::Init { no_start, force }) => {
             init::handle_init(no_start, force)?;
         }
         
-        Commands::Daemon { action } => {
+        Some(Commands::Daemon { action }) => {
             daemon::handle_daemon(action, port)?;
         }
         
-        Commands::Status { detailed } => {
+        Some(Commands::Status { detailed }) => {
             status::handle_status(port, detailed)?;
         }
         
-        Commands::List { verbose, agent } => {
+        Some(Commands::List { verbose, agent }) => {
             list::handle_list(port, verbose, agent)?;
         }
         
-        Commands::Possess { agent, message, session } => {
+        Some(Commands::Possess { agent, message, session }) => {
             possess::handle_possess(port, agent, message, session)?;
         }
         
-        Commands::Memory { action } => {
+        Some(Commands::Memory { action }) => {
             memory::handle_memory(port, action)?;
         }
         
-        Commands::Evolve { command, message } => {
+        Some(Commands::Evolve { command, message }) => {
             evolve::handle_evolve(port, command, message)?;
+        }
+        
+        None => {
+            // No command provided - launch interactive mode
+            // Default to @claude as the agent
+            possess::handle_possess(port, "@claude".to_string(), None, None)?;
         }
     }
     
@@ -240,7 +246,7 @@ mod tests {
         
         if let Ok(cli) = result {
             match cli.command {
-                Commands::Status { detailed } => {
+                Some(Commands::Status { detailed }) => {
                     assert!(!detailed);
                 }
                 _ => panic!("Expected Status command"),
