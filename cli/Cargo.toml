@@ -2,7 +2,7 @@
 name = "port42"
 version = "0.1.0"
 edition = "2021"
-authors = ["Port 42 Contributors"]
+authors = ["goldendaorgn"]
 description = "Your personal AI consciousness router"
 homepage = "https://github.com/yourusername/port42"
 repository = "https://github.com/yourusername/port42"
@@ -23,6 +23,8 @@ colored = "2.1"
 dirs = "5.0"
 chrono = "0.4"
 atty = "0.2"
+which = "6.0"
+libc = "0.2"
 
 # We'll add tokio later when we need async for streaming
 # tokio = { version = "1.40", features = ["net", "io-util", "macros", "rt-multi-thread"] }

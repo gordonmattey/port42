@@ -292,16 +292,34 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - [ ] AI should better understand context questions
 - [ ] Need clearer command generation prompts
 
-### ⬜ Step 12: Init Command (1:00 PM - 2:00 PM)
-**Goal**: Setup Port 42 environment
-- [ ] Create ~/.port42 directories
-- [ ] Update PATH
-- [ ] Start daemon
-- [ ] Verify installation
-**Status**: Not started
+### ✅ Step 12: Install Script & Init (1:00 PM - 3:00 PM)
+**Goal**: One-line installation with automatic setup
+- [x] Create install.sh script
+- [x] Build both binaries (Go daemon, Rust CLI)
+- [x] Copy binaries to /usr/local/bin
+- [x] Create ~/.port42 directories
+- [x] Update PATH in shell profiles
+- [x] Start daemon as background service
+- [x] Verify installation works
+- [x] API key configuration during install
+- [x] Daemon management in CLI
+- [ ] Create uninstall script
+**Status**: COMPLETE! 🐬
 **Notes**:
+- Created comprehensive install.sh for production use
+- Supports downloading pre-built binaries from GitHub releases
+- Falls back to building from source if needed
+- Smart PATH configuration for bash/zsh/fish
+- Daemon auto-start with graceful port fallback
+- Created install-local.sh for testing
+- Updated build.sh to build both daemon and CLI
+- Fixed Rust edition from 2025 to 2021
+- Handles ownership issues gracefully
+- **Enhanced with API key prompt during installation**
+- **CLI now has full daemon management (start/stop/restart/logs)**
+- Ready for port42.ai deployment!
 
-### ⬜ Step 13: Demo Commands (2:00 PM - 4:00 PM)
+### ⬜ Step 13: Demo Commands (3:00 PM - 4:00 PM)
 **Goal**: Three compelling demos
 - [ ] git-haiku command
 - [ ] explain command
@@ -310,16 +328,7 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 **Status**: Not started
 **Notes**:
 
-### ⬜ Step 14: Install Script (4:00 PM - 5:00 PM)
-**Goal**: One-line installation
-- [ ] Create install.sh
-- [ ] Build both binaries
-- [ ] Copy to /usr/local/bin
-- [ ] Run init automatically
-**Status**: Not started
-**Notes**:
-
-### ⬜ Step 15: Demo Recording (5:00 PM - 6:00 PM)
+### ⬜ Step 14: Demo Recording (4:00 PM - 5:00 PM)
 **Goal**: Compelling demo video
 - [ ] Script demo flow
 - [ ] Record installation
@@ -328,9 +337,10 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 **Status**: Not started
 **Notes**:
 
-### ⬜ Step 16: Final Test (6:00 PM - 7:00 PM)
+### ⬜ Step 15: Final Test (5:00 PM - 6:00 PM)
 **Goal**: End-to-end verification
-- [ ] Fresh install test
+- [ ] Clean local install test (./install-local.sh)
+- [ ] Website install test (curl -fsSL https://port42.ai/install.sh | bash)
 - [ ] All features working
 - [ ] Commands executing
 - [ ] Polish any rough edges

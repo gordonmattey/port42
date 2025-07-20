@@ -84,7 +84,40 @@ $ git-haiku
   - Character-by-character response streaming
 - Installation script
 
-## Quick Start (Development)
+## Quick Start
+
+## Installation
+
+```bash
+# One-line install (coming soon)
+curl -fsSL https://port42.ai/install.sh | bash
+
+# Or build from source
+git clone https://github.com/yourusername/port42.git
+cd port42
+./install.sh
+```
+
+## Usage
+
+```bash
+# Start the Port 42 shell
+port42
+
+# Manage the daemon
+port42 daemon start     # Start daemon in background
+port42 daemon stop      # Stop daemon
+port42 daemon restart   # Restart daemon
+port42 daemon logs -f   # Follow daemon logs
+
+# Direct commands
+port42 status           # Check daemon status
+port42 possess @claude  # Start AI conversation
+port42 list            # List your commands
+port42 memory          # Browse conversations
+```
+
+## Development
 
 ```bash
 # Clone the repository
@@ -94,13 +127,16 @@ cd port42
 # Set up Anthropic API key (optional but recommended)
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# Build the daemon
-./build.sh  # Builds to ./bin/port42d
+# Build everything
+./build.sh  # Builds both daemon and CLI
 
 # Build the CLI
 cd cli && cargo build && cd ..
 
 # Start the daemon
+port42 daemon start -b  # Start in background
+
+# Or manually
 sudo -E ./bin/port42d  # -E preserves environment variables
 
 # Test the CLI

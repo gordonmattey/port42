@@ -1,41 +1,231 @@
-use anyhow::Result;
+use anyhow::{Result, Context, bail};
 use colored::*;
+use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader};
+use std::fs;
+use std::env;
+use std::path::PathBuf;
 use crate::DaemonAction;
+
+const DAEMON_BINARY: &str = "port42d";
+const PID_FILE: &str = "/tmp/port42d.pid";
+const LOG_FILE: &str = ".port42/daemon.log";
+
+fn get_log_path() -> PathBuf {
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(LOG_FILE)
+}
+
+fn is_daemon_running() -> bool {
+    // Check if PID file exists and process is running
+    if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
+        if let Ok(pid) = pid_str.trim().parse::<u32>() {
+            // Check if process exists (signal 0)
+            unsafe {
+                libc::kill(pid as i32, 0) == 0
+            }
+        } else {
+            false
+        }
+    } else {
+        // Also check by process name
+        Command::new("pgrep")
+            .arg("-f")
+            .arg(DAEMON_BINARY)
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+}
+
+fn start_daemon(background: bool) -> Result<()> {
+    if is_daemon_running() {
+        println!("{}", "✅ Daemon is already running".green());
+        return Ok(());
+    }
+    
+    // Check for API key
+    let api_key = env::var("ANTHROPIC_API_KEY").ok();
+    if api_key.is_none() {
+        println!("{}", "⚠️  No ANTHROPIC_API_KEY found in environment".yellow());
+        println!("{}", "AI features will be disabled until you set the API key".dimmed());
+        println!("\n{}", "To enable AI features:".yellow());
+        println!("  export ANTHROPIC_API_KEY='your-key-here'");
+        println!("  port42 daemon restart\n");
+    }
+    
+    // Check if daemon binary exists
+    let daemon_path = which::which(DAEMON_BINARY)
+        .context("port42d not found in PATH. Please install Port 42 first")?;
+    
+    println!("{}", "🐬 Starting Port 42 daemon...".blue().bold());
+    
+    if background {
+        // Start in background using nohup
+        let log_path = get_log_path();
+        
+        // Create log directory if needed
+        if let Some(parent) = log_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        let mut cmd = Command::new("nohup");
+        cmd.arg(&daemon_path)
+            .stdout(Stdio::from(fs::File::create(&log_path)?))
+            .stderr(Stdio::from(fs::File::create(&log_path)?))
+            .stdin(Stdio::null());
+        
+        // Pass API key if available
+        if let Some(key) = api_key {
+            cmd.env("ANTHROPIC_API_KEY", key);
+        }
+        
+        let child = cmd.spawn()
+            .context("Failed to start daemon")?;
+        
+        // Save PID
+        fs::write(PID_FILE, child.id().to_string())?;
+        
+        // Wait a moment to check if it started successfully
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        
+        if is_daemon_running() {
+            println!("{}", "✅ Daemon started successfully".green());
+            println!("{}", format!("📋 Log file: {}", log_path.display()).dimmed());
+        } else {
+            bail!("Daemon failed to start. Check the log file: {}", log_path.display());
+        }
+    } else {
+        // Start in foreground
+        println!("{}", "Starting in foreground mode (Ctrl+C to stop)...".dimmed());
+        
+        let mut cmd = Command::new(&daemon_path);
+        
+        // Pass API key if available
+        if let Some(key) = api_key {
+            cmd.env("ANTHROPIC_API_KEY", key);
+        }
+        
+        let status = cmd.status()
+            .context("Failed to start daemon")?;
+        
+        if !status.success() {
+            bail!("Daemon exited with status: {}", status);
+        }
+    }
+    
+    Ok(())
+}
+
+fn stop_daemon() -> Result<()> {
+    if !is_daemon_running() {
+        println!("{}", "ℹ️  Daemon is not running".blue());
+        return Ok(());
+    }
+    
+    println!("{}", "🛑 Stopping Port 42 daemon...".red().bold());
+    
+    // Try to read PID and kill gracefully
+    if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
+        if let Ok(pid) = pid_str.trim().parse::<u32>() {
+            unsafe {
+                // Send SIGTERM
+                if libc::kill(pid as i32, libc::SIGTERM) == 0 {
+                    // Wait for process to stop
+                    for _ in 0..10 {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                        if !is_daemon_running() {
+                            println!("{}", "✅ Daemon stopped".green());
+                            fs::remove_file(PID_FILE).ok();
+                            return Ok(());
+                        }
+                    }
+                    
+                    // Force kill if still running
+                    libc::kill(pid as i32, libc::SIGKILL);
+                }
+            }
+        }
+    }
+    
+    // Fallback: kill by name
+    Command::new("pkill")
+        .arg("-f")
+        .arg(DAEMON_BINARY)
+        .status()
+        .context("Failed to stop daemon")?;
+    
+    fs::remove_file(PID_FILE).ok();
+    println!("{}", "✅ Daemon stopped".green());
+    
+    Ok(())
+}
+
+fn show_logs(lines: usize, follow: bool) -> Result<()> {
+    let log_path = get_log_path();
+    
+    if !log_path.exists() {
+        bail!("Log file not found: {}", log_path.display());
+    }
+    
+    println!("{}", "📋 Daemon logs".bright_white().bold());
+    println!("{}", format!("File: {}", log_path.display()).dimmed());
+    println!("{}", "─".repeat(50).dimmed());
+    
+    if follow {
+        // Follow logs using tail -f
+        let mut child = Command::new("tail")
+            .arg("-f")
+            .arg(&log_path)
+            .stdout(Stdio::piped())
+            .spawn()
+            .context("Failed to start tail")?;
+        
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                println!("{}", line?);
+            }
+        }
+    } else {
+        // Show last N lines
+        let output = Command::new("tail")
+            .arg(format!("-{}", lines))
+            .arg(&log_path)
+            .output()
+            .context("Failed to read logs")?;
+        
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    
+    Ok(())
+}
 
 pub fn handle_daemon(action: DaemonAction, _port: u16) -> Result<()> {
     match action {
         DaemonAction::Start { background } => {
-            println!("{}", "🐬 Starting Port 42 daemon...".blue().bold());
-            
-            if background {
-                println!("{}", "🚧 Background mode not yet implemented".yellow().dimmed());
-            } else {
-                println!("{}", "🚧 Daemon start not yet implemented".yellow().dimmed());
-                println!("\n{}", "For now, start manually:".yellow());
-                println!("  {}", "sudo -E ./bin/port42d".bright_white());
-            }
+            start_daemon(background)?;
         }
         
         DaemonAction::Stop => {
-            println!("{}", "🛑 Stopping Port 42 daemon...".red().bold());
-            println!("{}", "🚧 Stop command not yet implemented".yellow().dimmed());
-            println!("\n{}", "For now, stop with Ctrl+C in daemon terminal".yellow());
+            stop_daemon()?;
         }
         
         DaemonAction::Restart => {
             println!("{}", "🔄 Restarting Port 42 daemon...".yellow().bold());
-            println!("{}", "🚧 Restart command not yet implemented".yellow().dimmed());
+            
+            // Stop if running
+            if is_daemon_running() {
+                stop_daemon()?;
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+            
+            // Start again
+            start_daemon(true)?;
         }
         
         DaemonAction::Logs { lines, follow } => {
-            println!("{}", "📋 Daemon logs...".bright_white().bold());
-            println!("{}", "🚧 Logs command not yet implemented".yellow().dimmed());
-            
-            if follow {
-                println!("\n{}", "Would follow logs...".dimmed());
-            } else {
-                println!("\n{}", format!("Would show last {} lines", lines).dimmed());
-            }
+            show_logs(lines, follow)?;
         }
     }
     
