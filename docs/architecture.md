@@ -37,14 +37,17 @@ A Go daemon running on localhost:42 that serves as your personal AI consciousnes
 │         │ • Entity Resolver (UERP)     │               │
 │         │ • AI Bridge                  │               │
 │         │ • Concurrent Sessions        │               │
+│         │ • Session Persistence        │               │
 │         └──────────────┬───────────────┘               │
 │                        │                                │
 │  ┌─────────────────────┼─────────────────────────────┐ │
 │  │   ~/.port42/        ▼                             │ │
-│  │  ├── commands/   [Generated binaries]             │ │
-│  │  ├── memory/     [Conversation history]           │ │
-│  │  ├── templates/  [Code generation patterns]       │ │
-│  │  └── entities/   [UERP local storage]             │ │
+│  │  ├── commands/      [Generated binaries]          │ │
+│  │  ├── memory/        [Conversation history]        │ │
+│  │  │   ├── sessions/  [Per-session JSON files]      │ │
+│  │  │   └── index.json [Session index & stats]       │ │
+│  │  ├── templates/     [Code generation patterns]    │ │
+│  │  └── entities/      [UERP local storage]          │ │
 │  └───────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                               │
@@ -82,12 +85,13 @@ A Go daemon running on localhost:42 that serves as your personal AI consciousnes
 // Implements UERP (RFC draft)
 
 type Daemon struct {
-    listener   net.Listener
-    sessions   map[string]*Session
-    memory     *MemoryStore
-    forge      *CommandForge
-    resolver   *EntityResolver
-    aiClients  map[string]AIClient
+    listener    net.Listener
+    sessions    map[string]*Session
+    memory      *MemoryStore
+    forge       *CommandForge
+    resolver    *EntityResolver
+    aiClients   map[string]AIClient
+    memoryStore *MemoryStore  // Persistent storage
 }
 
 // Concurrent session handling with goroutines
@@ -145,6 +149,55 @@ const (
     RequestMemory  = "memory"
     RequestResolve = "resolve"
     RequestForge   = "forge"
+)
+```
+
+### Memory Persistence
+
+```go
+// Memory store handles session persistence to disk
+type MemoryStore struct {
+    baseDir   string        // ~/.port42/memory
+    indexPath string        // ~/.port42/memory/index.json
+    index     *MemoryIndex  // In-memory index
+    mu        sync.RWMutex
+}
+
+// Sessions are organized by date
+// ~/.port42/memory/sessions/2025-01-19/session-1737280800-git-haiku.json
+func (m *MemoryStore) SaveSession(session *Session) error {
+    // Create date-based directory
+    dateDir := time.Now().Format("2006-01-02")
+    sessionDir := filepath.Join(m.baseDir, "sessions", dateDir)
+    
+    // Save session JSON
+    filename := fmt.Sprintf("session-%d-%s.json", 
+        session.CreatedAt.Unix(), session.ID)
+    path := filepath.Join(sessionDir, filename)
+    
+    // Also update index
+    m.updateIndex(session)
+    
+    return writeJSON(path, session)
+}
+
+// On startup, load recent sessions
+func (d *Daemon) loadRecentSessions() {
+    sessions := d.memoryStore.LoadRecentSessions(24 * time.Hour)
+    for _, session := range sessions {
+        d.sessions[session.ID] = session
+        log.Printf("Restored session %s (%d messages)", 
+            session.ID, len(session.Messages))
+    }
+}
+
+// Activity-based lifecycle
+type SessionState string
+const (
+    SessionActive    SessionState = "active"     // Currently in use
+    SessionIdle      SessionState = "idle"       // 30min inactive
+    SessionAbandoned SessionState = "abandoned"  // 60min inactive
+    SessionCompleted SessionState = "completed"  // Command generated
 )
 ```
 

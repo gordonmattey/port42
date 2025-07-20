@@ -132,11 +132,60 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - All commands now generate and execute correctly!
 - Use `sudo -E` to preserve environment variables
 
+### 🟨 Step 9: Session Continuation (8:00 PM - 9:00 PM)
+**Goal**: Enable true session continuation after daemon restart
+- [ ] Modify `getOrCreateSession` to check disk before creating new
+- [ ] Add `LoadSession(id)` method to MemoryStore
+- [ ] Implement smart context windowing for long sessions
+- [ ] Add performance optimizations for large session loads
+- [ ] Create comprehensive tests for session recovery
+
+**Status**: IN PROGRESS
+
+**Implementation Plan**:
+1. **Session Loading Logic**:
+   ```go
+   // Modified getOrCreateSession flow:
+   // 1. Check in-memory sessions
+   // 2. Check on disk (NEW)
+   // 3. Create new session only if not found
+   ```
+
+2. **Smart Context Management**:
+   - Limit context to last N messages (configurable)
+   - Include session summary for skipped messages
+   - Maintain first few messages for context establishment
+   - Token-aware context building
+
+3. **Performance Considerations**:
+   - Lazy loading of session content
+   - Index-based session lookup
+   - Configurable retention policies
+   - Background session archival
+
+4. **Testing Strategy**:
+   - Unit tests for LoadSession
+   - Integration tests for restart scenarios
+   - Performance tests with large sessions
+   - Context window validation
+
+**Files to Modify**:
+- `daemon/server.go`: Update getOrCreateSession logic
+- `daemon/memory_store.go`: Add LoadSession method
+- `daemon/possession.go`: Enhance buildConversationContext
+- `tests/test_session_recovery.py`: Already created
+
+**Success Criteria**:
+- Users can continue conversations after daemon restart
+- Context is intelligently managed for long sessions
+- Performance remains good with many/large sessions
+- Tests pass for all recovery scenarios
+
 ---
 
 ## Day 2: Rust CLI & Polish (10 hours)
 
-### ⬜ Step 9: Basic Rust CLI (9:00 AM - 10:00 AM)
+### ⬜ Step 10: Basic Rust CLI (9:00 AM - 10:00 AM)
 **Goal**: CLI structure with clap
 - [ ] Create cli/Cargo.toml
 - [ ] Implement main.rs with subcommands
