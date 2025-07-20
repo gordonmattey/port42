@@ -3,8 +3,21 @@ use colored::*;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, SocketAddr};
 use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::types::{Request, Response};
+
+// Track recursion depth to prevent stack overflow
+static RECURSION_DEPTH: AtomicU32 = AtomicU32::new(0);
+
+// RAII guard to ensure recursion depth is decremented
+struct RecursionGuard;
+
+impl Drop for RecursionGuard {
+    fn drop(&mut self) {
+        RECURSION_DEPTH.fetch_sub(1, Ordering::SeqCst);
+    }
+}
 
 pub struct DaemonClient {
     port: u16,
@@ -27,13 +40,34 @@ impl DaemonClient {
     
     /// Ensure we have a valid connection to the daemon
     pub fn ensure_connected(&mut self) -> Result<()> {
+        // Guard against recursion
+        let depth = RECURSION_DEPTH.fetch_add(1, Ordering::SeqCst);
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: ensure_connected: Recursion depth = {}", depth);
+        }
+        
+        // Prevent stack overflow from recursive calls
+        if depth > 3 {
+            RECURSION_DEPTH.store(0, Ordering::SeqCst);
+            return Err(anyhow!("Connection recursion detected - possible stack overflow"));
+        }
+        
+        // Ensure we decrement on all exit paths
+        let _guard = RecursionGuard;
+        
         // Check if we already have a connection
         if self.stream.is_some() {
             // Test if still alive with a quick ping
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: ensure_connected: Testing existing connection with ping");
+            }
             if self.ping().is_ok() {
                 return Ok(());
             }
             // Connection is dead, reset
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: ensure_connected: Connection dead, resetting");
+            }
             self.stream = None;
             self.reader = None;
         }

@@ -223,6 +223,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Get or create session
 	session := d.getOrCreateSession(req.ID, payload.Agent)
+	log.Printf("🔍 Session loaded: ID=%s, MessageCount=%d", session.ID, len(session.Messages))
 	
 	// Add user message to session
 	session.mu.Lock()
@@ -257,12 +258,14 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	log.Printf("🤖 Using REAL AI handler with Claude")
 	
+	log.Printf("🔍 Sending to AI with %d messages in context", len(messages))
 	aiResp, err := aiClient.Send(messages)
 	if err != nil {
 		log.Printf("AI error: %v", err)
 		resp.SetError(fmt.Sprintf("AI connection failed: %v", err))
 		return resp
 	}
+	log.Printf("🔍 Got AI response")
 	
 	// Extract response text
 	var responseText string

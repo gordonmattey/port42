@@ -108,16 +108,23 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
         eprintln!("DEBUG: Message length: {} chars", message.len());
     }
     
+    let payload = serde_json::json!({
+        "agent": agent,
+        "message": message
+    });
+    
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: Payload size: {} bytes", serde_json::to_string(&payload).unwrap_or_default().len());
+    }
+    
     let request = Request {
         request_type: "possess".to_string(),
         id: session_id.to_string(),
-        payload: serde_json::json!({
-            "agent": agent,
-            "message": message
-        }),
+        payload,
     };
     
     if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: Request size: {} bytes", serde_json::to_string(&request).unwrap_or_default().len());
         eprintln!("DEBUG: About to send request to daemon");
     }
     
@@ -209,10 +216,20 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
                     
                     // Check recent_sessions array
                     if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
+                        if std::env::var("PORT42_DEBUG").is_ok() {
+                            eprintln!("DEBUG: Processing {} sessions, looking for agent: {}", recent.len(), agent);
+                        }
+                        
                         // Find the most recent session with this agent
                         let mut best_session: Option<(String, DateTime<Utc>)> = None;
                         
-                        for session in recent {
+                        for (idx, session) in recent.iter().enumerate() {
+                            if std::env::var("PORT42_DEBUG").is_ok() && idx < 3 {
+                                // Only log first few to avoid spam
+                                if let Some(obj) = session.as_object() {
+                                    eprintln!("DEBUG: Session {}: {} keys", idx, obj.len());
+                                }
+                            }
                             if let (Some(session_agent), Some(id), Some(last_activity)) = (
                                 session.get("agent").and_then(|v| v.as_str()),
                                 session.get("id").and_then(|v| v.as_str()),
