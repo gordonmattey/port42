@@ -16,10 +16,17 @@ def send_json_request(request_data, port=42):
         json_str = json.dumps(request_data)
         sock.sendall(json_str.encode() + b'\n')
         
-        response = sock.recv(4096).decode()
+        # Read response until we get a complete line
+        response = b''
+        while b'\n' not in response:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+        
         sock.close()
         
-        return json.loads(response)
+        return json.loads(response.decode().strip())
     except Exception as e:
         return {"error": str(e)}
 
@@ -78,8 +85,11 @@ def test_memory_endpoint():
     print(f"Memory response: {json.dumps(resp, indent=2)}")
     
     assert resp.get("success") == True
-    assert "sessions" in resp.get("data", {})
-    assert resp.get("data", {}).get("count", 0) >= 3
+    data = resp.get("data", {})
+    assert "active_sessions" in data
+    assert "recent_sessions" in data
+    assert "stats" in data
+    assert data.get("active_count", 0) >= 3
     
     print("✅ Memory endpoint test passed\n")
 
