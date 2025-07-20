@@ -1,0 +1,35 @@
+[package]
+name = "port42"
+version = "0.1.0"
+edition = "2021"
+authors = ["Port 42 Contributors"]
+description = "Your personal AI consciousness router"
+homepage = "https://github.com/yourusername/port42"
+repository = "https://github.com/yourusername/port42"
+license = "MIT"
+keywords = ["ai", "cli", "assistant", "terminal"]
+categories = ["command-line-utilities"]
+
+[[bin]]
+name = "port42"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+colored = "2.1"
+
+# We'll add tokio later when we need async for streaming
+# tokio = { version = "1.40", features = ["net", "io-util", "macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "z"
+codegen-units = 1

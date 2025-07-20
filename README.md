@@ -67,10 +67,15 @@ $ git-haiku
   - Activity-based lifecycle: Active → Idle (30min) → Abandoned (60min)
   - Recent sessions automatically loaded on startup
 
-### 📋 Upcoming (Day 2)
-- Rust CLI with interactive mode
+### 🚧 In Progress (Day 2)
+- **Rust CLI**: Basic structure complete! ✅
+  - Beautiful command-line interface with `clap`
+  - All commands defined with help text
+  - Status command working with real daemon
+  - Colored output and friendly error messages
+- TCP client implementation (next)
+- Interactive possession mode
 - Installation script
-- Demo commands and video
 
 ## Quick Start (Development)
 
@@ -85,8 +90,15 @@ export ANTHROPIC_API_KEY=sk-ant-...
 # Build the daemon
 ./build.sh  # Builds to ./bin/port42d
 
+# Build the CLI
+cd cli && cargo build && cd ..
+
 # Start the daemon
 sudo -E ./bin/port42d  # -E preserves environment variables
+
+# Test the CLI
+./cli/target/debug/port42 status
+./cli/target/debug/port42 --help
 
 # Test AI possession and command generation
 ./tests/test_ai_possession.py
@@ -169,6 +181,14 @@ Run tests from the project root:
 port42/
 ├── bin/                      # Built binaries (git-ignored)
 │   └── port42d              # The daemon executable
+├── cli/                     # Rust CLI source
+│   ├── Cargo.toml           # Rust project config
+│   ├── src/                 # CLI implementation
+│   │   ├── main.rs          # Entry point with clap
+│   │   ├── commands/        # Command handlers
+│   │   ├── client.rs        # TCP client
+│   │   └── types.rs         # Shared types
+│   └── target/              # Rust build output
 ├── daemon/                   # Go daemon source
 │   ├── main.go              # Entry point & startup
 │   ├── protocol.go          # JSON request/response types
