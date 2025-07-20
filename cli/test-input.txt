@@ -1,0 +1,8 @@
+I need a command that shows disk usage as beautiful ocean waves
+The bigger the usage, the higher the waves
+/deeper
+Can you make it use colors to show different usage levels?
+Blue for low, yellow for medium, red for high usage
+/memory
+/reality
+/surface

@@ -105,6 +105,7 @@ fn simple_interactive_mode(client: &mut DaemonClient, session_id: &str, agent: &
 fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, message: &str) -> Result<()> {
     if std::env::var("PORT42_DEBUG").is_ok() {
         eprintln!("DEBUG: Sending message to session: {}", session_id);
+        eprintln!("DEBUG: Message length: {} chars", message.len());
     }
     
     let request = Request {
@@ -122,6 +123,19 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
     
     match client.request(request) {
         Ok(response) => {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: Got response from daemon, success={}", response.success);
+                if let Some(data) = &response.data {
+                    // Check size without serializing
+                    if let Some(obj) = data.as_object() {
+                        eprintln!("DEBUG: Response data has {} keys", obj.len());
+                        for key in obj.keys() {
+                            eprintln!("DEBUG:   Key: {}", key);
+                        }
+                    }
+                }
+            }
+            
             if response.success {
                 if let Some(data) = response.data {
                     if let Some(ai_message) = data.get("message").and_then(|v| v.as_str()) {
@@ -171,8 +185,16 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         payload: serde_json::Value::Null,
     };
     
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: find_recent_session: About to request memory from daemon");
+    }
+    
     match client.request(request) {
         Ok(response) => {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: find_recent_session: Got memory response, success={}", response.success);
+            }
+            
             if response.success {
                 if let Some(data) = response.data {
                     // Debug: Check response without serializing

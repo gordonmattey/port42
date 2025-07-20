@@ -92,6 +92,14 @@ impl DaemonClient {
                      elapsed);
         }
         
+        // Debug: Check response size before parsing
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: Response line length: {} bytes", line.len());
+            if line.len() > 1000 {
+                eprintln!("DEBUG: Large response detected! First 200 chars: {}", &line[..200.min(line.len())]);
+            }
+        }
+        
         // Parse response
         let response: Response = serde_json::from_str(&line)
             .map_err(|e| anyhow!("Invalid response from daemon: {}\nRaw response: {}", e, 
