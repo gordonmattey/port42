@@ -34,6 +34,7 @@ type AnthropicClient struct {
 // AnthropicRequest represents a request to Claude
 type AnthropicRequest struct {
 	Model     string              `json:"model"`
+	System    string              `json:"system,omitempty"`
 	Messages  []AnthropicMessage `json:"messages"`
 	MaxTokens int                 `json:"max_tokens"`
 	Stream    bool                `json:"stream"`
@@ -91,7 +92,7 @@ type AnthropicMessage struct {
 }
 
 // Send a message to Claude with retry logic
-func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
+func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*AnthropicResponse, error) {
 	// Get model configuration
 	modelConfig := GetModelConfig()
 	responseConfig := GetResponseConfig()
@@ -115,21 +116,21 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	c.requestMutex.Unlock()
 	
 	// Convert our Message format to Anthropic's format (without timestamp)
-	anthropicMessages := make([]AnthropicMessage, len(messages))
-	for i, msg := range messages {
-		role := msg.Role
-		if role == "system" {
-			// Anthropic uses "assistant" for system-like messages
-			role = "assistant"
+	// Skip any system messages as they'll be in the system parameter
+	anthropicMessages := []AnthropicMessage{}
+	for _, msg := range messages {
+		if msg.Role == "system" {
+			continue // Skip system messages
 		}
-		anthropicMessages[i] = AnthropicMessage{
-			Role:    role,
+		anthropicMessages = append(anthropicMessages, AnthropicMessage{
+			Role:    msg.Role,
 			Content: msg.Content,
-		}
+		})
 	}
 	
 	req := AnthropicRequest{
 		Model:     modelConfig.Default,
+		System:    systemPrompt,
 		Messages:  anthropicMessages,
 		MaxTokens: responseConfig.MaxTokens,
 		Stream:    responseConfig.Stream,
@@ -143,6 +144,15 @@ func (c *AnthropicClient) Send(messages []Message) (*AnthropicResponse, error) {
 	// Log request details for debugging
 	log.Printf("🔍 Claude API Request: model=%s, messages=%d, tokens=%d", 
 		req.Model, len(req.Messages), req.MaxTokens)
+	
+	// Log system prompt
+	if req.System != "" {
+		systemPreview := req.System
+		if len(systemPreview) > 200 {
+			systemPreview = systemPreview[:200] + "..."
+		}
+		log.Printf("  System prompt: %s", systemPreview)
+	}
 	
 	// Log full payload for debugging
 	for i, msg := range req.Messages {
@@ -242,7 +252,10 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	})
 	session.LastActivity = time.Now()
 	
-	// Build conversation history
+	// Get agent prompt
+	agentPrompt := getAgentPrompt(payload.Agent)
+	
+	// Build conversation history (without system prompt)
 	messages := d.buildConversationContext(session, payload.Agent)
 	session.mu.Unlock()
 	
@@ -267,7 +280,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	log.Printf("🤖 Using REAL AI handler with Claude")
 	
 	log.Printf("🔍 Sending to AI with %d messages in context", len(messages))
-	aiResp, err := aiClient.Send(messages)
+	aiResp, err := aiClient.Send(messages, agentPrompt)
 	if err != nil {
 		log.Printf("AI error: %v", err)
 		resp.SetError(fmt.Sprintf("AI connection failed: %v", err))
@@ -336,16 +349,9 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	return resp
 }
 
-// Build conversation context with agent personality
+// Build conversation context (without system prompt which is now separate)
 func (d *Daemon) buildConversationContext(session *Session, agent string) []Message {
 	messages := []Message{}
-	
-	// Add agent-specific system prompt
-	systemPrompt := getAgentPrompt(agent)
-	messages = append(messages, Message{
-		Role:    "assistant",
-		Content: systemPrompt,
-	})
 	
 	// Smart context selection based on token limits
 	responseConfig := GetResponseConfig()

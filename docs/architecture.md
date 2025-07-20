@@ -159,6 +159,64 @@ const (
 
 ### Memory Persistence & Session Continuation
 
+Sessions are stored with:
+- Complete conversation history
+- Agent context used
+- Generated command references
+- Timestamps and state tracking
+
+### Chat Context Setup
+
+When interacting with Claude AI, Port 42 carefully constructs the conversation context:
+
+#### Message Role Mapping
+- **System Prompts**: Port 42 uses "assistant" role for system-like messages since Claude doesn't have a separate "system" role
+- **User Messages**: Direct user input, stored with "user" role
+- **Assistant Messages**: AI responses and context summaries, stored with "assistant" role
+
+#### Context Building Process
+1. **Agent Prompt**: First message is always the agent-specific personality prompt (from `agents.json`)
+2. **Session History**: Intelligently includes conversation history based on context window limits
+3. **Smart Windowing**: For long conversations:
+   - Always includes first 2 messages (establishes context)
+   - Adds summary message if many messages are skipped
+   - Includes most recent messages for continuity
+
+#### Configuration Structure (`agents.json`)
+```json
+{
+  "agents": {
+    "engineer": {
+      "prompt": "You are @ai-engineer...",  // Agent personality
+      "personality": "Technical, thorough..." // Characteristics
+    }
+  },
+  "response_config": {
+    "context_window": {
+      "max_messages": 20,      // Total messages to send
+      "recent_messages": 17,   // Recent messages to prioritize
+      "system_messages": 3     // Reserved for system/agent prompts
+    },
+    "max_tokens": 4096         // Response token limit
+  }
+}
+```
+
+#### Message Assembly Flow
+1. Load session from disk (if continuing)
+2. Build context array starting with agent prompt
+3. Apply context window limits intelligently
+4. Convert to Anthropic API format
+5. Send to Claude and save response back to session
+
+This approach ensures:
+- Consistent agent personalities across sessions
+- Efficient use of context window
+- Continuity in long conversations
+- Proper role mapping for Claude's API
+
+### Memory Persistence & Session Continuation
+
 ```go
 // Memory store handles session persistence to disk
 type MemoryStore struct {
