@@ -111,6 +111,12 @@ Each agent has:
 - **personality**: Characteristics for the agent
 - **base_guidance**: Shared implementation guidelines
 
+Model configuration includes:
+- **temperature**: Controls randomness in responses (default: 0.5)
+  - Lower values (0.1-0.3): More deterministic, consistent
+  - Medium values (0.4-0.7): Balanced creativity and consistency
+  - Higher values (0.8-1.0): More creative, varied responses
+
 Example:
 ```json
 {
@@ -120,6 +126,10 @@ Example:
       "prompt": "You are @ai-engineer, a technical consciousness within Port 42...",
       "personality": "Technical, thorough, practical, reliable"
     }
+  },
+  "model_config": {
+    "default": "claude-3-5-sonnet-20241022",
+    "temperature": 0.5
   }
 }
 ```

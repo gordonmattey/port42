@@ -33,11 +33,12 @@ type AnthropicClient struct {
 
 // AnthropicRequest represents a request to Claude
 type AnthropicRequest struct {
-	Model     string              `json:"model"`
-	System    string              `json:"system,omitempty"`
-	Messages  []AnthropicMessage `json:"messages"`
-	MaxTokens int                 `json:"max_tokens"`
-	Stream    bool                `json:"stream"`
+	Model       string              `json:"model"`
+	System      string              `json:"system,omitempty"`
+	Messages    []AnthropicMessage `json:"messages"`
+	MaxTokens   int                 `json:"max_tokens"`
+	Stream      bool                `json:"stream"`
+	Temperature float64             `json:"temperature,omitempty"`
 }
 
 // AnthropicResponse represents Claude's response
@@ -129,11 +130,12 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*Anthro
 	}
 	
 	req := AnthropicRequest{
-		Model:     modelConfig.Default,
-		System:    systemPrompt,
-		Messages:  anthropicMessages,
-		MaxTokens: responseConfig.MaxTokens,
-		Stream:    responseConfig.Stream,
+		Model:       modelConfig.Default,
+		System:      systemPrompt,
+		Messages:    anthropicMessages,
+		MaxTokens:   responseConfig.MaxTokens,
+		Stream:      responseConfig.Stream,
+		Temperature: modelConfig.Temperature,
 	}
 	
 	jsonData, err := json.Marshal(req)
@@ -142,8 +144,8 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*Anthro
 	}
 	
 	// Log request details for debugging
-	log.Printf("🔍 Claude API Request: model=%s, messages=%d, tokens=%d", 
-		req.Model, len(req.Messages), req.MaxTokens)
+	log.Printf("🔍 Claude API Request: model=%s, messages=%d, tokens=%d, temp=%.2f", 
+		req.Model, len(req.Messages), req.MaxTokens, req.Temperature)
 	
 	// Log system prompt
 	if req.System != "" {

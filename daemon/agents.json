@@ -48,6 +48,7 @@
   "model_config": {
     "default": "claude-3-5-sonnet-20241022",
     "opus": "claude-3-opus-20240229",
+    "temperature": 0.5,
     "rate_limits": {
       "sonnet": {
         "min_delay_seconds": 1,

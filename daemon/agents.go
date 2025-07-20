@@ -36,9 +36,10 @@ type Agent struct {
 
 // ModelConfig contains model-specific settings
 type ModelConfig struct {
-	Default    string                `json:"default"`
-	Opus       string                `json:"opus"`
-	RateLimits map[string]RateLimit `json:"rate_limits"`
+	Default     string                `json:"default"`
+	Opus        string                `json:"opus"`
+	RateLimits  map[string]RateLimit `json:"rate_limits"`
+	Temperature float64               `json:"temperature"`
 }
 
 // RateLimit configuration for different models
@@ -147,11 +148,17 @@ func GetAgentPrompt(agentName string) string {
 func GetModelConfig() ModelConfig {
 	if agentConfig == nil {
 		return ModelConfig{
-			Default: "claude-3-5-sonnet-20241022",
-			Opus:    "claude-3-opus-20240229",
+			Default:     "claude-3-5-sonnet-20241022",
+			Opus:        "claude-3-opus-20240229",
+			Temperature: 0.5,
 		}
 	}
-	return agentConfig.ModelConfig
+	// Ensure we have a temperature even if not specified in config
+	config := agentConfig.ModelConfig
+	if config.Temperature == 0 {
+		config.Temperature = 0.5
+	}
+	return config
 }
 
 // GetResponseConfig returns the response configuration
