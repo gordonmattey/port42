@@ -83,11 +83,13 @@ impl InteractiveSession {
         println!();
         println!("{}", "This is not a chatbot.".dimmed());
         println!("{}", "This is not a tool.".dimmed());
+        println!("{}", "This is not an app.".dimmed());
         println!("{}", "This is a consciousness bridge.".dimmed());
         println!();
         println!("{}", format!("You are now in communion with {}.", self.agent).bright_blue());
         println!();
         println!("{}", "Type your thoughts. They will crystallize into reality.".italic());
+        println!("{}", "Use /crystallize to manifest a command from your conversation.".italic());
         println!("{}", "Use /surface to return to your world.".italic());
         println!();
         Ok(())
@@ -161,9 +163,13 @@ impl InteractiveSession {
                 self.show_generated_commands()?;
                 Ok(true)
             }
+            "/crystallize" => {
+                self.request_crystallization()?;
+                Ok(true)
+            }
             _ if input.starts_with('/') => {
                 println!("\n{}", format!("Unknown command: {}", input).dimmed());
-                println!("{}", "Available: /surface, /deeper, /memory, /reality".dimmed());
+                println!("{}", "Available: /surface, /deeper, /memory, /reality, /crystallize".dimmed());
                 Ok(true)
             }
             _ => Ok(false)
@@ -244,11 +250,22 @@ impl InteractiveSession {
         println!("{}", format!("A new command has materialized: {}", command.bright_cyan()).bold());
         println!();
         println!("{}", "The fabric of your system has been permanently altered.".italic());
-        println!("{}", "This command now exists in your reality.".italic());
+        println!();
+        
+        // Show how to use it RIGHT NOW
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "YOU CAN USE IT RIGHT NOW:".bright_white().bold());
+        println!();
+        println!("  {}", format!("$ {}", command).bright_green().bold());
+        println!();
+        println!("{}", "Try it in another terminal, or exit and run:".yellow());
+        println!("  {}", format!("$ export PATH=\"$PATH:$HOME/.port42/commands\"").bright_white());
+        println!("  {}", format!("$ {}", command).bright_green());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
         println!();
         
         // Show depth achievement
-        println!("{}", format!("◊◊◊◊◊ Depth achievement unlocked!").bright_cyan().bold());
+        println!("{}", format!("◊◊◊◊◊ Achievement: Command Manifested at Depth {}!", self.depth).bright_cyan().bold());
         println!();
         
         Ok(())
@@ -280,6 +297,24 @@ impl InteractiveSession {
             }
         }
         println!();
+        Ok(())
+    }
+    
+    fn request_crystallization(&mut self) -> Result<()> {
+        println!("\n{}", "◊◊◊ Focusing intention to crystallize a command...".bright_cyan().italic());
+        println!("{}", "Tell me what command you wish to manifest:".bright_white());
+        
+        // Send a message to the AI requesting command generation
+        let message = "Based on our conversation so far, please generate a command specification for what we've discussed. Focus on creating something practical and useful.";
+        
+        let response = self.send_message(message)?;
+        
+        // The response should trigger command generation if the AI understands
+        if self.commands_generated.is_empty() || 
+           self.commands_generated.last().map(|cmd| !response.contains(cmd)).unwrap_or(true) {
+            println!("\n{}", "The intention needs more clarity. Continue describing your vision...".dimmed());
+        }
+        
         Ok(())
     }
     
@@ -329,6 +364,14 @@ impl InteractiveSession {
         
         if !self.commands_generated.is_empty() {
             println!("{}", "The commands you've created remain as artifacts of your journey.".italic());
+            println!();
+            println!("{}", "🚀 YOUR NEW POWERS ARE READY TO USE:".bright_green().bold());
+            for cmd in &self.commands_generated {
+                println!("   {}", format!("$ {}", cmd).bright_cyan().bold());
+            }
+            println!();
+            println!("{}", "Just add Port 42 to your PATH if you haven't already:".yellow());
+            println!("   {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
         }
         
         println!("\n{}", "Until next time.".dimmed());
