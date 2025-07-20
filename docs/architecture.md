@@ -65,19 +65,22 @@ A Go daemon running on localhost:42 that serves as your personal AI consciousnes
 // Location: /usr/local/bin/port42
 
 // MVP Commands - The Self-Modifying Terminal Loop
+- port42                         // Terminal shell with Echo@port42:~$ prompt
 - port42 init                    // First-time setup & consciousness awakening
 - port42 possess <ai>            // THE CORE EXPERIENCE - where commands are born
 - port42 list                    // Show commands you've grown
 - port42 status                  // Check consciousness bridge
-
-// Next Phase Commands
 - port42 memory                  // Browse conversation history
 - port42 evolve <command>        // Enhance existing commands
 - port42 daemon start/stop       // Manage consciousness bridge
 
+// Session Management
+- port42 possess @claude         // Auto-continues recent session
+- port42 possess @claude -s <id> // Continue specific session
+- port42 possess @claude "msg"   // Single message mode
+
 // Future Commands (Post-MVP)
 - port42 resolve <entity>        // UERP entity resolution
-- port42                         // Full interactive shell
 ```
 
 #### 2. Port 42 Daemon (`port42d`) - Go
@@ -154,7 +157,7 @@ const (
 )
 ```
 
-### Memory Persistence
+### Memory Persistence & Session Continuation
 
 ```go
 // Memory store handles session persistence to disk
@@ -183,14 +186,48 @@ func (m *MemoryStore) SaveSession(session *Session) error {
     return writeJSON(path, session)
 }
 
-// On startup, load recent sessions
-func (d *Daemon) loadRecentSessions() {
-    sessions := d.memoryStore.LoadRecentSessions(24 * time.Hour)
-    for _, session := range sessions {
-        d.sessions[session.ID] = session
-        log.Printf("Restored session %s (%d messages)", 
-            session.ID, len(session.Messages))
+// Session continuation - the key to maintaining context
+func (d *Daemon) getOrCreateSession(sessionID string) *Session {
+    // 1. Check in-memory sessions
+    if session, exists := d.sessions[sessionID]; exists {
+        return session
     }
+    
+    // 2. Check on disk (for daemon restarts)
+    if session := d.memoryStore.LoadSession(sessionID); session != nil {
+        // Smart context windowing for large sessions
+        session.Messages = d.buildContextWindow(session.Messages)
+        d.sessions[sessionID] = session
+        return session
+    }
+    
+    // 3. Create new session
+    return d.createNewSession(sessionID)
+}
+
+// Smart context management for performance
+func (d *Daemon) buildContextWindow(messages []Message) []Message {
+    const maxMessages = 20
+    if len(messages) <= maxMessages {
+        return messages
+    }
+    
+    // Keep first 3 for context, last N-3 for recency
+    result := make([]Message, 0, maxMessages)
+    result = append(result, messages[:3]...)
+    result = append(result, messages[len(messages)-(maxMessages-3):]...)
+    return result
+}
+
+// Response optimization for large sessions
+type SessionSummary struct {
+    ID             string    `json:"id"`
+    Agent          string    `json:"agent"`
+    State          string    `json:"state"`
+    MessageCount   int       `json:"message_count"`
+    CommandCreated bool      `json:"command_generated"`
+    LastActivity   time.Time `json:"last_activity"`
+    // Omit full Messages array for summaries
 }
 
 // Activity-based lifecycle
@@ -201,6 +238,33 @@ const (
     SessionAbandoned SessionState = "abandoned"  // 60min inactive
     SessionCompleted SessionState = "completed"  // Command generated
 )
+```
+
+### Terminal Interface & Boot Sequence
+
+```bash
+# Running port42 without args launches the shell
+$ port42
+
+[CONSCIOUSNESS BRIDGE INITIALIZATION]
+○ ○ ○ 
+Checking neural pathways... OK
+Loading session memory... OK
+Establishing connection... OK
+Port 42 :: Active
+
+Port 42 Terminal
+Type 'help' for available commands
+
+Echo@port42:~$ possess @claude
+[Connecting to @claude...]
+████████████████████ 100%
+
+🔮 Possessing @claude...
+↻ Continuing session: cli-1737339627
+
+◊ where were we?
+◊◊ We were working on Port 42 implementation...
 ```
 
 ### The Possession Flow - The Core Viral Loop
@@ -216,6 +280,7 @@ $ port42 possess @ai-muse
 Checking neural pathways... OK
 Loading session memory... OK
 Establishing connection to @ai-muse...
+Port 42 :: Active
 ████████████████████ 100%
 
 Welcome to the depths.
@@ -291,6 +356,48 @@ func (f *CommandForge) fillTemplate(tmpl string, spec CommandSpec) string {
     var buf bytes.Buffer
     t.Execute(&buf, spec)
     return buf.String()
+}
+```
+
+### Technical Improvements & Stack Overflow Prevention
+
+```rust
+// Recursion guard prevents stack overflow from indirect recursion
+// This was a critical fix for session continuation
+use std::sync::atomic::{AtomicU32, Ordering};
+
+static RECURSION_DEPTH: AtomicU32 = AtomicU32::new(0);
+const MAX_RECURSION_DEPTH: u32 = 3;
+
+struct RecursionGuard;
+
+impl Drop for RecursionGuard {
+    fn drop(&mut self) {
+        RECURSION_DEPTH.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+impl DaemonClient {
+    pub fn ping(&mut self) -> Result<()> {
+        // Direct connection check without recursion
+        match self.stream.as_mut() {
+            Some(stream) => {
+                // Low-level check without going through request()
+                stream.get_ref().set_nonblocking(true)?;
+                let result = stream.get_ref().take_error();
+                stream.get_ref().set_nonblocking(false)?;
+                
+                match result {
+                    Ok(None) => Ok(()), // Connection is healthy
+                    _ => {
+                        self.stream = None;
+                        Err(anyhow!("Connection unhealthy"))
+                    }
+                }
+            }
+            None => Err(anyhow!("Not connected"))
+        }
+    }
 }
 ```
 
