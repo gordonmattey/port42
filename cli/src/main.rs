@@ -5,6 +5,7 @@ use anyhow::Result;
 mod commands;
 mod client;
 mod types;
+mod interactive;
 
 use commands::*;
 

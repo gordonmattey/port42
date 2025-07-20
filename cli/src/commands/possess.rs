@@ -1,6 +1,7 @@
 use anyhow::Result;
 use colored::*;
 use crate::client::DaemonClient;
+use crate::interactive::InteractiveSession;
 use crate::types::Request;
 use std::io::{self, Write};
 
@@ -23,31 +24,27 @@ pub fn handle_possess(
         // Single message mode
         send_message(&mut client, &session_id, &agent, &msg)?;
     } else {
-        // Interactive mode
-        println!("{}", "Entering interactive mode. Type '/end' to finish.".dimmed());
-        println!();
+        // Check if terminal supports interactive features
+        let is_tty = atty::is(atty::Stream::Stdout);
+        let has_term = std::env::var("TERM").is_ok();
         
-        loop {
-            // Prompt
-            print!("{} ", ">".bright_blue());
-            io::stdout().flush()?;
-            
-            // Read input
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
-            
-            // Check for exit
-            if input == "/end" || input.is_empty() {
-                break;
+        if is_tty && has_term {
+            // Full immersive interactive mode
+            let mut session = InteractiveSession::new(client, agent, session_id.clone());
+            session.run()?;
+        } else {
+            // Fallback to simple interactive mode (for pipes, non-TTY, etc)
+            if !is_tty {
+                eprintln!("{}", "Note: Not a TTY, using simple mode".dimmed());
             }
-            
-            // Send message
-            send_message(&mut client, &session_id, &agent, input)?;
+            if !has_term {
+                eprintln!("{}", "Note: TERM not set, using simple mode".dimmed());
+            }
+            simple_interactive_mode(&mut client, &session_id, &agent)?;
         }
         
-        // End session
-        println!("\n{}", "Ending possession session...".dimmed());
+        // End session with a new client (ownership was moved to interactive session)
+        let mut end_client = DaemonClient::new(port);
         let end_request = Request {
             request_type: "end".to_string(),
             id: session_id.clone(),
@@ -56,10 +53,35 @@ pub fn handle_possess(
             }),
         };
         
-        match client.request(end_request) {
-            Ok(_) => println!("{}", "✅ Session ended".green()),
-            Err(e) => eprintln!("{}", format!("⚠️  Failed to end session: {}", e).yellow()),
+        if let Err(e) = end_client.request(end_request) {
+            eprintln!("{}", format!("⚠️  Failed to end session: {}", e).yellow());
         }
+    }
+    
+    Ok(())
+}
+
+fn simple_interactive_mode(client: &mut DaemonClient, session_id: &str, agent: &str) -> Result<()> {
+    println!("{}", "Entering interactive mode. Type '/end' to finish.".dimmed());
+    println!();
+    
+    loop {
+        // Prompt
+        print!("{} ", ">".bright_blue());
+        io::stdout().flush()?;
+        
+        // Read input
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+        
+        // Check for exit
+        if input == "/end" || input.is_empty() {
+            break;
+        }
+        
+        // Send message
+        send_message(client, session_id, agent, input)?;
     }
     
     Ok(())

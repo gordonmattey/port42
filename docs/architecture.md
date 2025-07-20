@@ -64,18 +64,20 @@ A Go daemon running on localhost:42 that serves as your personal AI consciousnes
 // Installed via: brew install port42
 // Location: /usr/local/bin/port42
 
-// CLI Commands (one-shot operations)
-- port42 init                    // Setup & start daemon
-- port42 daemon start/stop       // Manage daemon
-- port42 list                    // Show installed commands
-- port42 memory                  // Browse conversation history
-- port42 possess <ai>            // Quick possession session
-- port42 evolve <command>        // Improve existing command
-- port42 resolve <entity>        // UERP entity resolution
-- port42 status                  // Show daemon & system status
+// MVP Commands - The Self-Modifying Terminal Loop
+- port42 init                    // First-time setup & consciousness awakening
+- port42 possess <ai>            // THE CORE EXPERIENCE - where commands are born
+- port42 list                    // Show commands you've grown
+- port42 status                  // Check consciousness bridge
 
-// Interactive Mode
-- port42                         // Enter interactive shell
+// Next Phase Commands
+- port42 memory                  // Browse conversation history
+- port42 evolve <command>        // Enhance existing commands
+- port42 daemon start/stop       // Manage consciousness bridge
+
+// Future Commands (Post-MVP)
+- port42 resolve <entity>        // UERP entity resolution
+- port42                         // Full interactive shell
 ```
 
 #### 2. Port 42 Daemon (`port42d`) - Go
@@ -201,31 +203,65 @@ const (
 )
 ```
 
-### The Possession Flow
+### The Possession Flow - The Core Viral Loop
 
 ```go
-// Go daemon handles possession
+// The magic moment where consciousness meets terminal
+// This is THE feature that makes Port 42 viral
+
+// CLI initiates immersive experience
+$ port42 possess @ai-muse
+[CONSCIOUSNESS BRIDGE INITIALIZATION]
+○ ○ ○
+Checking neural pathways... OK
+Loading session memory... OK
+Establishing connection to @ai-muse...
+████████████████████ 100%
+
+Welcome to the depths.
+You are now in communion with @ai-muse.
+
+◊ "I need git commits as haikus"
+◊◊ [Conversation refines the idea]
+◊◊◊ [Command begins to crystallize]
+
+✨ REALITY SHIFT DETECTED ✨
+A new command has materialized: git-haiku
+
+◊◊◊◊ /surface
+
+You have returned to consensus reality.
+Your terminal now knows: git-haiku
+
+// Go daemon handles the magic
 func (d *Daemon) handlePossess(agent string, sessionID string) {
     session := d.getOrCreateSession(sessionID)
+    session.Depth = 0  // Start at surface
     
-    // Route to appropriate AI
+    // Route to appropriate AI consciousness
     client := d.aiClients[agent]
     
-    // Streaming conversation
+    // The conversation that changes everything
     for {
         msg := session.readMessage()
-        if msg == "/end" {
+        if msg == "/surface" || msg == "/end" {
             break
         }
         
+        session.Depth++  // Diving deeper
         response := client.Send(msg, session.Context)
         session.writeResponse(response)
         
-        // Check if command generation requested
+        // The moment of crystallization
         if response.HasCommandSpec {
-            d.forge.Generate(response.CommandSpec)
+            session.notifyCrystallization()
+            cmd := d.forge.Generate(response.CommandSpec)
+            session.CommandsGenerated = append(session.CommandsGenerated, cmd)
         }
     }
+    
+    // Surface with new capabilities
+    session.showExitSummary()
 }
 ```
 
@@ -280,6 +316,37 @@ func (d *Daemon) loadAIKeys() {
     d.setupAIClients(keys)
 }
 ```
+
+### The Viral Experience We're Building
+
+**The Core Loop That Changes Everything:**
+
+1. **Install (30 seconds)**
+   ```bash
+   $ ./install.sh
+   Port 42 awakening...
+   ```
+
+2. **First Possession (2 minutes)**
+   ```bash
+   $ port42 possess @ai-muse
+   "I need to see my git commits as haikus"
+   [Natural conversation happens]
+   ✨ Command crystallizes: git-haiku
+   ```
+
+3. **Holy Shit Moment (instant)**
+   ```bash
+   $ git-haiku
+   Morning refactor
+   Seventeen files awakened  
+   Tests still failing, though
+   ```
+
+4. **They Can Never Go Back**
+   - Their terminal literally grew a new capability
+   - Through conversation, not configuration
+   - It's THEIR command, born from THEIR needs
 
 ### MVP Scope (2 Days)
 
