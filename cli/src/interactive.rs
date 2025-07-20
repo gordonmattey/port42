@@ -125,12 +125,18 @@ impl InteractiveSession {
             println!("\n{}", format!("{} is contemplating...", self.agent).dimmed().italic());
             
             // Send message to daemon
-            let response = self.send_message(input)?;
+            let (response, command_generated) = self.send_message(input)?;
             
-            // Display response with typing effect
+            // Display response immediately
             println!("\n{}", self.agent.bright_blue());
             self.type_response(&response)?;
             println!();
+            
+            // Show crystallization AFTER the response
+            if let Some(command_name) = command_generated {
+                self.show_crystallization(&command_name)?;
+                self.commands_generated.push(command_name);
+            }
         }
         
         Ok(())
@@ -177,7 +183,7 @@ impl InteractiveSession {
         }
     }
     
-    fn send_message(&mut self, message: &str) -> Result<String> {
+    fn send_message(&mut self, message: &str) -> Result<(String, Option<String>)> {
         let request = Request {
             request_type: "possess".to_string(),
             id: self.session_id.clone(),
@@ -197,48 +203,35 @@ impl InteractiveSession {
                     eprintln!("DEBUG: Response data: {:?}", data);
                 }
                 
-                // Check for command generation
-                // The daemon sends command_generated=true and command_spec with the details
-                if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
-                    if let Some(spec) = data.get("command_spec") {
-                        if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
-                            self.show_crystallization(name)?;
-                            self.commands_generated.push(name.to_string());
-                        }
-                    }
-                }
+                // Get AI message first
+                let ai_message = data.get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("...")
+                    .to_string();
                 
-                // Return AI message
-                if let Some(ai_message) = data.get("message").and_then(|v| v.as_str()) {
-                    Ok(ai_message.to_string())
+                // Check for command generation (but don't show it yet)
+                let command_name = if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    data.get("command_spec")
+                        .and_then(|spec| spec.get("name"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
                 } else {
-                    Ok("...".to_string())
-                }
+                    None
+                };
+                
+                Ok((ai_message, command_name))
             } else {
-                Ok("The depths remain silent.".to_string())
+                Ok(("The depths remain silent.".to_string(), None))
             }
         } else {
-            Ok(format!("⚠ {}", response.error.unwrap_or_else(|| "Connection wavered".to_string())))
+            Ok((format!("⚠ {}", response.error.unwrap_or_else(|| "Connection wavered".to_string())), None))
         }
     }
     
     fn type_response(&self, response: &str) -> Result<()> {
-        // Typing effect for immersion
-        for char in response.chars() {
-            print!("{}", char);
-            io::stdout().flush()?;
-            
-            // Variable speed for more natural feel
-            let delay = match char {
-                '.' | '!' | '?' => 150,
-                ',' | ';' | ':' => 80,
-                ' ' => 20,
-                '\n' => 100,
-                _ => 10,
-            };
-            
-            thread::sleep(Duration::from_millis(delay));
-        }
+        // Show response immediately - no delay
+        print!("{}", response);
+        io::stdout().flush()?;
         Ok(())
     }
     
@@ -318,11 +311,18 @@ impl InteractiveSession {
         // Send a message to the AI requesting command generation
         let message = "Based on our conversation so far, please generate a command specification for what we've discussed. Focus on creating something practical and useful.";
         
-        let response = self.send_message(message)?;
+        let (response, command_generated) = self.send_message(message)?;
         
-        // The response should trigger command generation if the AI understands
-        if self.commands_generated.is_empty() || 
-           self.commands_generated.last().map(|cmd| !response.contains(cmd)).unwrap_or(true) {
+        // Display the AI's response first
+        println!("\n{}", self.agent.bright_blue());
+        println!("{}", response);
+        println!();
+        
+        // Show crystallization if a command was generated
+        if let Some(command_name) = command_generated {
+            self.show_crystallization(&command_name)?;
+            self.commands_generated.push(command_name);
+        } else {
             println!("\n{}", "The intention needs more clarity. Continue describing your vision...".dimmed());
         }
         
