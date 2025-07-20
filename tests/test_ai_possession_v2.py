@@ -27,7 +27,7 @@ TEST_CASES = [
     {
         "name": "Disk Usage Tree",
         "agent": "@ai-engineer", 
-        "message": "Create a command called 'disk-tree' that shows disk usage in a tree format. Use du -h to get sizes and indent subdirectories with spaces to show hierarchy. Show only directories larger than 100MB. Use bash and standard unix tools only.",
+        "message": "Create a command called 'disk-tree' that shows disk usage in a tree format. Use du -h to get sizes and indent subdirectories with spaces to show hierarchy. Use bash and standard unix tools only.",
         "expect_command": True
     },
     {

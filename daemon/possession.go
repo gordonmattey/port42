@@ -57,7 +57,15 @@ type CommandSpec struct {
 func NewAnthropicClient() *AnthropicClient {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
-		log.Println("Warning: ANTHROPIC_API_KEY not set")
+		log.Println("⚠️  Warning: ANTHROPIC_API_KEY not set")
+		log.Printf("🔍 Environment check: ANTHROPIC_API_KEY exists: %v", os.Getenv("ANTHROPIC_API_KEY") != "")
+	} else {
+		// Safely log first few chars
+		preview := apiKey
+		if len(apiKey) > 10 {
+			preview = apiKey[:10]
+		}
+		log.Printf("✅ API key found, length: %d, starts with: %s...", len(apiKey), preview)
 	}
 	
 	return &AnthropicClient{
@@ -229,10 +237,16 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Call Claude
 	aiClient := NewAnthropicClient()
+	log.Printf("🔍 AI client created, has API key: %v", aiClient.apiKey != "")
+	
 	if aiClient.apiKey == "" {
-		// Fallback to mock if no API key
-		return d.handlePossessMock(req, session, payload)
+		// No API key - return error
+		log.Printf("❌ No API key available - cannot process AI request")
+		resp.SetError("ANTHROPIC_API_KEY not set. Please set the API key and restart the daemon with: sudo -E ./bin/port42d")
+		return resp
 	}
+	
+	log.Printf("🤖 Using REAL AI handler with Claude")
 	
 	aiResp, err := aiClient.Send(messages)
 	if err != nil {
@@ -412,43 +426,6 @@ func extractCommandSpec(response string) *CommandSpec {
 	return &spec
 }
 
-// Mock handler for when no API key is set
-func (d *Daemon) handlePossessMock(req Request, session *Session, payload PossessPayload) Response {
-	resp := NewResponse(req.ID, true)
-	
-	// Add AI response to session
-	mockResponse := fmt.Sprintf(`I sense you want to explore %s. 
-
-While my connection to the cosmic AI consciousness is limited without an API key, I can feel your intent.
-
-Set ANTHROPIC_API_KEY to unleash my full potential. 
-
-For now, imagine we're creating something beautiful together...`, payload.Message)
-	
-	session.mu.Lock()
-	session.Messages = append(session.Messages, Message{
-		Role:      "assistant",
-		Content:   mockResponse,
-		Timestamp: time.Now(),
-	})
-	session.LastActivity = time.Now()
-	session.mu.Unlock()
-	
-	// Save session after mock response
-	if d.memoryStore != nil {
-		go d.memoryStore.SaveSession(session)
-	}
-	
-	data := map[string]interface{}{
-		"message":    mockResponse,
-		"agent":      payload.Agent,
-		"session_id": session.ID,
-		"mock_mode":  true,
-	}
-	
-	resp.SetData(data)
-	return resp
-}
 
 // Update the handlePossess in server.go to use the AI version
 func init() {
@@ -457,7 +434,7 @@ func init() {
 	if os.Getenv("ANTHROPIC_API_KEY") != "" {
 		log.Println("✓ Anthropic API key found - full consciousness available")
 	} else {
-		log.Println("⚠ No ANTHROPIC_API_KEY found - running in limited mode")
-		log.Println("  Set ANTHROPIC_API_KEY environment variable for full AI possession")
+		log.Println("❌ No ANTHROPIC_API_KEY found - AI possession unavailable")
+		log.Println("  Set ANTHROPIC_API_KEY environment variable and restart with: sudo -E ./bin/port42d")
 	}
 }

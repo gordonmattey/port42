@@ -54,6 +54,26 @@ func main() {
 	
 	// Log the actual port we're using
 	log.Printf("◊ Listening on localhost:%s", port)
+	
+	// Debug environment
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey != "" {
+		log.Printf("🔍 Environment: ANTHROPIC_API_KEY is set (length: %d)", len(apiKey))
+	} else {
+		log.Println("🔍 Environment: ANTHROPIC_API_KEY is NOT set")
+		// Check if running under sudo
+		log.Printf("🔍 Running as user: %s (UID: %d)", os.Getenv("USER"), os.Getuid())
+		log.Printf("🔍 SUDO_USER: %s", os.Getenv("SUDO_USER"))
+		log.Printf("🔍 HOME: %s", os.Getenv("HOME"))
+		
+		// List all env vars starting with ANTHRO
+		log.Println("🔍 Environment variables containing 'ANTHRO':")
+		for _, env := range os.Environ() {
+			if strings.Contains(env, "ANTHRO") {
+				log.Printf("   %s", env)
+			}
+		}
+	}
 
 	// Create daemon
 	daemon = NewDaemon(listener, port)
