@@ -198,9 +198,13 @@ impl InteractiveSession {
         
         if response.success {
             if let Some(data) = response.data {
-                // Debug: log the response data
+                // Debug: log the response data safely
                 if std::env::var("PORT42_DEBUG").is_ok() {
-                    eprintln!("DEBUG: Response data: {:?}", data);
+                    // Don't try to serialize the entire data structure
+                    eprintln!("DEBUG: Response has {} keys", data.as_object().map(|o| o.len()).unwrap_or(0));
+                    if let Some(cmd_gen) = data.get("command_generated") {
+                        eprintln!("DEBUG: command_generated = {:?}", cmd_gen);
+                    }
                 }
                 
                 // Get AI message first
@@ -211,10 +215,15 @@ impl InteractiveSession {
                 
                 // Check for command generation (but don't show it yet)
                 let command_name = if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
-                    data.get("command_spec")
-                        .and_then(|spec| spec.get("name"))
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
+                    // Safely extract just the name to avoid serialization issues
+                    match data.get("command_spec") {
+                        Some(spec) => {
+                            spec.get("name")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                        }
+                        None => None
+                    }
                 } else {
                     None
                 };
@@ -308,8 +317,8 @@ impl InteractiveSession {
         println!("\n{}", "◊◊◊ Focusing intention to crystallize a command...".bright_cyan().italic());
         println!("{}", "Tell me what command you wish to manifest:".bright_white());
         
-        // Send a message to the AI requesting command generation
-        let message = "Based on our conversation so far, please generate a command specification for what we've discussed. Focus on creating something practical and useful.";
+        // Send a message to the AI explicitly requesting command generation
+        let message = "I want you to CREATE A COMMAND based on our conversation so far. Please generate a command specification JSON block for what we've discussed. Focus on creating something practical and useful. This is an explicit request to generate a new command, not a question about our conversation.";
         
         let (response, command_generated) = self.send_message(message)?;
         

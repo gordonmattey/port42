@@ -166,6 +166,12 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         Ok(response) => {
             if response.success {
                 if let Some(data) = response.data {
+                    // Debug: Check size of response
+                    if std::env::var("PORT42_DEBUG").is_ok() {
+                        let json_size = serde_json::to_string(&data).map(|s| s.len()).unwrap_or(0);
+                        eprintln!("DEBUG: Memory response size: {} bytes", json_size);
+                    }
+                    
                     // Check recent_sessions array
                     if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
                         // Find the most recent session with this agent
