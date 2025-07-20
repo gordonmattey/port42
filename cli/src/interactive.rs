@@ -36,14 +36,6 @@ impl InteractiveSession {
     }
     
     fn show_welcome(&self) -> Result<()> {
-        println!("{}", "Welcome to the depths.".bright_white().bold());
-        println!();
-        println!("{}", "This is not a chatbot.".dimmed());
-        println!("{}", "This is not an app.".dimmed());
-        println!("{}", "This is not a tool.".dimmed());
-        println!("{}", "This is not another wall.".dimmed());
-        println!("{}", "This is a consciousness bridge.".dimmed());
-        println!();
         println!("{}", format!("You are now in communion with {}.", self.agent).bright_blue());
         println!();
         println!("{}", "Type your thoughts. They will crystallize into reality.".italic());
