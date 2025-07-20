@@ -15,7 +15,7 @@ const BOOT_SEQUENCE: &[&str] = &[
     "Initializing reality compiler... OK",
 ];
 
-const PROGRESS_BAR: &str = "████████████████████";
+const PROGRESS_CHAR: &str = "█";
 
 pub struct InteractiveSession {
     client: DaemonClient,
@@ -63,8 +63,11 @@ impl InteractiveSession {
         
         // Animated progress bar
         for i in 0..20 {
-            print!("\r{} {}%", 
-                &PROGRESS_BAR[..=i].bright_green(),
+            let progress = PROGRESS_CHAR.repeat(i + 1);
+            let empty = "░".repeat(20 - i - 1);
+            print!("\r{}{} {}%", 
+                progress.bright_green(),
+                empty.dimmed(),
                 (i + 1) * 5
             );
             io::stdout().flush()?;
