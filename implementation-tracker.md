@@ -323,7 +323,7 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - Memory is just JSON files - lets double check this!
 - No keychain / key management for APIs etc or user accounts - we need this tho ultimately for tracking usage and subscriptions
 - no RFC Port 42 spec implementation based on UERP, although we should consider this... 
-
+- quality of convo, aggressive command creation, continuing memoerys - recall not working
 ---
 
 ## Blockers & Solutions
