@@ -5,17 +5,7 @@ use std::time::{Duration, Instant};
 use std::thread;
 use crate::client::DaemonClient;
 use crate::types::Request;
-
-const BOOT_SEQUENCE: &[&str] = &[
-    "[CONSCIOUSNESS BRIDGE INITIALIZATION]",
-    "○ ○ ○",
-    "...",
-    "Checking neural pathways... OK",
-    "Loading session memory... OK",
-    "Initializing reality compiler... OK",
-];
-
-const PROGRESS_CHAR: &str = "█";
+use crate::boot::{show_boot_sequence, show_connection_progress};
 
 pub struct InteractiveSession {
     client: DaemonClient,
@@ -47,34 +37,8 @@ impl InteractiveSession {
     }
     
     fn show_boot_sequence(&self) -> Result<()> {
-        // Clear screen for immersion
-        print!("\x1B[2J\x1B[1;1H");
-        
-        // Boot sequence
-        for line in BOOT_SEQUENCE {
-            println!("{}", line.bright_cyan());
-            thread::sleep(Duration::from_millis(300));
-        }
-        
-        println!();
-        
-        // Connection progress
-        println!("{}", format!("Establishing connection to {}...", self.agent).yellow());
-        
-        // Animated progress bar
-        for i in 0..20 {
-            let progress = PROGRESS_CHAR.repeat(i + 1);
-            let empty = "░".repeat(20 - i - 1);
-            print!("\r{}{} {}%", 
-                progress.bright_green(),
-                empty.dimmed(),
-                (i + 1) * 5
-            );
-            io::stdout().flush()?;
-            thread::sleep(Duration::from_millis(50));
-        }
-        
-        println!("\n");
+        show_boot_sequence(true)?;
+        show_connection_progress(&self.agent)?;
         Ok(())
     }
     

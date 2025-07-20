@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use anyhow::Result;
 
+mod boot;
 mod commands;
 mod client;
 mod types;

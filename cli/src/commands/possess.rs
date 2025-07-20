@@ -3,6 +3,7 @@ use colored::*;
 use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
 use crate::types::Request;
+use crate::boot::{show_boot_sequence, show_connection_progress};
 use std::io::{self, Write};
 use chrono::{DateTime, Utc};
 
@@ -12,7 +13,12 @@ pub fn handle_possess(
     message: Option<String>, 
     session: Option<String>
 ) -> Result<()> {
-    println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
+    // Show boot sequence for both interactive and non-interactive modes
+    let is_tty = atty::is(atty::Stream::Stdout);
+    let clear_screen = is_tty && message.is_none(); // Only clear screen for interactive mode
+    
+    show_boot_sequence(clear_screen)?;
+    show_connection_progress(&agent)?;
     
     let mut client = DaemonClient::new(port);
     
@@ -23,10 +29,7 @@ pub fn handle_possess(
     } else {
         // Try to find and continue the most recent session with this agent
         match find_recent_session(&mut client, &agent)? {
-            Some(recent_id) => {
-                println!("{}", format!("↻ Continuing recent session: {}", recent_id).dimmed());
-                recent_id
-            }
+            Some(recent_id) => recent_id,
             None => {
                 // No recent session, create new
                 format!("cli-{}", chrono::Utc::now().timestamp())
@@ -36,7 +39,15 @@ pub fn handle_possess(
     
     if let Some(msg) = message {
         // Single message mode
-        println!("{}", "Sending single message...".dimmed());
+        println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
+        if session_id.contains("cli-") && !session_id.contains("recent") {
+            // New session
+            println!("{}", format!("Session: {}", session_id).dimmed());
+        } else {
+            println!("{}", format!("↻ Continuing session: {}", session_id).dimmed());
+        }
+        println!();
+        
         send_message(&mut client, &session_id, &agent, &msg)?;
     } else {
         // Check if terminal supports interactive features
