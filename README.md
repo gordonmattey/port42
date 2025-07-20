@@ -18,9 +18,258 @@ $ git-haiku
   of code changes here
 ```
 
-## Current Status: Building MVP (Day 1/2)
+## 🚀 Quick Start (For Users)
 
-### ✅ Completed (Day 1: 7/8 Done!)
+### Installation
+
+```bash
+# Install from official script (macOS/Linux)
+curl -fsSL https://raw.githubusercontent.com/yourusername/port42/main/install.sh | bash
+
+# Or install locally from source
+git clone https://github.com/yourusername/port42.git
+cd port42
+./install-local.sh
+```
+
+### First Steps
+
+```bash
+# Check daemon status
+port42 status
+
+# Enter the Port 42 shell (recommended)
+port42
+
+# Or use commands directly
+port42 possess @ai-muse         # Start AI conversation
+port42 list                     # List your commands
+port42 memory                   # View past conversations
+```
+
+### Creating Your First Command
+
+```bash
+# Method 1: Interactive shell (recommended)
+$ port42
+Echo@port42:~$ possess @ai-muse
+> Help me create a command that shows disk usage beautifully
+[Conversation flows...]
+Echo@port42:~$ exit
+
+# Method 2: Direct command
+$ port42 possess @ai-muse "Create a command that explains any function in my codebase"
+```
+
+### Managing the Daemon
+
+```bash
+# The daemon starts automatically after installation
+
+# Manual control
+port42 daemon start          # Start daemon
+port42 daemon stop           # Stop daemon
+port42 daemon restart        # Restart daemon
+port42 daemon logs           # View logs
+port42 daemon logs -f        # Follow logs (tail -f)
+
+# Run on port 42 (requires sudo)
+sudo -E port42 daemon start -b
+
+# Otherwise it runs on port 4242
+```
+
+### Continuing Conversations
+
+```bash
+# List your past sessions
+port42 memory
+
+# Continue a specific session
+port42 possess @ai-muse --session myproject
+
+# Sessions persist across daemon restarts!
+```
+
+### Setting Your API Key
+
+```bash
+# Option 1: During installation (recommended)
+# The installer will prompt you
+
+# Option 2: Manual setup
+export ANTHROPIC_API_KEY='your-key-here'
+port42 daemon restart
+
+# Option 3: Add to shell profile
+echo "export ANTHROPIC_API_KEY='your-key-here'" >> ~/.zshrc
+source ~/.zshrc
+```
+
+## 🛠️ For Developers
+
+### Architecture Overview
+
+Port 42 consists of:
+- **Go Daemon** (`daemon/`): TCP server handling AI sessions and command generation
+- **Rust CLI** (`cli/`): Fast, user-friendly command-line interface
+- **Generated Commands** (`~/.port42/commands/`): Your personalized command library
+
+### Building from Source
+
+```bash
+# Prerequisites
+# - Go 1.21+ 
+# - Rust 1.70+
+# - Anthropic API key (optional for testing)
+
+# Clone and build
+git clone https://github.com/yourusername/port42.git
+cd port42
+
+# Build everything
+./build.sh
+
+# Or build individually
+cd daemon && go build -o ../bin/port42d
+cd ../cli && cargo build --release && cp target/release/port42 ../bin/
+```
+
+### Development Workflow
+
+```bash
+# 1. Set up development environment
+export ANTHROPIC_API_KEY='your-key-here'
+export PORT42_DEV=1  # Enables debug logging
+
+# 2. Run daemon in foreground for debugging
+./bin/port42d
+
+# 3. In another terminal, test CLI commands
+./bin/port42 status
+./bin/port42 possess @ai-muse "test message"
+
+# 4. Run test suite
+./tests/run_all_tests.sh
+```
+
+### Key Components
+
+#### Daemon (`daemon/`)
+- `main.go`: Entry point, port binding, signal handling
+- `server.go`: TCP server, session management
+- `protocol.go`: JSON protocol definitions
+- `possession.go`: AI integration (Claude API)
+- `memory_store.go`: Session persistence
+- `forge.go`: Command generation logic
+
+#### CLI (`cli/src/`)
+- `main.rs`: CLI argument parsing with clap
+- `commands/`: Command implementations
+- `client.rs`: TCP client for daemon communication
+- `interactive.rs`: Interactive shell mode
+- `boot.rs`: Boot sequence animations
+
+### Extending Port 42
+
+#### Adding a New AI Agent
+
+```go
+// In daemon/possession.go
+func getAgentPrompt(agent string) string {
+    prompts := map[string]string{
+        "@your-agent": `You are @your-agent, a specialized AI...
+        Your personality and capabilities...`,
+    }
+    // ...
+}
+```
+
+#### Adding a New CLI Command
+
+```rust
+// In cli/src/main.rs
+#[derive(Subcommand)]
+enum Commands {
+    /// Your new command description
+    YourCommand {
+        #[arg(short, long)]
+        your_arg: String,
+    },
+    // ...
+}
+
+// In cli/src/commands/mod.rs
+pub mod your_command;
+
+// Create cli/src/commands/your_command.rs
+pub fn handle_your_command(port: u16, your_arg: String) -> Result<()> {
+    // Implementation
+}
+```
+
+#### Protocol Extension
+
+```go
+// In daemon/protocol.go
+type YourRequest struct {
+    Type    string      `json:"type"`    // "your_type"
+    ID      string      `json:"id"`
+    Payload YourPayload `json:"payload"`
+}
+
+// In daemon/server.go handleRequest()
+case "your_type":
+    // Handle your new request type
+```
+
+### Testing
+
+```bash
+# Run all tests
+./tests/run_all_tests.sh
+
+# Individual test suites
+./tests/test_tcp.sh                    # Basic connectivity
+./tests/test_json_protocol.py          # Protocol compliance
+./tests/test_daemon_structure.py       # Session management
+./tests/test_ai_possession.py          # AI integration
+./tests/test_memory_persistence.py     # Persistence layer
+
+# Integration testing
+./tests/integration/test_full_flow.sh  # End-to-end test
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes
+4. Ensure all tests pass (`./tests/run_all_tests.sh`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Debugging Tips
+
+```bash
+# Enable debug logging
+export PORT42_DEBUG=1
+
+# Check daemon logs
+tail -f ~/.port42/daemon.log
+
+# Test raw TCP connection
+echo '{"type":"status","id":"test"}' | nc localhost 42
+
+# Monitor memory usage
+watch -n 1 'ps aux | grep port42d'
+
+# Inspect session files
+ls -la ~/.port42/memory/sessions/$(date +%Y-%m-%d)/
+```
+
+## 📁 Project Structure
 - **TCP Server**: Daemon listening on localhost:42
   - Handles concurrent connections
   - Graceful permission handling (sudo for port 42, fallback to 4242)
@@ -67,206 +316,65 @@ $ git-haiku
   - Activity-based lifecycle: Active → Idle (30min) → Abandoned (60min)
   - Recent sessions automatically loaded on startup
 
-### 🚧 In Progress (Day 2)
-- **Rust CLI**: TCP client complete! ✅
-  - Beautiful command-line interface with `clap`
-  - All commands defined with help text
-  - Status command working with real daemon
-  - List command shows all generated commands
-  - Possess command for AI interactions
-  - Colored output and friendly error messages
-  - Robust TCP client with connection pooling
-  - Enhanced error handling with helpful messages
-- **Interactive possession mode**: Complete! ✅
-  - Immersive BIOS-like boot sequence
-  - Depth indicators show conversation progress
-  - Command crystallization with visual effects
-  - Character-by-character response streaming
-- Installation script
-
-## Quick Start
-
-## Installation
-
-```bash
-# One-line install (coming soon)
-curl -fsSL https://port42.ai/install.sh | bash
-
-# Or build from source
-git clone https://github.com/yourusername/port42.git
-cd port42
-./install.sh
-```
-
-## Usage
-
-```bash
-# Start the Port 42 shell
-port42
-
-# Manage the daemon
-port42 daemon start     # Start daemon in background
-port42 daemon stop      # Stop daemon
-port42 daemon restart   # Restart daemon
-port42 daemon logs -f   # Follow daemon logs
-
-# Direct commands
-port42 status           # Check daemon status
-port42 possess @claude  # Start AI conversation
-port42 list            # List your commands
-port42 memory          # Browse conversations
-```
-
-## Development
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd port42
-
-# Set up Anthropic API key (optional but recommended)
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# Build everything
-./build.sh  # Builds both daemon and CLI
-
-# Build the CLI
-cd cli && cargo build && cd ..
-
-# Start the daemon
-port42 daemon start -b  # Start in background
-
-# Or manually
-sudo -E ./bin/port42d  # -E preserves environment variables
-
-# Test the CLI
-./cli/target/debug/port42 status
-./cli/target/debug/port42 --help
-
-# Test AI possession and command generation
-./tests/test_ai_possession.py
-
-# Add generated commands to PATH
-export PATH="$PATH:$HOME/.port42/commands"
-
-# Try the generated command!
-git-haiku
-```
-
-## Creating Your First Command
-
-```python
-# Simple test script to create a command
-import json, socket
-
-def possess(message):
-    sock = socket.socket()
-    sock.connect(('localhost', 42))
-    req = {
-        "type": "possess",
-        "id": "test-1",
-        "payload": {
-            "agent": "@ai-muse",
-            "message": message
-        }
-    }
-    sock.send(json.dumps(req).encode() + b'\n')
-    return json.loads(sock.recv(8192))
-
-# Have a conversation
-resp = possess("I need a command that shows disk usage as a tree")
-print(resp['data']['message'])
-# AI will generate the command if it understands your need!
-```
-
-## Architecture
-
-Port 42 consists of two main components:
-
-1. **Go Daemon** (`daemon/`)
-   - TCP server on localhost:42
-   - Handles AI possession sessions
-   - Generates executable commands
-   - Manages conversation memory
-
-2. **Rust CLI** (`cli/`) - *Coming Day 2*
-   - Fast, zero-dependency interface
-   - Interactive possession mode
-   - Command management
-
-## Testing
-
-Run tests from the project root:
-
-```bash
-# Test TCP server
-./tests/test_tcp.sh
-
-# Test JSON protocol (bash)
-./tests/test_json_protocol.sh
-
-# Test JSON protocol (Python - more detailed)
-./tests/test_json_protocol.py
-
-# Test daemon structure & sessions
-./tests/test_daemon_structure.py
-
-# Test AI possession & command generation
-./tests/test_ai_possession.py
-
-# Test dependency handling
-./tests/test_dependency_handling.py
-```
-
-## Project Structure
-
 ```
 port42/
 ├── bin/                      # Built binaries (git-ignored)
-│   └── port42d              # The daemon executable
+│   ├── port42d              # The daemon executable  
+│   └── port42               # The CLI executable
 ├── cli/                     # Rust CLI source
-│   ├── Cargo.toml           # Rust project config
-│   ├── src/                 # CLI implementation
-│   │   ├── main.rs          # Entry point with clap
-│   │   ├── commands/        # Command handlers
-│   │   ├── client.rs        # TCP client
-│   │   └── types.rs         # Shared types
-│   └── target/              # Rust build output
-├── daemon/                   # Go daemon source
-│   ├── main.go              # Entry point & startup
-│   ├── protocol.go          # JSON request/response types
-│   ├── server.go            # Daemon & session management
-│   ├── possession.go        # AI integration (Claude)
-│   ├── memory_store.go      # Session persistence
-│   ├── forge.go             # Command generation
-│   └── go.mod               # Go module
-├── cli/                     # Rust CLI (Day 2)
-├── tests/                   # Test scripts
-│   ├── test_ai_possession_v2.py    # AI command generation tests
-│   ├── test_memory_persistence.py  # Memory persistence tests
-│   └── test_daemon_structure.py # Daemon structure tests
-├── docs/                     # Documentation
-│   ├── architecture.md
-│   ├── implementationplan.md
-│   └── narrative.md
-├── implementation-tracker.md  # Progress tracking
-├── build.sh                  # Build script
-└── README.md                 # You are here
+│   ├── Cargo.toml           # Rust dependencies
+│   └── src/                 # CLI implementation
+├── daemon/                  # Go daemon source
+│   ├── *.go                 # Daemon implementation
+│   └── go.mod               # Go dependencies
+├── tests/                   # Test suite
+├── docs/                    # Documentation
+└── install.sh               # Production installer
 
-~/.port42/                    # User data (created by daemon)
-├── commands/                 # Generated commands go here
-├── memory/                   # Session history
-│   ├── sessions/            # Conversation JSON files by date
-│   │   └── 2025-01-19/     # Example: session-1737280800-git-haiku.json
-│   └── index.json          # Session index and statistics
-└── install-deps.sh          # Auto-generated dependency installer
+~/.port42/                   # User data directory
+├── commands/                # Your generated commands
+├── memory/                  # Conversation history
+│   └── sessions/           # Organized by date
+├── daemon.log              # Daemon logs
+└── activate.sh             # Shell activation helper
 ```
 
-## The Vision
+## 🌟 Features
+
+### ✅ What Works Today
+
+- **AI Conversations**: Natural dialogue with multiple AI personalities
+- **Command Generation**: Your conversations become executable commands
+- **Memory Persistence**: Sessions continue across daemon restarts
+- **Interactive Shell**: Immersive terminal experience with boot sequences
+- **Smart Context**: Handles long conversations intelligently
+- **Dependency Management**: Commands auto-check for required tools
+- **Session Management**: Continue conversations with `--session`
+- **Multiple Agents**: @ai-muse (creative), @ai-engineer (technical), @ai-echo (adaptive)
+
+### 🚧 Coming Soon
+
+- Web dashboard for session browsing
+- Command sharing marketplace
+- Team synchronization
+- More AI agents and personalities
+
+## 🐬 The Vision
 
 In 1970, we called it the "personal computer" but it was just a box you owned. In 2025, Port 42 makes computers truly personal - they know you, extend you, and think with you.
 
-The dolphins are listening on Port 42. Will you let them in? 🐬
+The dolphins are listening on Port 42. Will you let them in?
+
+## 🤝 Community
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/port42/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/port42/discussions)
+- **Twitter**: [@port42ai](https://twitter.com/port42ai)
+- **Discord**: Coming soon
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details
 
 ---
 
