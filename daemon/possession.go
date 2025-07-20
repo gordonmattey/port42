@@ -214,10 +214,18 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		Content:   payload.Message,
 		Timestamp: time.Now(),
 	})
+	session.LastActivity = time.Now()
 	
 	// Build conversation history
 	messages := d.buildConversationContext(session, payload.Agent)
 	session.mu.Unlock()
+	
+	// Save session after user message
+	log.Printf("🔍 Possess handler: memoryStore != nil: %v", d.memoryStore != nil)
+	if d.memoryStore != nil {
+		log.Printf("💾 Queuing save after user message for session %s", session.ID)
+		go d.memoryStore.SaveSession(session)
+	}
 	
 	// Call Claude
 	aiClient := NewAnthropicClient()
@@ -246,14 +254,28 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		Content:   responseText,
 		Timestamp: time.Now(),
 	})
-	session.mu.Unlock()
+	session.LastActivity = time.Now()
 	
 	// Check if AI suggested a command implementation
 	var commandSpec *CommandSpec
 	if spec := extractCommandSpec(responseText); spec != nil {
+		// Store command info in session
+		session.CommandGenerated = spec
+		session.State = SessionCompleted
+		log.Printf("🎉 Command generated in session %s: %s", session.ID, spec.Name)
+		
 		// Generate the command!
 		go d.generateCommand(spec)
 		commandSpec = spec
+	}
+	
+	session.mu.Unlock()
+	
+	// Save session after AI response
+	log.Printf("🔍 After AI response: memoryStore != nil: %v", d.memoryStore != nil)
+	if d.memoryStore != nil {
+		log.Printf("💾 Queuing save after AI response for session %s", session.ID)
+		go d.memoryStore.SaveSession(session)
 	}
 	
 	// Prepare response
@@ -409,7 +431,13 @@ For now, imagine we're creating something beautiful together...`, payload.Messag
 		Content:   mockResponse,
 		Timestamp: time.Now(),
 	})
+	session.LastActivity = time.Now()
 	session.mu.Unlock()
+	
+	// Save session after mock response
+	if d.memoryStore != nil {
+		go d.memoryStore.SaveSession(session)
+	}
 	
 	data := map[string]interface{}{
 		"message":    mockResponse,

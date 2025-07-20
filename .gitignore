@@ -1,5 +1,7 @@
 # Binaries
+bin/
 daemon/port42d
+port42d
 *.exe
 *.dll
 *.so

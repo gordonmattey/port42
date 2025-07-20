@@ -1,0 +1,334 @@
+Network Working Group                                Port 42 Collective
+Request for Comments: XXXX                                December 2024
+Category: Standards Track
+
+
+       Universal Entity Resolution Protocol (UERP) for Port 42
+
+Status of This Memo
+
+   This document specifies an Internet standards track protocol for the
+   Internet community, and requests discussion and suggestions for
+   improvements.  Please refer to the current edition of the "Internet
+   Official Protocol Standards" (STD 1) for the standardization state
+   and status of this protocol.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2024).  All Rights Reserved.
+
+Abstract
+
+   This document specifies the Universal Entity Resolution Protocol
+   (UERP), which repurposes TCP/UDP Port 42 from the legacy Host Name
+   Server Protocol to provide comprehensive entity resolution for
+   modern distributed systems.  UERP enables resolution of content,
+   contexts, agents, temporal states, and relationships, extending
+   beyond traditional hostname-to-IP mapping to support the emerging
+   requirements of agent-based computing and persistent distributed
+   memory systems.
+
+Table of Contents
+
+   1. Introduction ....................................................2
+   2. Terminology .....................................................3
+   3. Protocol Overview ...............................................3
+   4. Addressing Scheme ...............................................4
+   5. Message Format ..................................................5
+   6. Protocol Operations .............................................7
+   7. Security Considerations .........................................9
+   8. IANA Considerations ............................................10
+   9. References .....................................................10
+   10. Author's Address ..............................................11
+
+1. Introduction
+
+   The current Internet architecture assumes that addressing equals
+   location (URLs point to servers), identity equals accounts (users
+   tied to platforms), and content equals files (data locked in
+   applications).  This model is increasingly inadequate for emerging
+   computing paradigms involving autonomous agents, persistent shared
+   contexts, and content that transcends specific locations.
+
+   Port 42, currently assigned to the obsolete Host Name Server
+   Protocol [RFC811], represents an opportunity to establish a new
+   foundational protocol for the agent era.  The cultural significance
+   of "42" as "the answer to life, the universe, and everything"
+   [ADAMS79] makes it particularly suitable as a universal resolution
+   service.
+
+   UERP addresses these limitations by providing:
+
+   o  Content addressing independent of location
+   o  Persistent context spaces with shared memory
+   o  Identity resolution for both human and AI entities  
+   o  Temporal addressing for state at specific moments
+   o  Relational addressing for entity connections
+
+   This specification defines UERP's addressing scheme, message
+   formats, and protocol operations.
+
+2. Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in
+   this document are to be interpreted as described in RFC 2119
+   [RFC2119].
+
+   Entity: Any addressable object including content, contexts, agents,
+           users, or relationships.
+
+   Context: A persistent shared memory space accessible by multiple
+            entities.
+
+   Agent: An autonomous computational entity, typically AI-based.
+
+   Temporal Address: A reference to an entity's state at a specific
+                     point in time.
+
+   Resolution: The process of mapping an entity identifier to its
+               metadata and current location(s).
+
+3. Protocol Overview
+
+   UERP operates on TCP port 42 and UDP port 42, replacing the legacy
+   NAMESERVER protocol.  The protocol consists of three layers:
+
+   3.1. Discovery Layer
+
+      The Discovery Layer maintains a distributed hash table (DHT) for
+      entity discovery without central authority.  Entities are
+      identified by cryptographic hashes of their public keys.
+
+   3.2. Resolution Layer  
+
+      The Resolution Layer handles queries and returns rich metadata
+      beyond simple location mapping.  Unlike DNS, UERP resolution can
+      return multiple types of related information.
+
+   3.3. Relation Layer
+
+      The Relation Layer maintains a graph of entity relationships,
+      supporting bi-directional references and temporal tracking.
+
+                        +--------------------+
+                        |   Application      |
+                        +--------------------+
+                        |   UERP API         |
+                        +--------------------+
+                        | Relation Layer     |
+                        +--------------------+
+                        | Resolution Layer   |
+                        +--------------------+
+                        | Discovery Layer    |
+                        +--------------------+
+                        | TCP/UDP Port 42    |
+                        +--------------------+
+
+                    Figure 1: UERP Protocol Stack
+
+4. Addressing Scheme
+
+   UERP uses a hierarchical addressing scheme:
+
+      port42://[type]/[identifier]/[optional-path]
+
+   4.1. Entity Types
+
+      The following entity types are defined:
+
+      o  context - Shared memory spaces
+      o  agent - AI entities and services
+      o  space - Collaborative environments  
+      o  content - Content-addressed data
+      o  user - Human identities
+      o  temporal - Time-specific states
+      o  relation - Connections between entities
+
+   4.2. Identifiers
+
+      Identifiers MUST be either:
+      
+      o  A cryptographic hash (for content addressing)
+      o  A human-readable name with cryptographic proof
+      o  A composite identifier including timestamp
+
+   4.3. Examples
+
+      port42://context/team-alpha/q4-planning
+      port42://agent/research-bot/memory/2024-12-18
+      port42://content/QmX7.../v3
+      port42://temporal/meeting/2024-12-18T14:30:00Z
+
+5. Message Format
+
+   UERP messages use a binary format for efficiency:
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |Version|  Type |     Flags     |          Message ID           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                          Timestamp                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |            Length             |           Reserved              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                                 |
+   /                            Payload                              /
+   |                                                                 |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                    Figure 2: UERP Message Header
+
+   5.1. Header Fields
+
+      Version (4 bits): Protocol version, currently 1.
+
+      Type (4 bits): Message type:
+         0x1 - Query
+         0x2 - Response  
+         0x3 - Update
+         0x4 - Subscribe
+         0x5 - Notify
+
+      Flags (8 bits): Type-specific flags.
+
+      Message ID (16 bits): Unique identifier for request/response
+                            matching.
+
+      Timestamp (32 bits): Unix timestamp of message creation.
+
+      Length (16 bits): Total message length including header.
+
+      Reserved (16 bits): Reserved for future use, MUST be zero.
+
+   5.2. Query Message Format
+
+      The payload for a Query message contains:
+
+      o  Entity URI (variable length, null-terminated)
+      o  Include fields (bitmap specifying requested metadata)
+      o  Temporal qualifier (optional timestamp)
+
+   5.3. Response Message Format
+
+      The payload for a Response message contains:
+
+      o  Status code (16 bits)
+      o  Entity metadata (JSON-encoded)
+      o  Location list (array of current locations)
+      o  Signature (cryptographic proof of authenticity)
+
+6. Protocol Operations
+
+   6.1. Basic Resolution
+
+      A client seeking to resolve an entity sends a Query message to
+      any UERP node:
+
+      C: Query for "port42://context/project-alpha"
+      S: Response with metadata, participants, and locations
+
+   6.2. Temporal Resolution
+
+      Temporal queries include an "as-of" timestamp:
+
+      C: Query for "port42://space/meeting" as-of 2024-12-18T10:00:00Z
+      S: Response with state at specified time
+
+   6.3. Subscription
+
+      Clients can subscribe to entity changes:
+
+      C: Subscribe to "port42://agent/bot-7/status"
+      S: Notify messages on status changes
+
+   6.4. Multi-Resolution
+
+      UERP supports resolving multiple entities in a single query:
+
+      C: Query for related entities of "port42://user/alice"
+      S: Response with graph of connected entities
+
+7. Security Considerations
+
+   7.1. Authentication
+
+      All entities MUST be authenticated using cryptographic
+      signatures.  Public keys are distributed via the DHT with
+      proof-of-work requirements to prevent spam.
+
+   7.2. Privacy
+
+      UERP supports selective disclosure, allowing entities to reveal
+      different metadata to different queriers.  Zero-knowledge proofs
+      enable relationship verification without content disclosure.
+
+   7.3. Integrity
+
+      All messages MUST include cryptographic hashes to ensure
+      integrity.  The distributed nature of the protocol provides
+      resilience against single points of failure.
+
+   7.4. Denial of Service
+
+      Rate limiting SHOULD be implemented at the protocol level.
+      Proof-of-work requirements for entity registration provide
+      additional DoS protection.
+
+8. IANA Considerations
+
+   This document requests that IANA:
+
+   8.1. Reassign TCP port 42 from NAMESERVER to UERP.
+
+   8.2. Reassign UDP port 42 from NAMESERVER to UERP.
+
+   8.3. Create a new registry for UERP entity types with the initial
+        values specified in Section 4.1.
+
+   8.4. Create a new registry for UERP message types with the initial
+        values specified in Section 5.1.
+
+9. References
+
+   9.1. Normative References
+
+      [RFC2119] Bradner, S., "Key words for use in RFCs to Indicate
+                Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+      [RFC811]  Harrenstien, K., White, V., and E. Feinler, "Hostnames
+                Server", RFC 811, March 1982.
+
+   9.2. Informative References
+
+      [ADAMS79] Adams, D., "The Hitchhiker's Guide to the Galaxy",
+                Pan Books, 1979.
+
+      [RFC791]  Postel, J., "Internet Protocol", STD 5, RFC 791,
+                September 1981.
+
+      [RFC1034] Mockapetris, P., "Domain names - concepts and
+                facilities", STD 13, RFC 1034, November 1987.
+
+10. Author's Address
+
+   Port 42 Collective
+   c/o The Dolphins
+   
+   Email: protocol@port42collective.dev
+   URI:   port42://collective/authors
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2024).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain
+   it or assist in its implementation may be prepared, copied,
+   published and distributed, in whole or in part, without restriction
+   of any kind, provided that the above copyright notice and this
+   paragraph are included on all such copies and derivative works.
+
+   "So long, and thanks for all the fish" - The dolphins knew we
+   needed a better addressing system.

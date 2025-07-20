@@ -20,7 +20,7 @@ $ git-haiku
 
 ## Current Status: Building MVP (Day 1/2)
 
-### ✅ Completed (Day 1: 6/8 Done!)
+### ✅ Completed (Day 1: 7/8 Done!)
 - **TCP Server**: Daemon listening on localhost:42
   - Handles concurrent connections
   - Graceful permission handling (sudo for port 42, fallback to 4242)
@@ -28,7 +28,7 @@ $ git-haiku
 
 - **JSON Protocol**: Request/response communication
   - Clean type definitions in `protocol.go`
-  - Handlers for status, list, and possess requests
+  - Handlers for status, list, possess, memory, and end requests
   - Error handling for invalid JSON
   - Uptime tracking and status reporting
 
@@ -37,7 +37,7 @@ $ git-haiku
   - Thread-safe session tracking
   - Graceful shutdown handling
   - Memory endpoint to view all sessions
-  - Session cleanup (1hr TTL)
+  - Activity-based session lifecycle (no arbitrary TTL)
   - Tested with 10+ concurrent sessions
 
 - **AI Possession**: Real AI integration via Anthropic Claude
@@ -45,6 +45,8 @@ $ git-haiku
   - Multiple personalities (@ai-muse, @ai-engineer, @ai-echo)
   - Session persistence across requests
   - Graceful fallback when no API key
+  - Rate limiting and retry logic for API reliability
+  - Support for Claude 3.5 Sonnet (fast) and Claude 4 Opus
 
 - **Command Generation**: Conversations become executable commands!
   - AI generates command specifications in JSON
@@ -55,13 +57,19 @@ $ git-haiku
   - **Dependency handling**: Commands check for required tools
   - Auto-generated installer script (~/.port42/install-deps.sh)
 
-### 🚧 In Progress
-- Memory persistence to disk
+- **Memory Persistence**: Sessions saved to disk! ✅
+  - All conversations persisted to ~/.port42/memory/sessions/
+  - JSON format for easy exploration and debugging
+  - Sessions organized by date (2025-01-19/session-*.json)
+  - Index file tracks all sessions with statistics
+  - Sessions survive daemon restarts
+  - Activity-based lifecycle: Active → Idle (30min) → Abandoned (60min)
+  - Recent sessions automatically loaded on startup
 
-### 📋 Upcoming
-- Integration testing
-- Rust CLI (Day 2)
-- Interactive mode
+### 📋 Upcoming (Day 2)
+- Rust CLI with interactive mode
+- Installation script
+- Demo commands and video
 
 ## Quick Start (Development)
 
@@ -73,13 +81,13 @@ cd port42
 # Set up Anthropic API key (optional but recommended)
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# Build and start the daemon
-cd daemon
-go build -o port42d .
-sudo -E ./port42d  # -E preserves environment variables
+# Build the daemon
+./build.sh  # Builds to ./bin/port42d
+
+# Start the daemon
+sudo -E ./bin/port42d  # -E preserves environment variables
 
 # Test AI possession and command generation
-cd ..
 ./tests/test_ai_possession.py
 
 # Add generated commands to PATH
@@ -158,24 +166,36 @@ Run tests from the project root:
 
 ```
 port42/
-├── daemon/                    # Go daemon
-│   ├── main.go               # Entry point & startup
-│   ├── protocol.go           # JSON request/response types
-│   ├── server.go             # Daemon & session management
-│   ├── port42d               # Compiled daemon binary
-│   └── go.mod                # Go module
-├── cli/                      # Rust CLI (Day 2)
-├── tests/                    # Test scripts
-│   ├── test_tcp.sh           # TCP server tests
-│   ├── test_json_protocol.sh # JSON protocol tests (bash)
-│   ├── test_json_protocol.py # JSON protocol tests (Python)
+├── bin/                      # Built binaries (git-ignored)
+│   └── port42d              # The daemon executable
+├── daemon/                   # Go daemon source
+│   ├── main.go              # Entry point & startup
+│   ├── protocol.go          # JSON request/response types
+│   ├── server.go            # Daemon & session management
+│   ├── possession.go        # AI integration (Claude)
+│   ├── memory_store.go      # Session persistence
+│   ├── forge.go             # Command generation
+│   └── go.mod               # Go module
+├── cli/                     # Rust CLI (Day 2)
+├── tests/                   # Test scripts
+│   ├── test_ai_possession_v2.py    # AI command generation tests
+│   ├── test_memory_persistence.py  # Memory persistence tests
 │   └── test_daemon_structure.py # Daemon structure tests
 ├── docs/                     # Documentation
 │   ├── architecture.md
 │   ├── implementationplan.md
 │   └── narrative.md
 ├── implementation-tracker.md  # Progress tracking
+├── build.sh                  # Build script
 └── README.md                 # You are here
+
+~/.port42/                    # User data (created by daemon)
+├── commands/                 # Generated commands go here
+├── memory/                   # Session history
+│   ├── sessions/            # Conversation JSON files by date
+│   │   └── 2025-01-19/     # Example: session-1737280800-git-haiku.json
+│   └── index.json          # Session index and statistics
+└── install-deps.sh          # Auto-generated dependency installer
 ```
 
 ## The Vision

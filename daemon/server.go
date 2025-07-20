@@ -14,22 +14,26 @@ import (
 
 // Daemon represents the Port 42 daemon
 type Daemon struct {
-	listener   net.Listener
-	sessions   map[string]*Session
-	mu         sync.RWMutex
-	config     Config
-	shutdownCh chan struct{}
-	wg         sync.WaitGroup
+	listener    net.Listener
+	sessions    map[string]*Session
+	mu          sync.RWMutex
+	config      Config
+	shutdownCh  chan struct{}
+	wg          sync.WaitGroup
+	memoryStore *MemoryStore
 }
 
 // Session represents an active possession session
 type Session struct {
-	ID        string    `json:"id"`
-	Agent     string    `json:"agent"`
-	StartTime time.Time `json:"start_time"`
-	Messages  []Message `json:"messages"`
-	Active    bool      `json:"active"`
-	mu        sync.Mutex
+	ID               string       `json:"id"`
+	Agent            string       `json:"agent"`
+	CreatedAt        time.Time    `json:"created_at"`
+	LastActivity     time.Time    `json:"last_activity"`
+	State            SessionState `json:"state"`
+	Messages         []Message    `json:"messages"`
+	CommandGenerated *CommandSpec `json:"command_generated,omitempty"`
+	IdleTimeout      time.Duration `json:"idle_timeout"`
+	mu               sync.Mutex
 }
 
 // Message represents a conversation message
@@ -51,17 +55,31 @@ type Config struct {
 
 // NewDaemon creates a new daemon instance
 func NewDaemon(listener net.Listener, port string) *Daemon {
+	homeDir, _ := os.UserHomeDir()
+	baseDir := filepath.Join(homeDir, ".port42")
+	
+	// Initialize memory store
+	log.Printf("🔍 Initializing memory store with base dir: %s", baseDir)
+	memoryStore, err := NewMemoryStore(baseDir)
+	if err != nil {
+		log.Printf("❌ Failed to initialize memory store: %v", err)
+		// Continue without persistence
+	} else {
+		log.Printf("✅ Memory store initialized successfully (not nil: %v)", memoryStore != nil)
+	}
+	
 	return &Daemon{
-		listener:   listener,
-		sessions:   make(map[string]*Session),
-		shutdownCh: make(chan struct{}),
+		listener:    listener,
+		sessions:    make(map[string]*Session),
+		shutdownCh:  make(chan struct{}),
+		memoryStore: memoryStore,
 		config: Config{
 			Port:         port,
 			AIBackend:    "http://localhost:3000/api/ai", // Default, can be overridden
 			MaxSessions:  100,
 			SessionTTL:   24 * time.Hour,
-			MemoryPath:   "~/.port42/memory",
-			CommandsPath: "~/.port42/commands",
+			MemoryPath:   filepath.Join(homeDir, ".port42", "memory"),
+			CommandsPath: filepath.Join(homeDir, ".port42", "commands"),
 		},
 	}
 }
@@ -69,6 +87,11 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 // Start begins accepting connections
 func (d *Daemon) Start() {
 	log.Printf("🐬 Daemon starting with config: %+v", d.config)
+	
+	// Load recent sessions from disk
+	if d.memoryStore != nil {
+		d.loadRecentSessions()
+	}
 	
 	// Start session cleanup goroutine
 	d.wg.Add(1)
@@ -168,20 +191,46 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	defer d.mu.Unlock()
 	
 	if session, exists := d.sessions[sessionID]; exists {
+		// Update last activity
+		session.LastActivity = time.Now()
+		if session.State == SessionIdle {
+			session.State = SessionActive
+			log.Printf("🔄 Session %s reactivated", sessionID)
+		}
 		return session
 	}
 	
+	now := time.Now()
 	session := &Session{
-		ID:        sessionID,
-		Agent:     agent,
-		StartTime: time.Now(),
-		Messages:  []Message{},
-		Active:    true,
+		ID:           sessionID,
+		Agent:        agent,
+		CreatedAt:    now,
+		LastActivity: now,
+		State:        SessionActive,
+		Messages:     []Message{},
+		IdleTimeout:  30 * time.Minute, // Default 30 minutes
 	}
 	
 	d.sessions[sessionID] = session
-	log.Printf("◊ New session created: %s with agent %s", sessionID, agent)
+	log.Printf("📊 Session added to map. Current map size: %d", len(d.sessions))
 	
+	// Save new session to disk
+	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.memoryStore != nil)
+	if d.memoryStore != nil {
+		log.Printf("💾 Queuing save for new session %s", sessionID)
+		go func() {
+			log.Printf("🏃 Goroutine started for saving session %s", sessionID)
+			if err := d.memoryStore.SaveSession(session); err != nil {
+				log.Printf("❌ Failed to save new session: %v", err)
+			} else {
+				log.Printf("✅ Successfully saved session %s", sessionID)
+			}
+		}()
+	} else {
+		log.Printf("⚠️  Memory store is nil, skipping save")
+	}
+	
+	log.Printf("✨ New session created: %s with agent %s", sessionID, agent)
 	return session
 }
 
@@ -193,21 +242,67 @@ func (d *Daemon) getSession(sessionID string) (*Session, bool) {
 	return session, exists
 }
 
+// loadRecentSessions loads active/idle sessions from disk on startup
+func (d *Daemon) loadRecentSessions() {
+	sessions, err := d.memoryStore.LoadRecentSessions(1) // Last 24 hours
+	if err != nil {
+		log.Printf("Failed to load recent sessions: %v", err)
+		return
+	}
+	
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	
+	loaded := 0
+	for _, ps := range sessions {
+		// Only load active or idle sessions
+		if ps.State == SessionActive || ps.State == SessionIdle {
+			session := &Session{
+				ID:               ps.ID,
+				Agent:            ps.Agent,
+				CreatedAt:        ps.CreatedAt,
+				LastActivity:     ps.LastActivity,
+				State:            ps.State,
+				Messages:         ps.Messages,
+				CommandGenerated: nil,
+				IdleTimeout:      30 * time.Minute,
+			}
+			
+			// Convert command info if exists
+			if ps.CommandGenerated != nil {
+				session.CommandGenerated = &CommandSpec{
+					Name:        ps.CommandGenerated.Name,
+					Description: "", // Not stored in persistent format
+					Implementation: "", // Not needed after generation
+					Language:    "",
+				}
+			}
+			
+			d.sessions[ps.ID] = session
+			loaded++
+		}
+	}
+	
+	if loaded > 0 {
+		log.Printf("📚 Loaded %d sessions from disk", loaded)
+	}
+}
+
 func (d *Daemon) endSession(sessionID string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	
 	if session, exists := d.sessions[sessionID]; exists {
-		session.Active = false
+		session.State = SessionCompleted
 		log.Printf("◊ Session ended: %s", sessionID)
 	}
 }
 
-// cleanupSessions removes old inactive sessions
+// cleanupSessions manages session lifecycle based on activity
 func (d *Daemon) cleanupSessions() {
 	defer d.wg.Done()
 	
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
 	defer ticker.Stop()
 	
 	for {
@@ -215,15 +310,57 @@ func (d *Daemon) cleanupSessions() {
 		case <-ticker.C:
 			d.mu.Lock()
 			now := time.Now()
+			
 			for id, session := range d.sessions {
-				if !session.Active && now.Sub(session.StartTime) > d.config.SessionTTL {
+				session.mu.Lock()
+				
+				timeSinceActivity := now.Sub(session.LastActivity)
+				
+				switch session.State {
+				case SessionActive:
+					// Check if session should go idle
+					if timeSinceActivity > session.IdleTimeout {
+						session.State = SessionIdle
+						log.Printf("⏸️  Session %s is now idle (no activity for %v)", id, session.IdleTimeout)
+						
+						// Save idle state to disk
+						if d.memoryStore != nil {
+							go d.memoryStore.SaveSession(session)
+						}
+					}
+					
+				case SessionIdle:
+					// Check if session should be abandoned (2x idle timeout)
+					if timeSinceActivity > session.IdleTimeout*2 {
+						session.State = SessionAbandoned
+						log.Printf("🚪 Session %s abandoned (idle for %v)", id, timeSinceActivity)
+						
+						// Save final state and remove from memory
+						if d.memoryStore != nil {
+							go d.memoryStore.SaveSession(session)
+						}
+						delete(d.sessions, id)
+					}
+					
+				case SessionCompleted, SessionAbandoned:
+					// Remove from active memory (already saved to disk)
 					delete(d.sessions, id)
-					log.Printf("◊ Session cleaned up: %s", id)
 				}
+				
+				session.mu.Unlock()
 			}
+			
 			d.mu.Unlock()
 			
 		case <-d.shutdownCh:
+			// Save all active sessions before shutdown
+			d.mu.RLock()
+			for _, session := range d.sessions {
+				if d.memoryStore != nil && (session.State == SessionActive || session.State == SessionIdle) {
+					d.memoryStore.SaveSession(session)
+				}
+			}
+			d.mu.RUnlock()
 			return
 		}
 	}
@@ -238,7 +375,7 @@ func (d *Daemon) handleStatus(req Request) Response {
 	d.mu.RLock()
 	activeSessions := 0
 	for _, session := range d.sessions {
-		if session.Active {
+		if session.State == SessionActive {
 			activeSessions++
 		}
 	}
@@ -295,15 +432,35 @@ func (d *Daemon) handleMemory(req Request) Response {
 	resp := NewResponse(req.ID, true)
 	
 	d.mu.RLock()
+	log.Printf("🔍 Memory endpoint: Current map size: %d", len(d.sessions))
+	log.Printf("🔍 Session IDs in map:")
+	for id := range d.sessions {
+		log.Printf("   - %s", id)
+	}
 	sessions := make([]*Session, 0, len(d.sessions))
 	for _, session := range d.sessions {
 		sessions = append(sessions, session)
 	}
 	d.mu.RUnlock()
 	
+	// Get recent sessions from disk if memory store available
+	var recentSessions []*PersistentSession
+	var stats *MemoryStats
+	
+	if d.memoryStore != nil {
+		// Load last 7 days of sessions
+		if sessions, err := d.memoryStore.LoadRecentSessions(7); err == nil {
+			recentSessions = sessions
+		}
+		stats = d.memoryStore.GetStats()
+	}
+	
 	data := map[string]interface{}{
-		"sessions": sessions,
-		"count":    len(sessions),
+		"active_sessions": sessions,
+		"active_count":    len(sessions),
+		"recent_sessions": recentSessions,
+		"stats":           stats,
+		"uptime":          time.Since(startTime).String(),
 	}
 	
 	resp.SetData(data)

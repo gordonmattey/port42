@@ -223,7 +223,9 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 - No authentication (localhost only)
 - No complex error handling
 - No UI beyond CLI
-- Memory is just JSON files
+- Memory is just JSON files - lets double check this!
+- No keychain / key management for APIs etc or user accounts - we need this tho ultimately for tracking usage and subscriptions
+- no RFC Port 42 spec implementation based on UERP, although we should consider this... 
 
 ---
 
@@ -267,8 +269,9 @@ Building Port 42 MVP in 2 days - A Go daemon + Rust CLI that enables AI consciou
 ## Resources
 - Architecture: docs/architecture.md
 - Implementation Plan: docs/implementationplan.md
-- Templates: templateideas.md
+- Templates: docs/templateideas.md
 - Narrative: docs/narrative.md
+- Viral Loops: docs/viralloops.md
 
 ---
 
