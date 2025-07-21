@@ -74,8 +74,8 @@ impl Port42Shell {
             "possess" => {
                 if parts.len() < 2 {
                     println!("{}", "Usage: possess <agent> [memory-id | message]".red());
-                    println!("{}", "Example: possess @claude".dimmed());
-                    println!("{}", "Example: possess @ai-engineer x1".dimmed());
+                    println!("{}", "Example: possess @ai-engineer".dimmed());
+                    println!("{}", "Example: possess @ai-muse x1".dimmed());
                     return Ok(());
                 }
                 
@@ -209,10 +209,10 @@ impl Port42Shell {
         
         println!("{}", "Core Commands:".bright_cyan());
         println!("  {} - Start AI possession session", "possess <agent> [memory-id] [message]".bright_green());
-        println!("    Example: possess @claude                      (starts new session)");
-        println!("    Example: possess @ai-engineer x1              (continues memory x1)");
-        println!("    Example: possess @claude \"help with git\"      (new session + message)");
-        println!("    Example: possess @ai-engineer x1 \"continue\"   (memory x1 + message)");
+        println!("    Example: possess @ai-engineer                 (starts new session)");
+        println!("    Example: possess @ai-muse x1                  (continues memory x1)");
+        println!("    Example: possess @ai-growth \"viral CLI idea\"  (new session + message)");
+        println!("    Example: possess @ai-founder x1 \"continue\"    (memory x1 + message)");
         println!();
         
         println!("  {} - Check daemon status", "status".bright_green());
