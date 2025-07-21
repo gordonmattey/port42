@@ -66,10 +66,10 @@ impl Port42Shell {
                 let detailed = parts.get(1).map(|&s| s == "--detailed").unwrap_or(false);
                 status::handle_status(self.port, detailed)?;
             }
-            "list" => {
+            "reality" => {
                 let verbose = parts.contains(&"--verbose");
                 let agent = None; // Could parse agent filter
-                list::handle_list(self.port, verbose, agent)?;
+                reality::handle_reality(self.port, verbose, agent)?;
             }
             "possess" => {
                 if parts.len() < 2 {
@@ -216,7 +216,7 @@ impl Port42Shell {
         println!();
         
         println!("  {} - Check daemon status", "status".bright_green());
-        println!("  {} - List generated commands", "list".bright_green());
+        println!("  {} - Show reality (generated commands)", "reality".bright_green());
         println!("  {} - Browse conversation memory", "memory".bright_green());
         println!("    Use: memory - to see all sessions");
         println!("    Use: memory <id> - to view a specific session");

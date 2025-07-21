@@ -63,8 +63,8 @@ pub enum Commands {
         detailed: bool,
     },
     
-    /// List generated commands
-    List {
+    /// Show reality - list generated commands
+    Reality {
         /// Show detailed information about each command
         #[arg(short, long)]
         verbose: bool,
@@ -183,8 +183,8 @@ fn main() -> Result<()> {
             status::handle_status(port, detailed)?;
         }
         
-        Some(Commands::List { verbose, agent }) => {
-            list::handle_list(port, verbose, agent)?;
+        Some(Commands::Reality { verbose, agent }) => {
+            reality::handle_reality(port, verbose, agent)?;
         }
         
         Some(Commands::Possess { agent, args }) => {

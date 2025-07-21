@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use colored::*;
 use std::fs;
 
-pub fn handle_list(_port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
+pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
     println!("{}", "📋 Generated Commands".blue().bold());
     println!();
     
