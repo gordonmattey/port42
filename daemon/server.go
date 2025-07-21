@@ -616,20 +616,14 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 		depCheckCode = d.generateDependencyCheck(spec.Dependencies)
 	}
 	
-	// Handle implementation based on language
+	// Use implementation as-is - Go's json.Unmarshal already handled unescaping
 	implementation := spec.Implementation
 	
-	// For all languages, we need to convert \n to actual newlines for line breaks
-	// But we need to be careful about string literals
-	if spec.Language == "python" || spec.Language == "javascript" || spec.Language == "node" {
-		// For Python/JS: Use a simple heuristic - don't convert \n inside quotes
-		implementation = unescapePreservingStringLiterals(implementation)
-	} else {
-		// For bash and other languages, do simple unescaping
-		implementation = strings.ReplaceAll(implementation, "\\n", "\n")
-		implementation = strings.ReplaceAll(implementation, "\\t", "\t")
-		implementation = strings.ReplaceAll(implementation, "\\\"", "\"")
-	}
+	// No need for any unescaping - JSON parsing already converted:
+	// - \\n to \n (for line breaks)
+	// - \\t to \t (for tabs)  
+	// - \\\" to \" (for quotes)
+	// The implementation should already be valid code!
 	
 	// Remove any shebang from the implementation (we'll add the correct one)
 	lines := strings.Split(implementation, "\n")
@@ -797,43 +791,6 @@ echo "✨ Installation complete!"
 	os.WriteFile(installerPath, []byte(installer), 0755)
 }
 
-// Unescape while preserving string literals (simple heuristic)
-func unescapePreservingStringLiterals(code string) string {
-	// This is a simple approach: only unescape \n when it's clearly a line ending
-	// Look for patterns like ")\n" or ":\n" or ";\n" which are likely line endings
-	result := code
-	
-	// Common line-ending patterns in Python
-	lineEndingPatterns := []string{
-		")\\n",
-		":\\n", 
-		"\\n\\n",  // blank lines
-		"\\nfrom ",
-		"\\nimport ",
-		"\\ndef ",
-		"\\nclass ",
-		"\\nif ",
-		"\\nfor ",
-		"\\nwhile ",
-		"\\nreturn ",
-		"\\ntry:",
-		"\\nexcept",
-		"\\n#",  // comments
-		"\\n    ", // indentation
-		"\\n        ", // more indentation
-	}
-	
-	// Replace these patterns
-	for _, pattern := range lineEndingPatterns {
-		result = strings.ReplaceAll(result, pattern, strings.ReplaceAll(pattern, "\\n", "\n"))
-	}
-	
-	// Also handle tabs and quotes
-	result = strings.ReplaceAll(result, "\\t", "\t")
-	result = strings.ReplaceAll(result, "\\\"", "\"")
-	
-	return result
-}
 
 // Ensure ~/.port42/commands is in PATH
 func (d *Daemon) ensureCommandsInPath() {
