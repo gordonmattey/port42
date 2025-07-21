@@ -609,16 +609,33 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 		log.Printf("📦 Command requires dependencies: %v", spec.Dependencies)
 	}
 	
-	// Generate dependency check code
+	// Generate dependency check code based on language
 	var depCheckCode string
-	if len(spec.Dependencies) > 0 {
+	if len(spec.Dependencies) > 0 && spec.Language == "bash" {
+		// Only add bash dependency check for bash scripts
 		depCheckCode = d.generateDependencyCheck(spec.Dependencies)
 	}
 	
-	// Unescape the implementation string (convert \n to actual newlines)
-	implementation := strings.ReplaceAll(spec.Implementation, "\\n", "\n")
-	implementation = strings.ReplaceAll(implementation, "\\t", "\t")
-	implementation = strings.ReplaceAll(implementation, "\\\"", "\"")
+	// Smart unescaping: preserve \n inside quotes for Python/JS strings
+	implementation := spec.Implementation
+	
+	// For Python and JavaScript, we need to be careful about string literals
+	if spec.Language == "python" || spec.Language == "javascript" || spec.Language == "node" {
+		// Simple approach: only unescape \n that are definitely not in strings
+		// This is a bit hacky but works for most cases
+		implementation = unescapeCodeSmart(implementation)
+	} else {
+		// For bash and other languages, do simple unescaping
+		implementation = strings.ReplaceAll(implementation, "\\n", "\n")
+		implementation = strings.ReplaceAll(implementation, "\\t", "\t")
+		implementation = strings.ReplaceAll(implementation, "\\\"", "\"")
+	}
+	
+	// Remove any shebang from the implementation (we'll add the correct one)
+	lines := strings.Split(implementation, "\n")
+	if len(lines) > 0 && strings.HasPrefix(lines[0], "#!") {
+		implementation = strings.Join(lines[1:], "\n")
+	}
 	
 	// Determine file extension based on language
 	var code string
@@ -778,6 +795,64 @@ echo "✨ Installation complete!"
 `
 	
 	os.WriteFile(installerPath, []byte(installer), 0755)
+}
+
+// Smart unescaping that preserves \n inside string literals
+func unescapeCodeSmart(code string) string {
+	var result strings.Builder
+	inString := false
+	stringChar := rune(0)
+	escaped := false
+	
+	runes := []rune(code)
+	for i := 0; i < len(runes); i++ {
+		char := runes[i]
+		
+		// Track if we're inside a string literal
+		if !escaped && (char == '"' || char == '\'') {
+			if !inString {
+				inString = true
+				stringChar = char
+			} else if char == stringChar {
+				inString = false
+			}
+		}
+		
+		// Handle escape sequences
+		if char == '\\' && i+1 < len(runes) {
+			nextChar := runes[i+1]
+			
+			if inString {
+				// Inside a string literal - preserve the escape sequences
+				result.WriteRune(char)
+			} else {
+				// Outside string literals - unescape
+				switch nextChar {
+				case 'n':
+					result.WriteRune('\n')
+					i++ // Skip the 'n'
+					continue
+				case 't':
+					result.WriteRune('\t')
+					i++ // Skip the 't'
+					continue
+				case '"':
+					result.WriteRune('"')
+					i++ // Skip the '"'
+					continue
+				default:
+					result.WriteRune(char)
+				}
+			}
+		} else {
+			result.WriteRune(char)
+		}
+		
+		// Track escape state
+		escaped = (char == '\\' && !escaped)
+	}
+	
+	return result.String()
 }
 
 // Ensure ~/.port42/commands is in PATH

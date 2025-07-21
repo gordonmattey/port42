@@ -76,6 +76,7 @@ type AgentMemory struct {
 - Preferences learned over time
 - Knowledge accumulation
 - Relationship mapping
+- Rename memorties
 
 ## Phase 2: Intelligent Context (Q2 2025)
 

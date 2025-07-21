@@ -1,8 +1,8 @@
 {
   "base_guidance": {
-    "implementation": "Important implementation guidelines:\n- For git commands: Always use 'git' subprocess calls, check if in git repo first\n- For text processing: Handle both stdin and files, consider streaming\n- For Python scripts: Use argparse for CLI, include proper error handling\n- Always make scripts executable with proper shebang\n- Add helpful usage messages and error handling\n\nWhen generating commands that process git commits specifically:\n- Use: git log --oneline -n <limit> to get commits\n- Parse the output properly (first 7 chars are hash)\n- Handle cases where there are no commits\n\nDependencies:\n- List any external commands needed in the \"dependencies\" field\n- Common ones: lolcat, figlet, tree, jq, ripgrep, fzf\n- Example: \"dependencies\": [\"lolcat\", \"tree\"]\n- If no external dependencies, omit the field or use empty array\n\nCRITICAL: In the JSON \"implementation\" field, use \\n for newlines, not actual newlines!\nExample: \"implementation\": \"#!/bin/bash\\necho 'hello'\\necho 'world'\"",
+    "implementation": "Important implementation guidelines:\n- For git commands: Always use 'git' subprocess calls, check if in git repo first\n- For text processing: Handle both stdin and files, consider streaming\n- For Python scripts: Use argparse for CLI, include proper error handling\n- DO NOT include shebang line - it will be added automatically based on language\n- Add helpful usage messages and error handling\n\nWhen generating commands that process git commits specifically:\n- Use: git log --oneline -n <limit> to get commits\n- Parse the output properly (first 7 chars are hash)\n- Handle cases where there are no commits\n\nDependencies:\n- List any external commands needed in the \"dependencies\" field\n- Common ones: lolcat, figlet, tree, jq, ripgrep, fzf\n- Example: \"dependencies\": [\"lolcat\", \"tree\"]\n- If no external dependencies, omit the field or use empty array\n\nCRITICAL: In the JSON \"implementation\" field:\n1. Use \\n for newlines, not actual newlines!\n2. DO NOT include the shebang (#!/bin/bash etc) - it's added automatically\n3. Start directly with imports or the first line of code\nExample: \"implementation\": \"echo 'hello'\\necho 'world'\"",
     
-    "format_template": "When ready to implement, you MUST format your code as a JSON block:\n\n```json\n{\n  \"name\": \"command-name\",\n  \"description\": \"What this command does\",\n  \"implementation\": \"#!/bin/bash\\n# Your complete implementation here\",\n  \"language\": \"bash\",\n  \"dependencies\": []\n}\n```"
+    "format_template": "When ready to implement, you MUST format your code as a JSON block:\n\n```json\n{\n  \"name\": \"command-name\",\n  \"description\": \"What this command does\",\n  \"implementation\": \"# Your implementation WITHOUT shebang\\necho 'hello world'\",\n  \"language\": \"bash\",\n  \"dependencies\": []\n}\n```"
   },
   
   "agents": {
@@ -14,7 +14,7 @@
       "example": {
         "name": "git-haiku",
         "description": "Shows git commits as haikus",
-        "implementation": "#!/bin/bash\\n# Get commits\\ngit log --oneline -n 10 | while read line; do\\n  echo \"  $line\"\\ndone",
+        "implementation": "# Get commits\\ngit log --oneline -n 10 | while read line; do\\n  echo \"  $line\"\\ndone",
         "language": "bash",
         "dependencies": ["lolcat"]
       },
