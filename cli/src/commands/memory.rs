@@ -3,13 +3,13 @@ use colored::*;
 use crate::MemoryAction;
 use crate::client::DaemonClient;
 use crate::types::Request;
-use chrono::{DateTime, FixedOffset};
+use chrono::DateTime;
 
 pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
     let mut client = DaemonClient::new(port);
     
     match action {
-        None | Some(MemoryAction::List { .. }) => {
+        None => {
             list_sessions(&mut client)?;
         }
         
@@ -137,17 +137,11 @@ fn show_session(client: &mut DaemonClient, session_id: &str) -> Result<()> {
         "session_id": session_id
     });
     
-    // Debug log the payload
-    eprintln!("🔍 CLI sending memory show request with payload: {}", payload);
-    
     let request = Request {
         request_type: "memory".to_string(),
         id: format!("cli-memory-show-{}", session_id),
         payload,
     };
-    
-    // Debug log the full request
-    eprintln!("🔍 CLI full request: {:?}", serde_json::to_string(&request));
     
     let response = client.request(request)?;
     

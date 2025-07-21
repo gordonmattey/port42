@@ -152,11 +152,6 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	}
 	
 	log.Printf("◊ Request [%s] type: %s", req.ID, req.Type)
-	// Debug log for any memory requests
-	if req.Type == "memory" {
-		log.Printf("🔍 Memory request received - Payload is nil: %v, Payload length: %d", 
-			req.Payload == nil, len(req.Payload))
-	}
 	
 	// Process request
 	resp := d.handleRequest(req)
@@ -173,7 +168,6 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 
 // handleRequest routes requests to appropriate handlers
 func (d *Daemon) handleRequest(req Request) Response {
-	log.Printf("🔍 handleRequest called: type=%s, id=%s", req.Type, req.ID)
 	switch req.Type {
 	case RequestStatus:
 		return d.handleStatus(req)
@@ -475,7 +469,6 @@ func (d *Daemon) handleList(req Request) Response {
 }
 
 func (d *Daemon) handleMemory(req Request) Response {
-	log.Printf("🔍 handleMemory called with request ID: %s", req.ID)
 	resp := NewResponse(req.ID, true)
 	
 	// Check if payload contains a session ID
@@ -483,22 +476,11 @@ func (d *Daemon) handleMemory(req Request) Response {
 		SessionID string `json:"session_id,omitempty"`
 	}
 	
-	// Log raw payload for debugging
-	log.Printf("🔍 Memory request payload raw: %v", req.Payload)
-	log.Printf("🔍 Memory request payload string: %s", string(req.Payload))
-	
 	if req.Payload != nil && len(req.Payload) > 0 {
-		if err := json.Unmarshal(req.Payload, &payload); err != nil {
-			log.Printf("❌ Failed to unmarshal payload: %v", err)
-		} else if payload.SessionID != "" {
-			log.Printf("🔍 Handling memory show for session: %s", payload.SessionID)
+		if err := json.Unmarshal(req.Payload, &payload); err == nil && payload.SessionID != "" {
 			// Handle specific session request
 			return d.handleMemoryShow(req, payload.SessionID)
-		} else {
-			log.Printf("🔍 Payload parsed but no session_id found")
 		}
-	} else {
-		log.Printf("🔍 No payload or empty payload")
 	}
 	
 	// Handle list all sessions

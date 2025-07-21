@@ -127,40 +127,28 @@ impl Port42Shell {
             "memory" => {
                 use crate::MemoryAction;
                 
-                // Parse memory subcommands
+                // Parse memory arguments
                 let action = if parts.len() > 1 {
-                    match parts[1] {
-                        "list" => Some(MemoryAction::List { 
-                            days: 7, 
-                            agent: None 
-                        }),
-                        "show" => {
-                            if parts.len() < 3 {
-                                println!("{}", "Usage: memory show <session-id>".red());
-                                return Ok(());
-                            }
-                            Some(MemoryAction::Show { 
-                                session_id: parts[2].to_string() 
-                            })
-                        }
-                        "search" => {
-                            if parts.len() < 3 {
-                                println!("{}", "Usage: memory search <query>".red());
-                                return Ok(());
-                            }
-                            let query = parts[2..].join(" ");
-                            Some(MemoryAction::Search { 
-                                query,
-                                limit: 10 
-                            })
-                        }
-                        _ => {
-                            println!("{}", format!("Unknown memory action: {}", parts[1]).red());
+                    if parts[1] == "search" {
+                        // Handle search command
+                        if parts.len() < 3 {
+                            println!("{}", "Usage: memory search <query>".red());
                             return Ok(());
                         }
+                        let query = parts[2..].join(" ");
+                        Some(MemoryAction::Search { 
+                            query,
+                            limit: 10 
+                        })
+                    } else {
+                        // Treat first arg as session ID
+                        Some(MemoryAction::Show { 
+                            session_id: parts[1].to_string() 
+                        })
                     }
                 } else {
-                    None  // Default to list
+                    // No args = list all
+                    None
                 };
                 
                 memory::handle_memory(self.port, action)?;
@@ -230,8 +218,9 @@ impl Port42Shell {
         println!("  {} - Check daemon status", "status".bright_green());
         println!("  {} - List generated commands", "list".bright_green());
         println!("  {} - Browse conversation memory", "memory".bright_green());
-        println!("    Use: memory list - to see all sessions");
-        println!("    Use: memory show <id> - to view a session");
+        println!("    Use: memory - to see all sessions");
+        println!("    Use: memory <id> - to view a specific session");
+        println!("    Use: memory search <query> - to search sessions");
         println!("  {} - Evolve an existing command", "evolve <command>".bright_green());
         println!();
         

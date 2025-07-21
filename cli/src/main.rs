@@ -86,8 +86,8 @@ pub enum Commands {
     
     /// Browse conversation memory
     Memory {
-        #[command(subcommand)]
-        action: Option<MemoryAction>,
+        /// Session ID to show, or 'search' followed by query
+        args: Vec<String>,
     },
     
     /// Evolve an existing command
@@ -129,17 +129,6 @@ pub enum DaemonAction {
 
 #[derive(Subcommand)]
 pub enum MemoryAction {
-    /// List recent sessions
-    List {
-        /// Number of days to look back
-        #[arg(short, long, default_value = "7")]
-        days: u32,
-        
-        /// Filter by agent
-        #[arg(short, long)]
-        agent: Option<String>,
-    },
-    
     /// Search through memories
     Search {
         /// Search query
@@ -245,7 +234,26 @@ fn main() -> Result<()> {
             possess::handle_possess(port, agent, message, session)?;
         }
         
-        Some(Commands::Memory { action }) => {
+        Some(Commands::Memory { args }) => {
+            // Parse memory args similar to shell
+            let action = if args.is_empty() {
+                None // List all
+            } else if args[0] == "search" {
+                if args.len() < 2 {
+                    eprintln!("{}", "Usage: memory search <query>".red());
+                    std::process::exit(1);
+                }
+                Some(MemoryAction::Search {
+                    query: args[1..].join(" "),
+                    limit: 10,
+                })
+            } else {
+                // First arg is session ID
+                Some(MemoryAction::Show {
+                    session_id: args[0].clone(),
+                })
+            };
+            
             memory::handle_memory(port, action)?;
         }
         
