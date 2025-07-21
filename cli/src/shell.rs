@@ -1,19 +1,38 @@
 use anyhow::Result;
 use colored::*;
-use std::io::{self, Write};
+use rustyline::{DefaultEditor, error::ReadlineError};
+use std::path::PathBuf;
 use crate::commands::*;
 use crate::boot::{show_boot_sequence, show_connection_progress};
 
 pub struct Port42Shell {
     port: u16,
     running: bool,
+    editor: DefaultEditor,
+    history_path: PathBuf,
 }
 
 impl Port42Shell {
     pub fn new(port: u16) -> Self {
+        // Set up history file path
+        let history_path = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".port42")
+            .join("shell_history");
+        
+        // Create editor with history
+        let mut editor = DefaultEditor::new().unwrap();
+        
+        // Load history if it exists
+        if history_path.exists() {
+            let _ = editor.load_history(&history_path);
+        }
+        
         Self {
             port,
             running: true,
+            editor,
+            history_path,
         }
     }
     
@@ -27,21 +46,42 @@ impl Port42Shell {
         
         // Main shell loop
         while self.running {
-            // Show prompt
-            print!("{}", "Echo@port42:~$ ".bright_green());
-            io::stdout().flush()?;
-            
-            // Read input
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
-            
-            if input.is_empty() {
-                continue;
+            // Read input with rustyline
+            match self.editor.readline("Echo@port42:~$ ") {
+                Ok(line) => {
+                    let input = line.trim();
+                    
+                    if input.is_empty() {
+                        continue;
+                    }
+                    
+                    // Add to history
+                    self.editor.add_history_entry(input)?;
+                    
+                    // Parse and execute command
+                    if let Err(e) = self.execute_command(input) {
+                        eprintln!("{}: {}", "Error".red(), e);
+                    }
+                    
+                    // Save history after each command
+                    let _ = self.editor.save_history(&self.history_path);
+                }
+                Err(ReadlineError::Interrupted) => {
+                    // Ctrl-C pressed
+                    println!("^C");
+                    continue;
+                }
+                Err(ReadlineError::Eof) => {
+                    // Ctrl-D pressed
+                    println!();
+                    println!("{}", "Exiting Port 42...".dimmed());
+                    break;
+                }
+                Err(err) => {
+                    eprintln!("{}: {}", "Error".red(), err);
+                    break;
+                }
             }
-            
-            // Parse and execute command
-            self.execute_command(input)?;
         }
         
         Ok(())
