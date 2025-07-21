@@ -3,7 +3,7 @@ use colored::*;
 use crate::MemoryAction;
 use crate::client::DaemonClient;
 use crate::types::Request;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 
 pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
     let mut client = DaemonClient::new(port);
@@ -130,8 +130,115 @@ fn print_session_summary(session: &serde_json::Value) {
 
 fn show_session(client: &mut DaemonClient, session_id: &str) -> Result<()> {
     println!("{}", format!("📖 Session: {}", session_id).blue().bold());
-    println!("{}", "🚧 Show session not yet implemented".yellow().dimmed());
-    println!("\n{}", "For now, check session files in:".yellow());
-    println!("  {}", "~/.port42/memory/sessions/".bright_white());
+    println!();
+    
+    // Query daemon for specific session
+    let payload = serde_json::json!({
+        "session_id": session_id
+    });
+    
+    // Debug log the payload
+    eprintln!("🔍 CLI sending memory show request with payload: {}", payload);
+    
+    let request = Request {
+        request_type: "memory".to_string(),
+        id: format!("cli-memory-show-{}", session_id),
+        payload,
+    };
+    
+    // Debug log the full request
+    eprintln!("🔍 CLI full request: {:?}", serde_json::to_string(&request));
+    
+    let response = client.request(request)?;
+    
+    if response.success {
+        if let Some(data) = response.data {
+            // Display session details
+            if let Some(agent) = data.get("agent").and_then(|v| v.as_str()) {
+                println!("{}: {}", "Agent".dimmed(), agent.bright_blue());
+            }
+            
+            if let Some(state) = data.get("state").and_then(|v| v.as_str()) {
+                let state_display = match state {
+                    "active" => "🟢 Active".green(),
+                    "idle" => "🟡 Idle".yellow(),
+                    "completed" => "✅ Completed".bright_green(),
+                    "abandoned" => "❌ Abandoned".red(),
+                    _ => state.normal(),
+                };
+                println!("{}: {}", "State".dimmed(), state_display);
+            }
+            
+            if let Some(created) = data.get("created_at").and_then(|v| v.as_str()) {
+                if let Ok(datetime) = DateTime::parse_from_rfc3339(created) {
+                    println!("{}: {}", "Created".dimmed(), datetime.format("%Y-%m-%d %H:%M:%S"));
+                }
+            }
+            
+            if let Some(last_activity) = data.get("last_activity").and_then(|v| v.as_str()) {
+                if let Ok(datetime) = DateTime::parse_from_rfc3339(last_activity) {
+                    println!("{}: {}", "Last Activity".dimmed(), datetime.format("%Y-%m-%d %H:%M:%S"));
+                }
+            }
+            
+            if let Some(cmd) = data.get("command_generated") {
+                if !cmd.is_null() {
+                    if let Some(name) = cmd.get("name").and_then(|v| v.as_str()) {
+                        println!("{}: {} {}", "Command Generated".dimmed(), "✨".bright_green(), name.bright_white());
+                    }
+                }
+            }
+            
+            println!("\n{}", "Conversation:".bright_cyan().bold());
+            
+            if let Some(messages) = data.get("messages").and_then(|v| v.as_array()) {
+                for (i, msg) in messages.iter().enumerate() {
+                    if i > 0 {
+                        println!();
+                    }
+                    
+                    let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or("unknown");
+                    let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("");
+                    let timestamp = msg.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
+                    
+                    // Format timestamp
+                    let time_str = if let Ok(datetime) = DateTime::parse_from_rfc3339(timestamp) {
+                        datetime.format("%H:%M:%S").to_string()
+                    } else {
+                        String::new()
+                    };
+                    
+                    // Get agent name from session data
+                    let agent_name = data.get("agent").and_then(|v| v.as_str()).unwrap_or("Assistant");
+                    
+                    match role {
+                        "user" => {
+                            println!("{} {} {}", "→".bright_green(), "User".bright_green().bold(), time_str.dimmed());
+                            println!("  {}", content.bright_white());
+                        }
+                        "assistant" => {
+                            println!("{} {} {}", "←".bright_blue(), agent_name.bright_blue().bold(), time_str.dimmed());
+                            // Handle multiline assistant responses
+                            for line in content.lines() {
+                                println!("  {}", line);
+                            }
+                        }
+                        _ => {
+                            println!("{} {} {}", "•".dimmed(), role.dimmed(), time_str.dimmed());
+                            println!("  {}", content.dimmed());
+                        }
+                    }
+                }
+            } else {
+                println!("{}", "  No messages found".dimmed());
+            }
+        }
+    } else {
+        println!("{}", "❌ Failed to retrieve session".red());
+        if let Some(error) = response.error {
+            println!("  {}", error.dimmed());
+        }
+    }
+    
     Ok(())
 }

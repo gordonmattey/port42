@@ -125,7 +125,45 @@ impl Port42Shell {
                 possess::handle_possess_no_boot(self.port, agent, message, session)?;
             }
             "memory" => {
-                memory::handle_memory(self.port, None)?;
+                use crate::MemoryAction;
+                
+                // Parse memory subcommands
+                let action = if parts.len() > 1 {
+                    match parts[1] {
+                        "list" => Some(MemoryAction::List { 
+                            days: 7, 
+                            agent: None 
+                        }),
+                        "show" => {
+                            if parts.len() < 3 {
+                                println!("{}", "Usage: memory show <session-id>".red());
+                                return Ok(());
+                            }
+                            Some(MemoryAction::Show { 
+                                session_id: parts[2].to_string() 
+                            })
+                        }
+                        "search" => {
+                            if parts.len() < 3 {
+                                println!("{}", "Usage: memory search <query>".red());
+                                return Ok(());
+                            }
+                            let query = parts[2..].join(" ");
+                            Some(MemoryAction::Search { 
+                                query,
+                                limit: 10 
+                            })
+                        }
+                        _ => {
+                            println!("{}", format!("Unknown memory action: {}", parts[1]).red());
+                            return Ok(());
+                        }
+                    }
+                } else {
+                    None  // Default to list
+                };
+                
+                memory::handle_memory(self.port, action)?;
             }
             "evolve" => {
                 if parts.len() < 2 {

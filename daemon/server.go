@@ -152,6 +152,11 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	}
 	
 	log.Printf("◊ Request [%s] type: %s", req.ID, req.Type)
+	// Debug log for any memory requests
+	if req.Type == "memory" {
+		log.Printf("🔍 Memory request received - Payload is nil: %v, Payload length: %d", 
+			req.Payload == nil, len(req.Payload))
+	}
 	
 	// Process request
 	resp := d.handleRequest(req)
@@ -168,6 +173,7 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 
 // handleRequest routes requests to appropriate handlers
 func (d *Daemon) handleRequest(req Request) Response {
+	log.Printf("🔍 handleRequest called: type=%s, id=%s", req.Type, req.ID)
 	switch req.Type {
 	case RequestStatus:
 		return d.handleStatus(req)
@@ -469,8 +475,33 @@ func (d *Daemon) handleList(req Request) Response {
 }
 
 func (d *Daemon) handleMemory(req Request) Response {
+	log.Printf("🔍 handleMemory called with request ID: %s", req.ID)
 	resp := NewResponse(req.ID, true)
 	
+	// Check if payload contains a session ID
+	var payload struct {
+		SessionID string `json:"session_id,omitempty"`
+	}
+	
+	// Log raw payload for debugging
+	log.Printf("🔍 Memory request payload raw: %v", req.Payload)
+	log.Printf("🔍 Memory request payload string: %s", string(req.Payload))
+	
+	if req.Payload != nil && len(req.Payload) > 0 {
+		if err := json.Unmarshal(req.Payload, &payload); err != nil {
+			log.Printf("❌ Failed to unmarshal payload: %v", err)
+		} else if payload.SessionID != "" {
+			log.Printf("🔍 Handling memory show for session: %s", payload.SessionID)
+			// Handle specific session request
+			return d.handleMemoryShow(req, payload.SessionID)
+		} else {
+			log.Printf("🔍 Payload parsed but no session_id found")
+		}
+	} else {
+		log.Printf("🔍 No payload or empty payload")
+	}
+	
+	// Handle list all sessions
 	d.mu.RLock()
 	log.Printf("🔍 Memory endpoint: Current map size: %d", len(d.sessions))
 	log.Printf("🔍 Session IDs in map:")
@@ -537,6 +568,53 @@ func (d *Daemon) handleEnd(req Request) Response {
 	}
 	
 	resp.SetData(data)
+	return resp
+}
+
+// handleMemoryShow returns full details for a specific session
+func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
+	resp := NewResponse(req.ID, true)
+	
+	// First check in-memory sessions
+	d.mu.RLock()
+	if session, exists := d.sessions[sessionID]; exists {
+		d.mu.RUnlock()
+		
+		data := map[string]interface{}{
+			"id":           session.ID,
+			"agent":        session.Agent,
+			"state":        session.State,
+			"created_at":   session.CreatedAt,
+			"last_activity": session.LastActivity,
+			"messages":     session.Messages,
+			"command_generated": session.CommandGenerated,
+		}
+		resp.SetData(data)
+		return resp
+	}
+	d.mu.RUnlock()
+	
+	// Try to load from disk
+	if d.memoryStore != nil {
+		if persistedSession, err := d.memoryStore.LoadSession(sessionID); err == nil {
+			data := map[string]interface{}{
+				"id":           persistedSession.ID,
+				"agent":        persistedSession.Agent,
+				"state":        persistedSession.State,
+				"created_at":   persistedSession.CreatedAt,
+				"last_activity": persistedSession.LastActivity,
+				"updated_at":   persistedSession.UpdatedAt,
+				"messages":     persistedSession.Messages,
+				"command_generated": persistedSession.CommandGenerated,
+				"metadata":     persistedSession.Metadata,
+			}
+			resp.SetData(data)
+			return resp
+		}
+	}
+	
+	// Session not found
+	resp.SetError(fmt.Sprintf("Session '%s' not found", sessionID))
 	return resp
 }
 
