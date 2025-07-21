@@ -611,9 +611,13 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 	
 	// Generate dependency check code based on language
 	var depCheckCode string
+	log.Printf("🔍 Language: %s, Dependencies: %v", spec.Language, spec.Dependencies)
 	if len(spec.Dependencies) > 0 && spec.Language == "bash" {
 		// Only add bash dependency check for bash scripts
 		depCheckCode = d.generateDependencyCheck(spec.Dependencies)
+		log.Printf("✅ Adding bash dependency check for bash script")
+	} else if len(spec.Dependencies) > 0 {
+		log.Printf("⚠️  Skipping dependency check for %s script with deps: %v", spec.Language, spec.Dependencies)
 	}
 	
 	// Use implementation as-is - Go's json.Unmarshal already handled unescaping
