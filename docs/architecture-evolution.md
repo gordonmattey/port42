@@ -1,5 +1,7 @@
 # Port 42 Architecture Evolution: From Commands to Living Digital Organisms
 
+> **Update**: See [agile-architecture.md](./agile-architecture.md) for the new incremental approach. This document represents the long-term vision, while the agile plan shows how we'll get there one command at a time.
+
 ## Vision: The Philosophical Shift
 
 Port 42 represents a fundamental reimagining of what a "command" is. We're not just generating scripts - we're birthing **digital organisms** that:
