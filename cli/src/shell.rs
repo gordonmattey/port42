@@ -73,21 +73,56 @@ impl Port42Shell {
             }
             "possess" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: possess <agent> [message]".red());
+                    println!("{}", "Usage: possess <agent> [memory-id | message]".red());
                     println!("{}", "Example: possess @claude".dimmed());
+                    println!("{}", "Example: possess @ai-engineer x1".dimmed());
                     return Ok(());
                 }
                 
                 let agent = parts[1].to_string();
-                let message = if parts.len() > 2 {
-                    Some(parts[2..].join(" "))
-                } else {
-                    None
+                let (session, message) = match parts.len() {
+                    2 => (None, None), // Just agent
+                    3 => {
+                        // Could be memory ID or message
+                        let second_arg = parts[2];
+                        let looks_like_id = second_arg.len() <= 20 && 
+                            !second_arg.contains(' ') && 
+                            (second_arg.contains(char::is_numeric) || 
+                             second_arg.starts_with("cli-") || 
+                             second_arg.contains('-') ||
+                             second_arg.contains('_'));
+                        
+                        if looks_like_id {
+                            // Looks like a memory ID
+                            (Some(second_arg.to_string()), None)
+                        } else {
+                            // It's a message
+                            (None, Some(second_arg.to_string()))
+                        }
+                    }
+                    _ => {
+                        // 4+ parts: check if second is memory ID
+                        let second_arg = parts[2];
+                        let looks_like_id = second_arg.len() <= 20 && 
+                            !second_arg.contains(' ') && 
+                            (second_arg.contains(char::is_numeric) || 
+                             second_arg.starts_with("cli-") || 
+                             second_arg.contains('-') ||
+                             second_arg.contains('_'));
+                        
+                        if looks_like_id {
+                            // Memory ID + message
+                            (Some(second_arg.to_string()), Some(parts[3..].join(" ")))
+                        } else {
+                            // All message
+                            (None, Some(parts[2..].join(" ")))
+                        }
+                    }
                 };
                 
                 // Show connection progress since we're entering a session
                 show_connection_progress(&agent)?;
-                possess::handle_possess_no_boot(self.port, agent, message, None)?;
+                possess::handle_possess_no_boot(self.port, agent, message, session)?;
             }
             "memory" => {
                 memory::handle_memory(self.port, None)?;
@@ -147,14 +182,18 @@ impl Port42Shell {
         println!();
         
         println!("{}", "Core Commands:".bright_cyan());
-        println!("  {} - Start AI possession session", "possess <agent>".bright_green());
-        println!("    Example: possess @claude");
-        println!("    Example: possess @ai-engineer \"create a git helper\"");
+        println!("  {} - Start AI possession session", "possess <agent> [memory-id] [message]".bright_green());
+        println!("    Example: possess @claude                      (starts new session)");
+        println!("    Example: possess @ai-engineer x1              (continues memory x1)");
+        println!("    Example: possess @claude \"help with git\"      (new session + message)");
+        println!("    Example: possess @ai-engineer x1 \"continue\"   (memory x1 + message)");
         println!();
         
         println!("  {} - Check daemon status", "status".bright_green());
         println!("  {} - List generated commands", "list".bright_green());
         println!("  {} - Browse conversation memory", "memory".bright_green());
+        println!("    Use: memory list - to see all sessions");
+        println!("    Use: memory show <id> - to view a session");
         println!("  {} - Evolve an existing command", "evolve <command>".bright_green());
         println!();
         

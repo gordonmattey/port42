@@ -43,34 +43,40 @@ fn handle_possess_with_boot(
     
     let mut client = DaemonClient::new(port);
     
-    // Determine session ID: use provided, continue recent, or generate new
-    let session_id = if let Some(id) = session {
+    // Determine session ID: use provided or generate new
+    let (session_id, user_provided) = if let Some(id) = session {
         // User explicitly provided a session ID
-        id
+        (id, true)
     } else {
-        // Try to find and continue the most recent session with this agent
-        match find_recent_session(&mut client, &agent)? {
-            Some(recent_id) => recent_id,
-            None => {
-                // No recent session, create new
-                format!("cli-{}", chrono::Utc::now().timestamp())
-            }
-        }
+        // Always create a new session when no ID specified
+        (format!("cli-{}", chrono::Utc::now().timestamp()), false)
     };
     
     if let Some(msg) = message {
         // Single message mode
         println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
-        if session_id.contains("cli-") && !session_id.contains("recent") {
-            // New session
-            println!("{}", format!("Session: {}", session_id).dimmed());
+        
+        if !user_provided {
+            println!("{}", format!("✨ New session: {}", session_id).dimmed());
         } else {
-            println!("{}", format!("↻ Continuing session: {}", session_id).dimmed());
+            // User provided the ID, so they intend to continue (even if it doesn't exist yet)
+            println!("{}", format!("↻ Session: {}", session_id).dimmed());
         }
         println!();
         
         send_message(&mut client, &session_id, &agent, &msg)?;
     } else {
+        // Interactive mode - show session status first
+        println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
+        
+        if !user_provided {
+            println!("{}", format!("✨ New session: {}", session_id).dimmed());
+        } else {
+            // User provided the ID, so they intend to continue (even if it doesn't exist yet)
+            println!("{}", format!("↻ Session: {}", session_id).dimmed());
+        }
+        println!();
+        
         // Check if terminal supports interactive features
         let is_tty = atty::is(atty::Stream::Stdout);
         let has_term = std::env::var("TERM").is_ok();
@@ -215,6 +221,7 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
     
     Ok(())
 }
+
 
 fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<String>> {
     // Query daemon for recent sessions

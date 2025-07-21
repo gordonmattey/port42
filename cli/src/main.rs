@@ -79,12 +79,9 @@ pub enum Commands {
         /// AI agent to possess (@ai-muse, @ai-engineer, @ai-echo)
         agent: String,
         
-        /// Initial message (starts interactive mode if not provided)
-        message: Option<String>,
-        
-        /// Session ID (generates one if not provided)
-        #[arg(short, long)]
-        session: Option<String>,
+        /// Memory ID or initial message
+        /// (If it looks like an ID, continues that session; otherwise treats as message)
+        args: Vec<String>,
     },
     
     /// Browse conversation memory
@@ -201,7 +198,50 @@ fn main() -> Result<()> {
             list::handle_list(port, verbose, agent)?;
         }
         
-        Some(Commands::Possess { agent, message, session }) => {
+        Some(Commands::Possess { agent, args }) => {
+            // Parse args to determine if it's a memory ID or message
+            let (session, message) = match args.len() {
+                0 => (None, None),
+                1 => {
+                    let arg = &args[0];
+                    // Better heuristic: memory IDs contain numbers or start with special patterns
+                    let looks_like_id = arg.len() <= 20 && 
+                        !arg.contains(' ') && 
+                        (arg.contains(char::is_numeric) || 
+                         arg.starts_with("cli-") || 
+                         arg.contains('-') ||
+                         arg.contains('_'));
+                    
+                    if looks_like_id {
+                        // Looks like a memory ID
+                        (Some(arg.clone()), None)
+                    } else {
+                        // It's a message
+                        (None, Some(arg.clone()))
+                    }
+                }
+                _ => {
+                    // Multiple args - check if first is memory ID
+                    let first = &args[0];
+                    let looks_like_id = first.len() <= 20 && 
+                        !first.contains(' ') && 
+                        (first.contains(char::is_numeric) || 
+                         first.starts_with("cli-") || 
+                         first.contains('-') ||
+                         first.contains('_'));
+                    
+                    if looks_like_id {
+                        // First arg is memory ID, rest is message
+                        (Some(first.clone()), Some(args[1..].join(" ")))
+                    } else {
+                        // All args are the message
+                        (None, Some(args.join(" ")))
+                    }
+                }
+            };
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG possess: agent={}, session={:?}, message={:?}", agent, session, message);
+            }
             possess::handle_possess(port, agent, message, session)?;
         }
         
