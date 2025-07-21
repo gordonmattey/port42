@@ -69,12 +69,13 @@ case "$(basename "$SHELL")" in
     *) echo "Please source your shell profile manually" ;;
 esac
 
-# Restart daemon if API key is now available
+# Check if API key is available
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
     echo "✅ API key loaded"
-    command -v port42 >/dev/null 2>&1 && port42 daemon restart
+    echo "Run 'port42 daemon start' to start the daemon with AI features"
 else
     echo "⚠️  No API key found"
+    echo "Set ANTHROPIC_API_KEY to enable AI features"
 fi
 EOF
     chmod +x "$PORT42_HOME/activate.sh"
@@ -230,46 +231,6 @@ configure_api_key() {
     return 0
 }
 
-# Start the daemon
-start_daemon() {
-    print_info "Starting Port 42 daemon..."
-    
-    # Check if daemon is already running by looking for actual process
-    if pgrep -f "port42d" >/dev/null 2>&1; then
-        print_success "Daemon already running"
-        return
-    fi
-    
-    # Try to start daemon
-    if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-        # Start with API key from environment
-        env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" nohup "$INSTALL_DIR/port42d" >/dev/null 2>&1 &
-        sleep 2
-        
-        if "$INSTALL_DIR/port42" status >/dev/null 2>&1; then
-            print_success "Daemon started successfully"
-        else
-            print_warning "Daemon failed to start on port 42, trying port 4242..."
-            env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" PORT=4242 nohup "$INSTALL_DIR/port42d" >/dev/null 2>&1 &
-            sleep 2
-            if "$INSTALL_DIR/port42" status >/dev/null 2>&1; then
-                print_success "Daemon started on port 4242"
-            else
-                print_warning "Daemon failed to start. Try running manually with: sudo port42d"
-            fi
-        fi
-    else
-        print_warning "No ANTHROPIC_API_KEY found"
-        print_info "Daemon started without AI features"
-        print_info "To enable AI, set your key and restart:"
-        print_info "  export ANTHROPIC_API_KEY='your-key-here'"
-        print_info "  ./port42-daemon restart"
-        
-        # Start anyway for non-AI features
-        nohup "$INSTALL_DIR/port42d" >/dev/null 2>&1 &
-        sleep 2
-    fi
-}
 
 # Main installation flow
 main() {
@@ -283,13 +244,13 @@ main() {
     install_binaries
     update_path
     configure_api_key
-    start_daemon
     
     # Success message
     echo
     echo -e "${GREEN}${BOLD}✅ Port 42 installed successfully!${NC}"
     echo
     echo -e "${BLUE}🐬 Getting started:${NC}"
+    echo -e "   ${BOLD}port42 daemon start${NC} - Start the daemon"
     echo -e "   ${BOLD}port42${NC}              - Enter the Port 42 shell"
     echo -e "   ${BOLD}port42 possess${NC}      - Start an AI conversation"
     echo -e "   ${BOLD}port42 status${NC}       - Check daemon status"
@@ -303,17 +264,22 @@ main() {
         echo -e "${YELLOW}${BOLD}⚠️  No API key was configured${NC}"
         echo -e "   To enable AI features:"
         echo -e "   export ANTHROPIC_API_KEY='your-key-here'"
-        echo -e "   port42 daemon restart"
+        echo -e "   port42 daemon start"
         echo
     else
         # Check if the key was just configured but shell needs sourcing
         if [ -n "$SAVED_TO_PROFILE" ]; then
-            echo -e "${YELLOW}${BOLD}⚠️  One more step to activate AI features:${NC}"
+            echo -e "${YELLOW}${BOLD}⚠️  To activate your API key:${NC}"
             echo
             echo -e "${GREEN}${BOLD}Run this command:${NC}"
-            echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
+            echo -e "   ${BOLD}source $SAVED_TO_PROFILE${NC}"
             echo
-            echo -e "${BLUE}This will load your API key and restart the daemon${NC}"
+            echo -e "${BLUE}Then start the daemon:${NC}"
+            echo -e "   ${BOLD}port42 daemon start${NC}"
+            echo
+        else
+            echo -e "${GREEN}${BOLD}Start the daemon:${NC}"
+            echo -e "   ${BOLD}port42 daemon start${NC}"
             echo
         fi
     fi
