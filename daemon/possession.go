@@ -39,14 +39,26 @@ type AnthropicRequest struct {
 	MaxTokens   int                 `json:"max_tokens"`
 	Stream      bool                `json:"stream"`
 	Temperature float64             `json:"temperature,omitempty"`
+	Tools       []AnthropicTool     `json:"tools,omitempty"`
+}
+
+// AnthropicTool represents a tool (function) definition
+type AnthropicTool struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	InputSchema map[string]interface{} `json:"input_schema"`
 }
 
 // AnthropicResponse represents Claude's response
 type AnthropicResponse struct {
 	Content []struct {
-		Text string `json:"text"`
+		Type  string          `json:"type"`
+		Text  string          `json:"text,omitempty"`
+		Name  string          `json:"name,omitempty"`
+		Input json.RawMessage `json:"input,omitempty"`
 	} `json:"content"`
-	Error *AnthropicError `json:"error,omitempty"`
+	Error      *AnthropicError `json:"error,omitempty"`
+	StopReason string          `json:"stop_reason,omitempty"`
 }
 
 // AnthropicError for API errors
@@ -93,7 +105,7 @@ type AnthropicMessage struct {
 }
 
 // Send a message to Claude with retry logic
-func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*AnthropicResponse, error) {
+func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentName string) (*AnthropicResponse, error) {
 	// Get model configuration
 	modelConfig := GetModelConfig()
 	responseConfig := GetResponseConfig()
@@ -129,6 +141,20 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*Anthro
 		})
 	}
 	
+	// Check if this agent should use tools for command generation
+	var tools []AnthropicTool
+	
+	// Get agent config to check if it generates commands
+	cleanName := strings.TrimPrefix(agentName, "@ai-")
+	cleanName = strings.TrimPrefix(cleanName, "@")
+	if agentConfig != nil {
+		if agentInfo, exists := agentConfig.Agents[cleanName]; exists && !agentInfo.NoImplementation {
+			// This agent generates commands, use tool
+			tools = []AnthropicTool{getCommandGenerationTool()}
+			log.Printf("🔧 Agent %s will use tool-based command generation", agentName)
+		}
+	}
+	
 	req := AnthropicRequest{
 		Model:       modelConfig.Default,
 		System:      systemPrompt,
@@ -136,6 +162,7 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string) (*Anthro
 		MaxTokens:   responseConfig.MaxTokens,
 		Stream:      responseConfig.Stream,
 		Temperature: modelConfig.Temperature,
+		Tools:       tools,
 	}
 	
 	jsonData, err := json.Marshal(req)
@@ -282,7 +309,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	log.Printf("🤖 Using REAL AI handler with Claude")
 	
 	log.Printf("🔍 Sending to AI with %d messages in context", len(messages))
-	aiResp, err := aiClient.Send(messages, agentPrompt)
+	aiResp, err := aiClient.Send(messages, agentPrompt, payload.Agent)
 	if err != nil {
 		log.Printf("AI error: %v", err)
 		resp.SetError(fmt.Sprintf("AI connection failed: %v", err))
@@ -290,10 +317,35 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	}
 	log.Printf("🔍 Got AI response")
 	
-	// Extract response text
+	// Extract response text and check for tool calls
 	var responseText string
+	var commandSpec *CommandSpec
+	
 	if len(aiResp.Content) > 0 {
-		responseText = aiResp.Content[0].Text
+		// Check if response contains tool calls
+		hasToolCall := false
+		for _, content := range aiResp.Content {
+			if content.Type == "tool_use" && content.Name == "generate_command" {
+				hasToolCall = true
+				// Extract command spec from tool call
+				if spec, err := extractCommandSpecFromToolCall(content.Input); err == nil {
+					commandSpec = spec
+					log.Printf("🔧 Extracted command spec from tool call: %s", spec.Name)
+				} else {
+					log.Printf("❌ Failed to extract command spec from tool call: %v", err)
+				}
+			} else if content.Type == "text" {
+				responseText = content.Text
+			}
+		}
+		
+		// If no tool call, try to extract from text (backward compatibility)
+		if !hasToolCall && responseText != "" {
+			if spec := extractCommandSpec(responseText); spec != nil {
+				commandSpec = spec
+				log.Printf("📄 Extracted command spec from text response: %s", spec.Name)
+			}
+		}
 	}
 	
 	// Add AI response to session
@@ -305,17 +357,15 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	})
 	session.LastActivity = time.Now()
 	
-	// Check if AI suggested a command implementation
-	var commandSpec *CommandSpec
-	if spec := extractCommandSpec(responseText); spec != nil {
+	// Check if we have a command spec to generate
+	if commandSpec != nil {
 		// Store command info in session
-		session.CommandGenerated = spec
+		session.CommandGenerated = commandSpec
 		session.State = SessionCompleted
-		log.Printf("🎉 Command generated in session %s: %s", session.ID, spec.Name)
+		log.Printf("🎉 Command generated in session %s: %s", session.ID, commandSpec.Name)
 		
 		// Generate the command!
-		go d.generateCommand(spec)
-		commandSpec = spec
+		go d.generateCommand(commandSpec)
 	}
 	
 	session.mu.Unlock()
@@ -422,6 +472,44 @@ func getAgentPrompt(agent string) string {
 	return GetAgentPrompt(agent)
 }
 
+// getCommandGenerationTool returns the tool definition for command generation
+func getCommandGenerationTool() AnthropicTool {
+	return AnthropicTool{
+		Name:        "generate_command",
+		Description: "Generate a Port 42 command implementation",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Command name (lowercase, hyphens allowed)",
+				},
+				"description": map[string]interface{}{
+					"type":        "string",
+					"description": "What this command does",
+				},
+				"implementation": map[string]interface{}{
+					"type":        "string",
+					"description": "Complete implementation code WITHOUT shebang",
+				},
+				"language": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"bash", "python", "javascript"},
+					"description": "Programming language",
+				},
+				"dependencies": map[string]interface{}{
+					"type": "array",
+					"items": map[string]interface{}{
+						"type": "string",
+					},
+					"description": "External commands required (e.g., git, jq)",
+				},
+			},
+			"required": []string{"name", "description", "implementation", "language"},
+		},
+	}
+}
+
 // Extract command spec from AI response
 func extractCommandSpec(response string) *CommandSpec {
 	// Look for JSON code block
@@ -458,6 +546,26 @@ func extractCommandSpec(response string) *CommandSpec {
 	}
 	
 	return &spec
+}
+
+// extractCommandSpecFromToolCall extracts command spec from tool call response
+func extractCommandSpecFromToolCall(toolInput json.RawMessage) (*CommandSpec, error) {
+	var spec CommandSpec
+	if err := json.Unmarshal(toolInput, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse tool input: %v", err)
+	}
+	
+	// Validate spec
+	if spec.Name == "" || spec.Implementation == "" {
+		return nil, fmt.Errorf("invalid command spec: missing required fields")
+	}
+	
+	// Default language to bash if not specified
+	if spec.Language == "" {
+		spec.Language = "bash"
+	}
+	
+	return &spec, nil
 }
 
 
