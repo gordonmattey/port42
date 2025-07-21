@@ -205,9 +205,10 @@ impl Port42Shell {
         println!();
         
         println!("{}", "Available Agents:".bright_cyan());
-        println!("  {} - Creative muse for ideation", "@ai-muse".bright_blue());
         println!("  {} - Technical implementation expert", "@ai-engineer".bright_blue());
-        println!("  {} - Command assistant", "@claude".bright_blue());
+        println!("  {} - Creative muse for ideation", "@ai-muse".bright_blue());
+        println!("  {} - Growth strategist for viral developer tools", "@ai-growth".bright_blue());
+        println!("  {} - Strategic founder wisdom", "@ai-founder".bright_blue());
         println!();
     }
 }

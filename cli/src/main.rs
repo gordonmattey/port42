@@ -76,7 +76,7 @@ pub enum Commands {
     
     /// Start AI possession session
     Possess {
-        /// AI agent to possess (@ai-muse, @ai-engineer, @ai-echo)
+        /// AI agent to possess (@ai-engineer, @ai-muse, @ai-growth, @ai-founder)
         agent: String,
         
         /// Memory ID or initial message
