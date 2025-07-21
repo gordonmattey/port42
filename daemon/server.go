@@ -616,14 +616,14 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 		depCheckCode = d.generateDependencyCheck(spec.Dependencies)
 	}
 	
-	// Smart unescaping: preserve \n inside quotes for Python/JS strings
+	// Handle implementation based on language
 	implementation := spec.Implementation
 	
-	// For Python and JavaScript, we need to be careful about string literals
+	// For all languages, we need to convert \n to actual newlines for line breaks
+	// But we need to be careful about string literals
 	if spec.Language == "python" || spec.Language == "javascript" || spec.Language == "node" {
-		// Simple approach: only unescape \n that are definitely not in strings
-		// This is a bit hacky but works for most cases
-		implementation = unescapeCodeSmart(implementation)
+		// For Python/JS: Use a simple heuristic - don't convert \n inside quotes
+		implementation = unescapePreservingStringLiterals(implementation)
 	} else {
 		// For bash and other languages, do simple unescaping
 		implementation = strings.ReplaceAll(implementation, "\\n", "\n")
@@ -797,62 +797,42 @@ echo "✨ Installation complete!"
 	os.WriteFile(installerPath, []byte(installer), 0755)
 }
 
-// Smart unescaping that preserves \n inside string literals
-func unescapeCodeSmart(code string) string {
-	var result strings.Builder
-	inString := false
-	stringChar := rune(0)
-	escaped := false
+// Unescape while preserving string literals (simple heuristic)
+func unescapePreservingStringLiterals(code string) string {
+	// This is a simple approach: only unescape \n when it's clearly a line ending
+	// Look for patterns like ")\n" or ":\n" or ";\n" which are likely line endings
+	result := code
 	
-	runes := []rune(code)
-	for i := 0; i < len(runes); i++ {
-		char := runes[i]
-		
-		// Track if we're inside a string literal
-		if !escaped && (char == '"' || char == '\'') {
-			if !inString {
-				inString = true
-				stringChar = char
-			} else if char == stringChar {
-				inString = false
-			}
-		}
-		
-		// Handle escape sequences
-		if char == '\\' && i+1 < len(runes) {
-			nextChar := runes[i+1]
-			
-			if inString {
-				// Inside a string literal - preserve the escape sequences
-				result.WriteRune(char)
-			} else {
-				// Outside string literals - unescape
-				switch nextChar {
-				case 'n':
-					result.WriteRune('\n')
-					i++ // Skip the 'n'
-					continue
-				case 't':
-					result.WriteRune('\t')
-					i++ // Skip the 't'
-					continue
-				case '"':
-					result.WriteRune('"')
-					i++ // Skip the '"'
-					continue
-				default:
-					result.WriteRune(char)
-				}
-			}
-		} else {
-			result.WriteRune(char)
-		}
-		
-		// Track escape state
-		escaped = (char == '\\' && !escaped)
+	// Common line-ending patterns in Python
+	lineEndingPatterns := []string{
+		")\\n",
+		":\\n", 
+		"\\n\\n",  // blank lines
+		"\\nfrom ",
+		"\\nimport ",
+		"\\ndef ",
+		"\\nclass ",
+		"\\nif ",
+		"\\nfor ",
+		"\\nwhile ",
+		"\\nreturn ",
+		"\\ntry:",
+		"\\nexcept",
+		"\\n#",  // comments
+		"\\n    ", // indentation
+		"\\n        ", // more indentation
 	}
 	
-	return result.String()
+	// Replace these patterns
+	for _, pattern := range lineEndingPatterns {
+		result = strings.ReplaceAll(result, pattern, strings.ReplaceAll(pattern, "\\n", "\n"))
+	}
+	
+	// Also handle tabs and quotes
+	result = strings.ReplaceAll(result, "\\t", "\t")
+	result = strings.ReplaceAll(result, "\\\"", "\"")
+	
+	return result
 }
 
 // Ensure ~/.port42/commands is in PATH
