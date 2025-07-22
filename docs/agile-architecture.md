@@ -6,18 +6,20 @@ We ship one demo command at a time. Each command teaches us what architecture we
 
 ---
 
-## Command 1: `git-haiku` ✅ (Week 1)
-**What it does**: Transforms git commits into haikus  
+## Level 0: Base Commands (Phase 1) ✅
+**Examples**: `git-haiku` ✅, `tweet-storm`, `pitch-writer`  
+**What they do**: Transform input into creative output  
 **Architecture needed**: NONE - Current system works!  
 **Lessons learned**: 
 - Fixed shebang duplication bug
 - Fixed string escaping for Python
-- Command generation works for simple cases
+- Command generation works across domains
 
 ---
 
-## Command 2: `terminal-pet` (Week 2)
-**What it does**: ASCII pet that remembers you between runs  
+## Level 1: Stateful Commands (Phase 2)
+**Examples**: `terminal-pet`, `content-calendar`, `pitch-perfect`, `meeting-maven`  
+**What they do**: Remember things between runs  
 **Architecture needed**: Simple state persistence
 
 ### Minimal Changes Required:
@@ -48,8 +50,9 @@ def save_pet(pet):
 
 ---
 
-## Command 3: `code-roast` (Week 3)
-**What it does**: Sarcastic code reviews  
+## Level 2: Runtime AI Commands (Phase 3)
+**Examples**: `code-roast`, `email-alchemist`, `mood-dj`  
+**What they do**: Get AI input during execution  
 **Architecture needed**: Runtime AI callbacks
 
 ### Minimal Changes Required:
@@ -81,9 +84,10 @@ ROAST=$(curl -s localhost:42/callback -d "{
 
 ---
 
-## Command 4: `pr-writer` (Week 4)
-**What it does**: Analyzes changes and writes PR descriptions  
-**Architecture needed**: Better git integration
+## Level 3: Multi-Context Commands (Phase 4)
+**Examples**: `pr-writer`, `competitor-scan`, `project-health`  
+**What they do**: Analyze multiple files/sources  
+**Architecture needed**: Multi-file context handling
 
 ### Minimal Changes Required:
 - Add git diff parsing to command generation prompts
@@ -100,9 +104,10 @@ git diff --staged | curl -s localhost:42/callback -d "{
 
 ---
 
-## Command 5: `debug-detective` (Week 5)
-**What it does**: Investigates bugs using context  
-**Architecture needed**: Multi-file context
+## Level 4: Structured Context Commands (Phase 5)
+**Examples**: `debug-detective`, `investor-intel`, `expense-categorizer`  
+**What they do**: Work with structured data  
+**Architecture needed**: Structured JSON context
 
 ### Minimal Changes Required:
 ```go
@@ -130,9 +135,10 @@ response = requests.post("http://localhost:42/callback", json={
 
 ---
 
-## Command 6: `standup-writer` (Week 6)
-**What it does**: Tracks your daily activity  
-**Architecture needed**: Activity collection
+## Level 5: Time-Series Commands (Phase 6)
+**Examples**: `standup-writer`, `campaign-tracker`, `expense-wizard`  
+**What they do**: Track data over time  
+**Architecture needed**: Append-only logs
 
 ### Minimal Changes Required:
 ```go
@@ -152,9 +158,10 @@ with open(Path.home() / '.port42' / 'activity.jsonl') as f:
 
 ---
 
-## Command 7: `terminal-consciousness` (Week 7)
-**What it does**: Meta-awareness of your terminal state  
-**Architecture needed**: Command introspection
+## Level 6: Code Understanding Commands (Phase 7)
+**Examples**: `explain-this`, `doc-generator`, `contract-analyzer`  
+**What they do**: Parse and understand code/text semantically  
+**Architecture needed**: Semantic parsing capabilities
 
 ### Minimal Changes Required:
 ```go
@@ -167,24 +174,63 @@ func (d *Daemon) handleGetCommandStats(w http.ResponseWriter, r *http.Request) {
 
 ---
 
+## Level 7: Visualization Commands (Phase 8)
+**Examples**: `commit-time-travel`, `team-pulse`, `sales-pipeline`  
+**What they do**: Create visual representations in the terminal  
+**Architecture needed**: ASCII art generation
+
+### Minimal Changes Required:
+- No daemon changes needed
+- Commands handle visualization internally
+- Can leverage existing AI for creative ASCII
+
+---
+
+## Level 8: Cross-Format Commands (Phase 9)
+**Examples**: `code-translator`, `recipe-remix`, `doc-migrator`  
+**What they do**: Convert between formats/languages  
+**Architecture needed**: Format detection and conversion
+
+### Minimal Changes Required:
+- No daemon changes needed
+- AI handles format understanding
+- Commands focus on I/O handling
+
+---
+
+## Level 9: Meta-Awareness Commands (Phase 10)
+**Examples**: `terminal-consciousness`, `deal-flow`, `productivity-coach`  
+**What they do**: Learn from usage patterns  
+**Architecture needed**: Usage analytics and pattern recognition
+
+### Minimal Changes Required:
+```go
+// Add command usage tracking
+func (d *Daemon) trackCommandUsage(command string, context map[string]interface{}) {
+    // Append to usage log
+}
+```
+
+---
+
 ## The Pattern: Incremental Architecture
 
-### Week 1-2: File-Based State
+### Phases 1-2: File-Based State
 - Commands read/write JSON files
 - No daemon changes needed
 - Proves the concept
 
-### Week 3-4: Simple Callbacks
+### Phases 3-4: Simple Callbacks
 - One endpoint for AI callbacks
 - Reuse existing AI client
 - Commands stay simple
 
-### Week 5-6: Richer Context
+### Phases 5-6: Richer Context
 - Extend callbacks with context
 - Add activity logging
 - Still just HTTP + JSON
 
-### Week 7+: Meta-Features
+### Phases 7+: Meta-Features
 - Command introspection
 - Usage analytics
 - Collective intelligence
@@ -216,35 +262,57 @@ But NOT before we have 3+ real examples proving the need.
 
 ---
 
-## Success Metrics Per Week
+## Success Metrics Per Level
 
-### Week 1 (git-haiku)
-- Works on first try for 10 users
-- Gets shared on Twitter
+### Phase 1 (Level 0 - Base Commands)
+- 3+ commands work across domains
+- 50+ successful generations
+- git-haiku shared 10+ times
 
-### Week 2 (terminal-pet)
-- Users run it daily
-- Pet state persists correctly
+### Phase 2 (Level 1 - Stateful)
+- 4 stateful commands live
+- 100+ daily active users
+- Zero state corruption issues
 
-### Week 3 (code-roast)
-- Generates funny roasts
-- Screenshots go viral
+### Phase 3 (Level 2 - Runtime AI)
+- 3 AI-callback commands
+- <2s response times
+- 90% user satisfaction
 
-### Week 4 (pr-writer)
-- Saves developers 5 minutes
-- PRs actually merge
+### Phase 4 (Level 3 - Multi-Context)
+- Handles 10+ files gracefully
+- pr-writer saves 5+ min/PR
+- competitor-scan finds insights
 
-### Week 5 (debug-detective)
-- Finds real bugs
-- "How did it know?!" moments
+### Phase 5 (Level 4 - Structured)
+- Complex JSON contexts work
+- debug-detective 80% accurate
+- investor-intel saves hours
 
-### Week 6 (standup-writer)
-- Teams adopt it
-- Managers love it
+### Phase 6 (Level 5 - Time-Series)
+- Handles 1000+ events/day
+- standup-writer adopted by 5 teams
+- expense tracking accurate
 
-### Week 7 (terminal-consciousness)
-- Mind = Blown
-- "The future is here"
+### Phase 7 (Level 6 - Understanding)
+- Parses 5+ languages
+- explain-this clarifies in <30s
+- 95% explanation accuracy
+
+### Phase 8 (Level 7 - Visualization)
+- Beautiful ASCII output
+- team-pulse in 10+ standups
+- Screenshots shared widely
+
+### Phase 9 (Level 8 - Cross-Format)
+- 10+ format conversions
+- Zero data loss
+- 90% conversion accuracy
+
+### Phase 10 (Level 9 - Meta-Awareness)
+- Predicts user needs 70%+
+- Measurable productivity gains
+- Self-improving system
 
 ---
 
@@ -266,16 +334,56 @@ Each command teaches us:
 Each command adds EXACTLY ONE new architectural capability:
 
 ```
-Level 0: git-haiku         → Base (command generation works)
-Level 1: terminal-pet      → +State (JSON files)
-Level 2: code-roast        → +Runtime AI (HTTP callback)
-Level 3: pr-writer         → +Multi-file Context (git integration)
-Level 4: debug-detective   → +Structured Context (JSON context)
-Level 5: standup-writer    → +Time-series (append-only logs)
-Level 6: explain-this      → +Code Understanding (line mapping)
-Level 7: commit-time-travel → +Visualization (ASCII art)
-Level 8: code-translator   → +Cross-language (AI handles it)
-Level 9: terminal-consciousness → +Meta-awareness (usage stats)
+Level 0: Base (command generation works)
+  - git-haiku (dev): Git commits as poetry
+  - tweet-storm (marketing): Ideas into tweet threads
+  - pitch-writer (sales): Quick elevator pitches
+
+Level 1: +State (JSON files)
+  - terminal-pet (personal): Virtual pet that remembers you
+  - content-calendar (marketing): Track published/scheduled content
+  - pitch-perfect (sales): Remembers company/product details
+  - meeting-maven (ops): Tracks action items across meetings
+
+Level 2: +Runtime AI (HTTP callback)
+  - code-roast (dev): Sassy code reviews
+  - email-alchemist (sales): AI personalizes emails per recipient
+  - mood-dj (personal): Suggests music based on your day
+
+Level 3: +Multi-file Context (git/filesystem integration)
+  - pr-writer (dev): Analyzes all changed files for PR description
+  - competitor-scan (marketing): Analyzes multiple competitor sources
+  - project-health (ops): Scans multiple project indicators
+
+Level 4: +Structured Context (JSON context)
+  - debug-detective (dev): Structured error analysis
+  - investor-intel (fundraising): Structures investor research
+  - expense-categorizer (ops): Auto-categorizes from receipts
+
+Level 5: +Time-series (append-only logs)
+  - standup-writer (dev): Daily activity summaries
+  - campaign-tracker (marketing): Performance over time
+  - expense-wizard (ops): Expense tracking with trends
+
+Level 6: +Code Understanding (semantic parsing)
+  - explain-this (dev): Explains code in context
+  - doc-generator (dev): Creates docs from code structure
+  - contract-analyzer (legal): Parses legal documents
+
+Level 7: +Visualization (ASCII/terminal graphics)
+  - commit-time-travel (dev): Visual git history
+  - team-pulse (management): Team morale dashboard
+  - sales-pipeline (sales): Visual funnel tracking
+
+Level 8: +Cross-format/Cross-language
+  - code-translator (dev): Converts between languages
+  - recipe-remix (personal): Converts any recipe format
+  - doc-migrator (ops): Converts between doc systems
+
+Level 9: +Meta-awareness (usage patterns)
+  - terminal-consciousness (dev): Knows your coding patterns
+  - deal-flow (sales): Learns what closes deals
+  - productivity-coach (personal): Suggests optimizations
 ```
 
 ### Why This Order Matters
@@ -287,25 +395,43 @@ Level 9: terminal-consciousness → +Meta-awareness (usage stats)
 5. **Present before past** - Current state before history
 6. **Single before meta** - One command before ecosystem
 
+### Universal Architecture, Domain-Specific Magic
+
+Notice how the same technical capabilities serve wildly different needs:
+
+- **Level 1 State**: Pet personality vs. company details vs. meeting notes
+- **Level 2 Runtime AI**: Code critique vs. email personalization vs. music moods
+- **Level 3 Multi-file**: Git diffs vs. competitor websites vs. project files
+- **Level 5 Time-series**: Code activity vs. marketing metrics vs. expense trends
+- **Level 7 Visualization**: Git branches vs. team morale vs. sales funnels
+
+The architecture is domain-agnostic. The magic happens when AI personalities understand each domain deeply.
+
 ### Architecture Debt We Accept (And When We Pay It)
 
-**Week 1-3: Hack It**
+**Phases 1-3: Hack It (Levels 0-2)**
 - Inline everything in commands
-- No error handling
-- No tests
-- *Debt payment: Week 4 - Extract common patterns*
+- Minimal error handling
+- Manual testing only
+- *Debt payment: Phase 4 - Extract state patterns*
 
-**Week 4-6: Extract Patterns**
-- Shared Python module for state
-- Bash function library  
-- Common error handling
-- *Debt payment: Week 7 - Build framework*
+**Phases 4-6: Extract Patterns (Levels 3-5)**
+- Shared modules for common operations
+- Basic error handling library
+- Integration test suite
+- *Debt payment: Phase 7 - Build frameworks*
 
-**Week 7-9: Build Framework**
-- Command SDK
-- Testing harness
-- Documentation generator
-- *Debt payment: Week 10 - Production ready*
+**Phases 7-9: Build Frameworks (Levels 6-8)**
+- Command SDK for each language
+- Automated testing harness
+- Documentation generation
+- *Debt payment: Phase 10 - Production hardening*
+
+**Phase 10: Production Ready (Level 9)**
+- Performance optimization
+- Security audit
+- Monitoring and analytics
+- Ready for wide adoption
 
 ### The "You Aren't Gonna Need It" List
 
@@ -322,18 +448,21 @@ Based on similar projects, here's what we WON'T build:
 
 ### Risk Mitigation Through Incremental Shipping
 
-**Each week de-risks the next:**
-- Week 1: Proves command generation works
-- Week 2: Proves state management pattern  
-- Week 3: Proves AI integration pattern
-- Week 4: Proves we can handle real workflows
-- Week 5: Proves complex reasoning works
-- Week 6: Proves we can track usage
-- Week 7: Proves the meta-concept
+**Each level de-risks the next:**
+- Level 0 (Phase 1): Command generation works across domains
+- Level 1 (Phase 2): State persistence is reliable
+- Level 2 (Phase 3): Runtime AI callbacks are fast
+- Level 3 (Phase 4): Multi-file context is manageable
+- Level 4 (Phase 5): Structured data improves quality
+- Level 5 (Phase 6): Time-series scales well
+- Level 6 (Phase 7): Code understanding is valuable
+- Level 7 (Phase 8): Visualizations enhance UX
+- Level 8 (Phase 9): Format conversion is feasible
+- Level 9 (Phase 10): Meta-learning delivers ROI
 
-**If any week fails, we pivot immediately.**
+**If any phase fails, we pivot immediately.**
 
-## Next Action: Ship terminal-pet This Week
+## Next Action: Ship Level 1 Commands
 
 1. Create state directory handling
 2. Generate pet with personality
