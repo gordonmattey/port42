@@ -107,8 +107,8 @@ Why:
 5. **CTO bait** - Technical people will be OBSESSED with how you did it
 
 The implementation is elegant:
-- Conversation → AI generates JavaScript
-- JavaScript gets evaluated and attached to terminal
+- Conversation → AI generates new OS Command
+- Code gets evaluated and attached to terminal
 - New command immediately available
 - Their terminal is now different than when they started
 
