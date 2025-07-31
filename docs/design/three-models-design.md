@@ -14,11 +14,11 @@
 - **Storage**: JSON/YAML files with command as interface
 - **Example**: `content-plan`, `feature-tracker`, `investor-crm`
 
-### Model 3: Knowledge Artifacts (Documents/Conversations)
-- **What**: Markdown documents, conversation logs, unstructured knowledge
-- **When**: Strategy, exploration, documentation, learning
-- **Storage**: Markdown files in ~/.port42/artifacts/
-- **Example**: Pitch decks, strategy docs, architecture decisions
+### Model 3: Knowledge Artifacts (Documents/Code/Conversations)
+- **What**: Markdown documents, full applications, UIs, microservices, prototypes, examples
+- **When**: Strategy docs, web apps, dashboards, APIs, demos, explorations
+- **Storage**: Any file type in ~/.port42/artifacts/
+- **Example**: Pitch decks, React apps, API servers, data visualizations, game prototypes
 
 ## Your Three Core Workflows
 
@@ -28,7 +28,16 @@
 ```bash
 possess @ai-architect "Let's design the real-time sync system"
 # Explores architecture, discusses tradeoffs
-# When ready: /crystallize → creates `sync-system-design.md`
+# When ready: /crystallize document → creates `sync-system-design.md`
+# Or: /crystallize code → creates full `realtime-sync-demo/` web app
+```
+
+**App Creation Mode**:
+```bash
+possess @ai-engineer "Build a dashboard to visualize our metrics"
+# Discusses requirements, data sources, UI preferences
+# /crystallize code → creates complete `metrics-dashboard/` React app
+# Auto-generates: run-metrics-dashboard command to launch it
 ```
 
 **Tool Mode**:
@@ -105,6 +114,7 @@ possess @ai-analyst "Create a competitor analysis tool"
 /crystallize              # AI decides based on context
 /crystallize command      # Force command creation
 /crystallize document     # Create markdown artifact
+/crystallize code         # Create code example/prototype
 /crystallize data         # Create CRUD command
 ```
 
@@ -121,6 +131,14 @@ possess @ai-analyst "Create a competitor analysis tool"
 - Auto-generates viewing command: `view-{title}`
 - Perfect for decisions, strategies, meeting notes
 
+**Code Artifact Generation (New)**
+- AI creates complete applications, UIs, services, or prototypes
+- Saves to `~/.port42/artifacts/code/{date}-{name}/`
+- Can be anything: React app, Express server, Python dashboard, game
+- Includes all necessary files: package.json, HTML, CSS, configs
+- Standalone projects that run in their own environment
+- Could auto-generate a launcher command: `run-{name}`
+
 **Data Management Generation (New)**
 - AI creates CRUD command based on schema
 - Command manages JSON data in `~/.port42/data/`
@@ -135,11 +153,21 @@ possess @ai-analyst "Create a competitor analysis tool"
 │   ├── git-haiku      # Transform tool
 │   ├── content-plan   # Data management tool
 │   └── view-pitch     # Document viewer
-├── artifacts/         # Markdown documents
+├── artifacts/         # Markdown documents & code
 │   ├── decisions/
 │   │   └── 2024-01-15-api-architecture.md
 │   ├── strategies/
 │   │   └── 2024-01-15-growth-plan.md
+│   ├── code/
+│   │   ├── 2024-01-15-dashboard-app/
+│   │   │   ├── package.json
+│   │   │   ├── index.html
+│   │   │   ├── src/
+│   │   │   └── README.md
+│   │   └── 2024-01-15-api-prototype/
+│   │       ├── server.py
+│   │       ├── requirements.txt
+│   │       └── README.md
 │   └── index.json
 ├── data/             # Structured data for CRUD commands
 │   ├── content-plan.json
@@ -152,6 +180,7 @@ possess @ai-analyst "Create a competitor analysis tool"
 
 **For Commands**: "Generate an executable tool that..."
 **For Documents**: "Create a markdown document that captures..."
+**For Code**: "Create a code artifact (prototype/example/template) that..."
 **For Data**: "Design a data schema and CRUD operations for..."
 
 ## Next Steps
@@ -173,14 +202,21 @@ possess @ai-analyst "Create a competitor analysis tool"
 ## Key Insights from Design Process
 
 1. **The /crystallize command already exists** - We just need to extend it with options
-2. **Three distinct storage locations** make sense:
-   - Commands → `~/.port42/commands/` (executable)
-   - Documents → `~/.port42/artifacts/` (knowledge)
-   - Data → `~/.port42/data/` (structured JSON)
+2. **Four distinct storage patterns** emerge:
+   - Commands → `~/.port42/commands/` (executable tools)
+   - Documents → `~/.port42/artifacts/{type}/` (markdown knowledge)
+   - Code → `~/.port42/artifacts/code/` (examples & prototypes)
+   - Data → `~/.port42/data/` (structured JSON managed by commands)
 
-3. **Document viewing** can be handled by auto-generated commands
-4. **CRUD templates** can be simple bash/Python scripts that manage JSON
-5. **AI context switching** is just different prompts based on type
+3. **Code artifacts vs commands**: 
+   - Commands are CLI tools that transform input → output
+   - Code artifacts are full applications with their own runtime
+   - Example: `git-haiku` (command) vs `metrics-dashboard/` (React app)
+   - Commands run in terminal, apps run in containers/browsers/servers
+
+4. **Document viewing** can be handled by auto-generated commands
+5. **CRUD templates** can be simple bash/Python scripts that manage JSON
+6. **AI context switching** is just different prompts based on type
 
 ## The Vision
 
