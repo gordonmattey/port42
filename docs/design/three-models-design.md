@@ -168,7 +168,7 @@ possess @ai-analyst "Create a competitor analysis tool"
 │   │       ├── server.py
 │   │       ├── requirements.txt
 │   │       └── README.md
-│   └── index.json
+│   └── index.json     # Rich metadata & search index (see artifact-metadata-system.md)
 ├── data/             # Structured data for CRUD commands
 │   ├── content-plan.json
 │   ├── feature-tracker.json
@@ -217,6 +217,11 @@ possess @ai-analyst "Create a competitor analysis tool"
 4. **Document viewing** can be handled by auto-generated commands
 5. **CRUD templates** can be simple bash/Python scripts that manage JSON
 6. **AI context switching** is just different prompts based on type
+7. **Metadata system** prevents artifact sprawl:
+   - Rich tagging and categorization
+   - Lifecycle management (draft → active → archived)
+   - Semantic search with embeddings
+   - Automatic cleanup policies
 
 ## The Vision
 

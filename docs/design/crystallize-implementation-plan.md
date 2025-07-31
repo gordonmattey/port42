@@ -34,21 +34,28 @@ Extend the `/crystallize` command in Port 42 to support three distinct output ty
    - File generation logic
    - Markdown formatting with metadata
    - Directory structure creation
+   - Update artifact index
 
 5. Data command generation - 2 hours:
    - Simple bash template implementation
    - JSON data file initialization
    - Basic CRUD operations
+   - Add metadata to index
 
 ### Day 2: Integration & Polish (8 hours)
 
 **Morning (4 hours)**
-1. Wire everything together - 2 hours:
+1. Wire everything together - 1.5 hours:
    - Connect CLI to daemon changes
-   - Test all three crystallization types
+   - Test all crystallization types
    - Fix integration issues
 
-2. AI response handling - 2 hours:
+2. Metadata system - 1.5 hours:
+   - Create artifact index structure
+   - Auto-extract tags and keywords
+   - Link artifacts to sessions
+
+3. AI response handling - 1 hour:
    - Parse different artifact types
    - Route to correct generator
    - Handle errors gracefully
@@ -72,8 +79,10 @@ Extend the `/crystallize` command in Port 42 to support three distinct output ty
 
 ### Daemon Side
 - `daemon/possession.go` - Handle different artifact types
-- `daemon/document_store.go` - New file for document management
+- `daemon/artifact_store.go` - New file for artifact management & indexing
+- `daemon/document_generator.go` - Document generation logic
 - `daemon/data_templates.go` - Templates for data commands
+- `daemon/metadata_extractor.go` - Extract tags, keywords, embeddings
 - `daemon/server.go` - Route generation based on type
 
 ### Documentation

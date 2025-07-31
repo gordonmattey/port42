@@ -89,7 +89,7 @@ func getCrystallizationPrompt(crystallizeType string) string {
 }
 ```
 
-### 4. Document Generation
+### 4. Document Generation with Metadata
 
 Documents would be saved to `~/.port42/artifacts/` with organization:
 
@@ -101,8 +101,17 @@ Documents would be saved to `~/.port42/artifacts/` with organization:
 │   └── 2024-01-15-growth-plan.md
 ├── knowledge/
 │   └── 2024-01-15-competitor-analysis.md
-└── index.json
+├── code/
+│   └── 2024-01-15-dashboard-app/
+└── index.json  # Rich metadata index (see artifact-metadata-system.md)
 ```
+
+Each artifact is indexed with:
+- Tags, categories, and keywords for search
+- Lifecycle state (draft → active → archived)
+- Relationships to other artifacts
+- Usage statistics and importance scoring
+- Embeddings for semantic search
 
 ### 5. Data Management Command Template
 
@@ -133,12 +142,27 @@ case "$1" in
 esac
 ```
 
+### 6. Metadata Integration
+
+When any artifact is created:
+1. Extract metadata (tags, keywords, summary)
+2. Add to central index with relationships
+3. Calculate initial importance score
+4. Set lifecycle state to "draft"
+5. Link to parent session and related artifacts
+
+This enables:
+- `port42 search` - Find artifacts by type, tags, content
+- `port42 clean` - Manage storage with lifecycle rules
+- Smart AI context - Include relevant artifacts automatically
+
 ## Benefits
 
 1. **User Control**: Explicitly choose output type when needed
 2. **AI Intelligence**: Let AI decide when type not specified
 3. **Clear Organization**: Different storage for different artifact types
 4. **Extensibility**: Easy to add new crystallization types
+5. **Scalability**: Metadata system prevents artifact sprawl
 
 ## Migration Path
 
