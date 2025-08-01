@@ -291,10 +291,10 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	session.mu.Unlock()
 	
 	// Save session after user message
-	log.Printf("🔍 Possess handler: memoryStore != nil: %v", d.memoryStore != nil)
-	if d.memoryStore != nil {
-		log.Printf("💾 Queuing save after user message for session %s", session.ID)
-		go d.memoryStore.SaveSession(session)
+	log.Printf("🔍 Possess handler: memoryStore != nil: %v", d.storage != nil)
+	if d.storage != nil {
+		log.Printf("🔍 [POSSESSION] Saving session after user message (messages=%d)", len(session.Messages))
+		go d.storage.SaveSession(session)
 	}
 	
 	// Call Claude
@@ -377,10 +377,11 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	session.mu.Unlock()
 	
 	// Save session after AI response
-	log.Printf("🔍 After AI response: memoryStore != nil: %v", d.memoryStore != nil)
-	if d.memoryStore != nil {
-		log.Printf("💾 Queuing save after AI response for session %s", session.ID)
-		go d.memoryStore.SaveSession(session)
+	log.Printf("🔍 After AI response: memoryStore != nil: %v", d.storage != nil)
+	if d.storage != nil {
+		log.Printf("🔍 [POSSESSION] Saving session after AI response (messages=%d, command=%v)", 
+			len(session.Messages), session.CommandGenerated != nil)
+		go d.storage.SaveSession(session)
 	}
 	
 	// Prepare response

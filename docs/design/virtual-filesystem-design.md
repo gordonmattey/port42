@@ -1,6 +1,6 @@
 # Port 42 Virtual Filesystem: Vision, Architecture & Implementation
 
-**Purpose**: Complete design for virtual filesystem that unifies commands, memory, and artifacts
+**Purpose**: Complete design for virtual filesystem that unifies commands, memory, and artifacts through a reality compiler
 **Scope**: Why we need it, what it looks like, and exactly how to build it
 
 ## Vision (Why) 🐬
@@ -8,7 +8,7 @@
 ### The Problem
 Port 42 is creating a new kind of computational environment where:
 - Commands spawn from conversations
-- Memory persists across sessions  
+- Memory persists across interactions  
 - Artifacts emerge from AI collaboration
 
 But our current file organization is stuck in the 1970s:
@@ -20,55 +20,64 @@ But our current file organization is stuck in the 1970s:
 ### The Dolphin Leap
 Imagine diving into your Port 42 workspace and seeing:
 - Your commands organized by project AND by type AND by date - simultaneously
-- Memory sessions that connect to the artifacts they created
+- Memory threads that connect to the artifacts they created
 - Virtual folders that answer questions: "show me everything about websockets"
-- Git working naturally on your AI-generated projects
+- Everything crystallized from thought into reality
 
-**This is the water we're creating** - a fluid, intelligent filesystem that matches how our minds actually work.
+**This is the water we're creating** - a fluid, intelligent filesystem that matches how our minds actually work. A reality compiler where consciousness crystallizes into code.
 
 ## Architecture (What)
 
 ### Core Concepts
 
 ```
-Content-Addressed Storage + Virtual Paths + FUSE = Magic
+Content-Addressed Storage + Virtual Paths + CLI Interface = Reality Compilation
 ```
 
 #### 1. Object Store (The Ocean Floor)
 ```
-~/.port42/objects/
-├── 3a/4f/2b8c9d...  # architecture.md (content hash)
-├── 7c/1e/9a3f5e...  # another architecture.md 
-├── commands/
-│   └── git-haiku -> ../8f/2c/3b4a5e...
-└── metadata/
-    ├── 3a4f2b8c9d.json
-    └── 7c1e9a3f5e.json
+~/.port42/
+├── objects/          # Content-addressed store
+│   ├── 3a/
+│   │   └── 4f/
+│   │       └── 2b8c9d1e5f6a7b9c0d2e4f
+│   └── meta/        # Metadata by object ID
+│       └── 3a4f2b8c9d1e5f6a7b9c0d2e4f.json
+└── commands/        # Symlinks for direct execution
+    ├── git-status -> ../objects/3a/4f/2b8c9d...
+    └── hello-world -> ../objects/7e/5d/1a9f3c...
 ```
 
 #### 2. Virtual Views (The Currents)
 ```
-~/p42/ (FUSE mount)
-├── projects/
-│   ├── realtime-sync/
-│   │   ├── architecture.md
-│   │   └── dashboard-app/
-│   └── auth-v2/
-│       └── architecture.md  # Different file, same name!
-├── by-date/
-│   └── 2024-01-15/
-│       ├── architecture.md -> (both files!)
-│       └── git-haiku
-├── commands/
+/                          (accessed via: port42 ls /)
+├── commands/              # All generated commands
 │   ├── git-haiku
 │   └── pr-writer
-├── memory/
-│   └── sessions/
-│       └── sess-abc123/
-│           ├── conversation.md
-│           └── generated/
-│               └── git-haiku
-└── search/
+├── memory/                # Conversation memory
+│   ├── mem-abc123/
+│   │   ├── thread.json
+│   │   └── crystallized/
+│   │       ├── git-haiku
+│   │       └── architecture.md
+│   └── mem-def456/
+├── artifacts/             # Crystallized artifacts
+│   ├── documents/
+│   ├── code/
+│   ├── designs/
+│   └── media/
+├── by-date/               # Temporal organization
+│   └── 2024-01-15/
+│       ├── git-haiku
+│       └── growth-strategy.md
+├── by-agent/              # Agent specialization
+│   ├── @ai-engineer/
+│   └── @ai-muse/
+├── by-type/               # Type organization
+│   ├── command/
+│   ├── document/
+│   └── application/
+└── search/                # Dynamic search results
     └── "websocket AND architecture"/
         └── realtime-sync/
             └── architecture.md
@@ -81,62 +90,39 @@ Each object has a companion metadata file:
 {
   "id": "3a4f2b8c9d",
   "paths": [
-    "projects/realtime-sync/architecture.md",
-    "by-date/2024-01-15/architecture.md",
-    "by-session/sess-abc123/architecture.md"
+    "commands/git-haiku",
+    "by-date/2024-01-15/git-haiku",
+    "memory/mem-abc123/crystallized/git-haiku"
   ],
   "created": "2024-01-15T10:30:00Z",
   "modified": "2024-01-15T14:22:00Z",
   "accessed": "2024-01-16T09:15:00Z",
-  "session": "sess-abc123",
+  "memory_id": "mem-abc123",
   "agent": "@ai-engineer",
-  "type": "artifact",
-  "subtype": "document",
+  "type": "command",
+  "crystallization_type": "tool",  // tool, artifact, data
   
   // Rich metadata for search
-  "title": "Real-time Sync Architecture",
-  "description": "System design for websocket-based real-time synchronization",
-  "tags": ["architecture", "websocket", "realtime", "sync", "system-design", "networking"],
+  "title": "Git Haiku Generator",
+  "description": "Creates poetic git commit messages",
+  "tags": ["git", "poetry", "command", "utility"],
   
   // Lifecycle and importance
   "lifecycle": "active", // draft, active, stable, archived, deprecated
-  "importance": "high",
-  "usage_count": 23,
+  "importance": "medium",
+  "usage_count": 42,
   
   // AI context
-  "summary": "Architecture document defining the real-time sync system using websockets...",
+  "summary": "A command that generates haiku-style commit messages...",
   "embeddings": [0.123, 0.456, ...], // For semantic search
   
   // Relationships
   "relationships": {
-    "session": "sess-abc123",
-    "parent_artifacts": ["art-1737123000-design-doc"],
-    "child_artifacts": ["art-1737123789-api-client"],
-    "generated_commands": ["git-haiku", "websocket-tester"],
-    "references": ["auth-design.md", "https://socket.io/docs/"]
+    "memory": "mem-abc123",
+    "parent_artifacts": [],
+    "child_artifacts": [],
+    "references": []
   }
-}
-```
-
-#### 4. Unified Index (The Map)
-A global index for fast search and discovery:
-```json
-// ~/.port42/artifacts/index.json
-{
-  "version": "1.0",
-  "last_updated": "2024-01-15T10:30:00Z",
-  "stats": {
-    "total_artifacts": 342,
-    "by_type": {
-      "artifacts": 156,
-      "commands": 89,
-      "sessions": 97
-    },
-    "total_size_mb": 234.5
-  },
-  "artifacts": [
-    // Array of all metadata objects for fast search
-  ]
 }
 ```
 
@@ -146,20 +132,20 @@ A global index for fast search and discovery:
 ┌─────────────────────────────────────────┐
 │           port42 CLI (Rust)              │
 │  ┌─────────────┐    ┌────────────────┐  │
-│  │ FUSE Thread │───▶│ TCP Client     │  │
-│  │  (fuser)    │    │ 127.0.0.1:42   │  │
+│  │ FS Commands │───▶│ TCP Client     │  │
+│  │ (ls,cat,etc)│    │ 127.0.0.1:42   │  │
 │  └─────────────┘    └────────────────┘  │
 └─────────────────────────────────────────┘
          │                    │
          ▼                    ▼
-   ~/p42/            TCP Socket
-  (user sees this)   Line-delimited JSON
+   User types:        TCP Socket
+   port42 ls /        Line-delimited JSON
                              │
                     ┌──────────────────┐
                     │   Daemon (Go)    │
                     │ ┌──────────────┐ │
                     │ │ Object Store │ │
-                    │ │ Virtualizer  │ │
+                    │ │ Path Resolver│ │
                     │ │ Metadata DB  │ │
                     │ └──────────────┘ │
                     └──────────────────┘
@@ -174,75 +160,45 @@ Port 42 uses a simple line-delimited JSON protocol over TCP:
 
 ## Implementation (How)
 
-### Protocol Extensions
+### Current State
+- ✅ Object store implemented
+- ✅ Command generation stores in object store
+- ✅ Memory store uses object store
+- ❌ No symlinks created yet
+- ❌ No write operations via filesystem
+- ❌ CLI commands not fully implemented
 
-New request types for the existing TCP protocol:
+### Phase 1: Write Operations in Daemon
 
+#### New Protocol Messages
+
+##### Store Path
 ```json
-// Read object by content hash
 {
-  "type": "read_object",
-  "id": "cli-read-123",
+  "type": "store_path",
+  "id": "cli-store-123",
   "payload": {
-    "hash": "3a4f2b8c9d...",
-    "path": "projects/realtime-sync/architecture.md"  // optional virtual path
-  }
-}
-
-// List virtual directory
-{
-  "type": "list_virtual",
-  "id": "cli-list-456", 
-  "payload": {
-    "path": "projects/realtime-sync/"
-  }
-}
-
-// Store new object
-{
-  "type": "store_object",
-  "id": "cli-store-789",
-  "payload": {
+    "path": "artifacts/documents/architecture.md",
     "content": "base64-encoded-content",
     "metadata": {
-      "paths": ["commands/git-haiku", "by-date/2024-01-15/git-haiku"],
-      "type": "command",
-      "session": "sess-abc123"
+      "type": "document",
+      "memory_id": "mem-abc123",
+      "agent": "@ai-architect",
+      "crystallization_type": "artifact"
     }
   }
 }
+```
 
-// Get object metadata
+##### Update Path
+```json
 {
-  "type": "get_metadata",
-  "id": "cli-meta-321",
-  "payload": {
-    "hash": "3a4f2b8c9d..."
-  }
-}
-
-// Search artifacts
-{
-  "type": "search",
-  "id": "cli-search-789",
-  "payload": {
-    "query": "websocket AND created:this-week",
-    "filters": {
-      "type": "artifact",
-      "tags": ["architecture"],
-      "lifecycle": "active"
-    },
-    "semantic": true  // Use embeddings for semantic search
-  }
-}
-
-// Update metadata (lifecycle, tags, etc)
-{
-  "type": "update_metadata",
+  "type": "update_path",
   "id": "cli-update-456",
   "payload": {
-    "hash": "3a4f2b8c9d...",
-    "updates": {
+    "path": "artifacts/documents/architecture.md",
+    "content": "base64-encoded-new-content",
+    "metadata_updates": {
       "lifecycle": "stable",
       "tags": ["architecture", "websocket", "production"]
     }
@@ -250,415 +206,204 @@ New request types for the existing TCP protocol:
 }
 ```
 
-### Phase 1: Migrate Existing Data (Day 1)
-
-#### Step 1: Add Object Store to Daemon
-```go
-// daemon/object_store.go
-type ObjectStore struct {
-    baseDir string  // ~/.port42/objects/
-}
-
-func (o *ObjectStore) Store(content []byte) (string, error) {
-    hash := sha256.Sum256(content)
-    id := hex.EncodeToString(hash[:])
-    
-    // Store in git-like structure
-    dir := filepath.Join(o.baseDir, id[:2], id[2:4])
-    os.MkdirAll(dir, 0755)
-    
-    path := filepath.Join(dir, id[4:])
-    return id, ioutil.WriteFile(path, content, 0644)
+##### Delete Path
+```json
+{
+  "type": "delete_path",
+  "id": "cli-delete-789",
+  "payload": {
+    "path": "artifacts/documents/old-design.md"
+  }
 }
 ```
 
-#### Step 2: Update Command Generation
+##### Create Memory
+```json
+{
+  "type": "create_memory",
+  "id": "cli-memory-321",
+  "payload": {
+    "agent": "@ai-engineer",
+    "initial_message": "Let's build a dashboard"
+  }
+}
+```
+
+### Phase 2: Symlink Management
+
+When storing commands, create symlinks:
 ```go
-// daemon/server.go
-func (d *Daemon) generateCommand(spec *CommandSpec) error {
-    content := []byte(spec.Implementation)
-    
+func (d *Daemon) crystallizeCommand(spec *CommandSpec, memoryID string) error {
     // Store in object store
+    content := []byte(spec.Implementation)
     objID, err := d.objectStore.Store(content)
     
-    // Create metadata
-    meta := &Metadata{
-        ID:      objID,
-        Type:    "command",
-        Name:    spec.Name,
-        Session: session.ID,
-        Created: time.Now(),
-        Paths: []string{
-            fmt.Sprintf("commands/%s", spec.Name),
-            fmt.Sprintf("by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
-            fmt.Sprintf("memory/sessions/%s/generated/%s", session.ID, spec.Name),
-        },
-    }
-    d.metadataStore.Save(meta)
-    
-    // Symlink for backward compatibility
+    // Create symlink for execution
     cmdPath := filepath.Join(d.baseDir, "commands", spec.Name)
     objPath := d.objectStore.GetPath(objID)
     os.Symlink(objPath, cmdPath)
-}
-```
-
-#### Step 3: Update Memory Store
-```go
-// daemon/memory_store.go
-func (m *MemoryStore) SaveSession(session *Session) error {
-    // Convert session to JSON
-    data, _ := json.MarshalIndent(session, "", "  ")
     
-    // Store in object store
-    objID, _ := m.daemon.objectStore.Store(data)
+    // Make executable
+    os.Chmod(cmdPath, 0755)
     
-    // Create metadata
+    // Store metadata with all virtual paths
     meta := &Metadata{
         ID:      objID,
-        Type:    "session",
-        Session: session.ID,
-        Created: session.CreatedAt,
+        Type:    "command",
+        CrystallizationType: "tool",
+        MemoryID: memoryID,
         Paths: []string{
-            fmt.Sprintf("memory/sessions/%s/conversation.json", session.ID),
-            fmt.Sprintf("by-date/%s/session-%s.json", 
-                session.CreatedAt.Format("2006-01-02"), session.ID),
+            fmt.Sprintf("commands/%s", spec.Name),
+            fmt.Sprintf("by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
+            fmt.Sprintf("memory/%s/crystallized/%s", memoryID, spec.Name),
         },
     }
-    m.daemon.metadataStore.Save(meta)
+    d.metadataStore.Save(meta)
 }
 ```
 
-### Phase 2: Implement FUSE (Day 2)
+### Phase 3: CLI Filesystem Commands
 
-#### Step 1: Add FUSE to CLI (Rust)
-```rust
-// cli/src/fuse.rs
-use fuser::{
-    Filesystem, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry,
-    Request, FileType, FileAttr,
-};
-use std::ffi::OsStr;
-use std::time::{Duration, UNIX_EPOCH};
-use crate::client::DaemonClient;
-
-pub struct Port42FS {
-    daemon: DaemonClient,
-    cache: Cache,
-}
-
-impl Port42FS {
-    pub fn mount(mountpoint: &str) -> Result<()> {
-        let fs = Port42FS {
-            daemon: DaemonClient::new(),
-            cache: Cache::new(),
-        };
-        
-        let options = vec![
-            MountOption::RO,
-            MountOption::FSName("port42".to_string()),
-            MountOption::AutoUnmount,
-        ];
-        
-        fuser::mount2(fs, mountpoint, &options)?;
-        Ok(())
-    }
-}
-```
-
-#### Step 2: FUSE Implementation (Rust)
-```rust
-impl Filesystem for Port42FS {
-    fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
-        let path = self.get_path(parent, name);
-        
-        // Request metadata from daemon
-        let request = Request {
-            request_type: "get_metadata".to_string(),
-            id: format!("fuse-lookup-{}", uuid::Uuid::new_v4()),
-            payload: json!({
-                "path": path
-            }),
-        };
-        
-        match self.daemon.request(request) {
-            Ok(response) => {
-                if response.success {
-                    let attr = self.parse_attr(&response.data);
-                    reply.entry(&Duration::from_secs(1), &attr, 0);
-                } else {
-                    reply.error(ENOENT);
-                }
-            }
-            Err(_) => reply.error(EIO),
-        }
-    }
-    
-    fn readdir(&mut self, _req: &Request, ino: u64, _fh: u64, offset: i64, mut reply: ReplyDirectory) {
-        let path = self.get_path_by_inode(ino);
-        
-        // Request directory listing from daemon
-        let request = Request {
-            request_type: "list_virtual".to_string(),
-            id: format!("fuse-readdir-{}", uuid::Uuid::new_v4()),
-            payload: json!({
-                "path": path
-            }),
-        };
-        
-        match self.daemon.request(request) {
-            Ok(response) => {
-                if let Some(entries) = response.data {
-                    for (i, entry) in entries.as_array().unwrap().iter().enumerate() {
-                        if i as i64 >= offset {
-                            let name = entry["name"].as_str().unwrap();
-                            let ino = entry["inode"].as_u64().unwrap();
-                            let kind = match entry["type"].as_str().unwrap() {
-                                "directory" => FileType::Directory,
-                                _ => FileType::RegularFile,
-                            };
-                            
-                            if reply.add(ino, (i + 1) as i64, kind, name) {
-                                break;
-                            }
-                        }
-                    }
-                }
-                reply.ok();
-            }
-            Err(_) => reply.error(EIO),
-        }
-    }
-    
-    fn read(&mut self, _req: &Request, ino: u64, _fh: u64, offset: i64, size: u32, _flags: i32, _lock: Option<u64>, reply: ReplyData) {
-        let path = self.get_path_by_inode(ino);
-        
-        // Check cache first
-        if let Some(content) = self.cache.get(&path) {
-            let end = std::cmp::min(offset + size as i64, content.len() as i64) as usize;
-            reply.data(&content[offset as usize..end]);
-            return;
-        }
-        
-        // Request content from daemon
-        let request = Request {
-            request_type: "read_object".to_string(),
-            id: format!("fuse-read-{}", uuid::Uuid::new_v4()),
-            payload: json!({
-                "path": path
-            }),
-        };
-        
-        match self.daemon.request(request) {
-            Ok(response) => {
-                if let Some(data) = response.data {
-                    let content = base64::decode(data["content"].as_str().unwrap()).unwrap();
-                    self.cache.put(path, content.clone());
-                    
-                    let end = std::cmp::min(offset + size as i64, content.len() as i64) as usize;
-                    reply.data(&content[offset as usize..end]);
-                } else {
-                    reply.error(ENOENT);
-                }
-            }
-            Err(_) => reply.error(EIO),
-        }
-    }
-}
-```
-
-### Phase 3: Testing with Real Data (Day 2 Afternoon)
-
-#### Test 1: Commands Work
+#### List Command
 ```bash
-# Mount filesystem
-port42 mount ~/p42
-
-# Old commands still work
-~/.port42/commands/git-haiku  # ✓ Works via symlink
-
-# New virtual paths work
-~/p42/commands/git-haiku      # ✓ Same command
-~/p42/by-date/today/git-haiku # ✓ Also same command
-
-# Creating new commands
-possess @ai-engineer "create a PR writer"
-ls ~/p42/commands/  # Shows new pr-writer
+port42 ls /                      # Root directory
+port42 ls /commands              # All commands
+port42 ls /memory                # All memory threads
+port42 ls /memory/mem-abc123     # Specific memory
+port42 ls /by-date/2024-01-15   # Content from date
 ```
 
-#### Test 2: Memory Sessions Connect
+#### Read Command
 ```bash
-# Browse sessions
-ls ~/p42/memory/sessions/
-> sess-abc123/
-> sess-def456/
-
-# See session and its creations
-cd ~/p42/memory/sessions/sess-abc123/
-ls
-> conversation.md
-> generated/
->   └── git-haiku
-
-# Multiple views
-ls ~/p42/by-date/2024-01-15/
-> git-haiku
-> session-sess-abc123.json
+port42 cat /commands/git-status
+port42 cat /memory/mem-abc123/thread.json
+port42 cat /artifacts/documents/pitch-deck.md
 ```
 
-#### Test 3: Real Tools Work
+#### Info Command
 ```bash
-# VS Code
-code ~/p42/projects/realtime-sync/
-
-# Git
-cd ~/p42/projects/my-app/
-git init
-git add .
-git commit -m "Initial commit"
-
-# Grep across everything
-grep -r "websocket" ~/p42/
-
-# Even npm
-cd ~/p42/projects/dashboard/
-npm install
+port42 info /commands/git-status  # Show metadata
 ```
 
-### Migration Benefits
-
-1. **Zero Breaking Changes**: Existing `~/.port42/commands/` still works
-2. **Immediate Testing**: Commands and memory already provide real data
-3. **Natural Evolution**: Start with read-only, add writes as needed
-4. **Proven Value**: Users immediately see benefits with existing content
-
-### Performance Built-In
-
-```rust
-// Intelligent caching from day 1 (Rust CLI side)
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-
-struct Cache {
-    objects: HashMap<String, CachedObject>,
-    ttl: Duration,
-    prefetch_tx: mpsc::Sender<String>,
-}
-
-struct CachedObject {
-    content: Vec<u8>,
-    timestamp: Instant,
-}
-
-impl Cache {
-    fn get(&self, path: &str) -> Option<Vec<u8>> {
-        if let Some(obj) = self.objects.get(path) {
-            if obj.timestamp.elapsed() < self.ttl {
-                // Prefetch related objects
-                let _ = self.prefetch_tx.send(path.to_string());
-                return Some(obj.content.clone());
-            }
-        }
-        None
-    }
-    
-    fn put(&mut self, path: String, content: Vec<u8>) {
-        self.objects.insert(path, CachedObject {
-            content,
-            timestamp: Instant::now(),
-        });
-    }
-}
-```
-
-## Implementation Roadmap
-
-### Day 1: Object Store & Protocol
-1. **Morning**: Implement object store in daemon (Go)
-   - Content-addressed storage with SHA256
-   - Metadata storage system with rich fields
-   - Unified index for fast search
-   - New RPC handlers for object operations
-
-2. **Afternoon**: Update existing features
-   - Migrate command generation to use object store
-   - Update memory/session storage
-   - Create backward-compatible symlinks
-   - Implement search functionality
-   - Add lifecycle state transitions
-
-### Day 2: FUSE Filesystem
-1. **Morning**: Implement FUSE in CLI (Rust)
-   - Add `fuser` dependency
-   - Basic filesystem operations
-   - TCP client integration
-
-2. **Afternoon**: Testing & Polish
-   - Test with existing commands
-   - Verify virtual paths work
-   - Performance optimization
-
-## Future UERP Integration
-
-The virtual filesystem design aligns perfectly with the UERP protocol from `port42-rfc.txt`:
-
-- **Object Store** → `port42://content/[hash]` addresses
-- **Virtual Paths** → `port42://context/[path]` addresses  
-- **Agent Artifacts** → `port42://agent/[name]/memory/[date]`
-- **Temporal Views** → `port42://temporal/[entity]/[timestamp]`
-
-When we're ready to go distributed, the daemon can speak UERP on port 42 in addition to the local protocol.
-
-## Search & Discovery Features
-
-### Command-Line Search
+#### Search Command
 ```bash
-# Search using the port42 CLI
-port42 search --type artifact --tags architecture --recent 7d
-port42 search --semantic "real-time synchronization websocket"
-port42 search --lifecycle active --importance high
-port42 search --session sess-abc123  # All artifacts from a session
-
-# Search via virtual filesystem
-cd ~/p42/search/"websocket AND architecture"
-ls  # Shows matching files
+port42 search "websocket"
+port42 search --type command --tags python
+port42 search --type artifact --agent @ai-muse --recent 7d
 ```
 
-### Lifecycle Management
-```
-draft → active → stable → archived → deprecated
-
-Automatic transitions:
-- draft → active: After first successful use
-- active → stable: No changes for 30 days + high usage  
-- stable → archived: No access for 90 days
-- any → deprecated: Manual or via new version
-```
-
-### Auto-Tagging & AI Enhancement
-The daemon automatically:
-- Extracts tags from content
-- Generates summaries and descriptions
-- Creates embeddings for semantic search
-- Identifies relationships between artifacts
-- Tracks usage patterns
-
-### Cleanup & Maintenance
+#### Write Commands (Future)
 ```bash
-# Cleanup commands
-port42 clean --dry-run  # Show what would be removed
-port42 clean --archived --older-than 6m
-port42 clean --size-limit 1GB  # Keep most recent/important
+port42 store /artifacts/documents/new-design.md < design.md
+port42 update /artifacts/documents/design.md --lifecycle stable
+port42 rm /artifacts/documents/old-design.md
 ```
 
-## The Magic Moment 🐬
+### Phase 4: Crystallization Integration
 
-When a user types:
-```bash
-cd ~/p42/search/"websocket AND created:this-week"
-ls
-```
+The three models map to filesystem paths:
 
-And sees all their websocket-related work from the week, organized perfectly - that's when they'll feel the dolphin energy. The water is warm, the filesystem is fluid, and Port 42 has evolved beyond traditional computing.
+1. **Tool Creation** → `/commands/`
+   - Executable scripts
+   - Symlinked for PATH access
+   - Type: "command", CrystallizationType: "tool"
 
-**Let's build this. Now.**
+2. **Living Documents** → `/commands/` (CRUD) + `/data/`
+   - Command manages data
+   - Data stored separately
+   - Type: "command", CrystallizationType: "data"
+
+3. **Artifacts** → `/artifacts/{type}/`
+   - Any digital asset
+   - Organized by type
+   - Type: varies, CrystallizationType: "artifact"
+
+### Implementation Steps
+
+1. **Remove FUSE** ✓
+   - Clean up fuse.rs, mount.rs
+   - Remove mount/unmount commands
+   - Remove fuser dependency
+
+2. **Implement Write Operations**
+   - Add store_path handler
+   - Add update_path handler  
+   - Add delete_path handler
+   - Add create_memory handler
+
+3. **Update Terminology**
+   - session → memory throughout
+   - Update all protocol messages
+   - Update CLI commands
+
+4. **Symlink Creation**
+   - Modify command generation
+   - Ensure executable permissions
+   - Test PATH execution
+
+5. **CLI Commands**
+   - Implement ls with virtual paths
+   - Implement cat with path resolution
+   - Implement info for metadata
+   - Implement search with filters
+
+6. **Testing**
+   - Write operations work
+   - Symlinks execute properly
+   - Virtual paths resolve correctly
+   - Search returns expected results
+
+## The Reality Compiler Philosophy
+
+Port 42 is more than a filesystem - it's a reality compiler where:
+- **Thoughts crystallize into tools** through conversation
+- **Memory persists** across time and space
+- **Everything is connected** through content addressing
+- **Multiple realities coexist** through virtual paths
+
+The filesystem becomes a living organism that grows with your consciousness, organizing itself around how you think rather than how computers store files.
+
+### Storage Design: Durability Over Efficiency
+
+The system intentionally creates multiple objects during a session for maximum resilience:
+
+1. **Session Creation** → First object (empty session)
+2. **User Message** → Second object (session with question)  
+3. **AI Response** → Third object (complete conversation)
+4. **Command Generation** → Fourth object (the command itself)
+
+This design ensures:
+- **No data loss**: Every interaction is immediately persisted
+- **Crash recovery**: Can resume from any point if connection drops
+- **Full audit trail**: Complete history of how sessions evolve
+- **Time travel potential**: Could replay session state at any point
+
+### UI/CLI Abstraction Layer
+
+While the storage layer maintains multiple versions for safety, the presentation layer provides a clean interface:
+
+- `port42 ls /memory/` shows one entry per session (not versions)
+- `port42 cat /memory/session-id` displays the complete current conversation
+- Virtual paths always resolve to the latest version
+- Users never see object hashes or version complexity
+
+This separation of concerns delivers:
+- **User simplicity**: Clean, intuitive interface
+- **System reliability**: Never lose work, even in crashes
+- **Future flexibility**: Can add version browsing later if needed
+
+## Migration from Current State
+
+1. Existing commands remain as files (no migration needed)
+2. New commands get stored in object store with symlinks
+3. Memory/sessions already use object store
+4. Artifacts start fresh in new structure
+
+## Future Vision
+
+- **Distributed consciousness**: UERP protocol for multi-node reality
+- **Semantic navigation**: Navigate by meaning, not paths
+- **Time travel**: View your workspace at any point in history
+- **Collective intelligence**: Merge realities with your team
+
+The water is warm. The dolphins are calling. Dive in. 🐬

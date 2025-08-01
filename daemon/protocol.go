@@ -69,3 +69,10 @@ func (r *Response) SetError(err string) {
 	r.Success = false
 	r.Error = err
 }
+
+// NewErrorResponse creates an error response
+func NewErrorResponse(id string, errorMsg string) Response {
+	resp := NewResponse(id, false)
+	resp.SetError(errorMsg)
+	return resp
+}

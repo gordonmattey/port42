@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,14 +15,14 @@ import (
 
 // Daemon represents the Port 42 daemon
 type Daemon struct {
-	listener    net.Listener
-	sessions    map[string]*Session
-	mu          sync.RWMutex
-	config      Config
-	shutdownCh  chan struct{}
-	wg          sync.WaitGroup
-	memoryStore *MemoryStore
-	objectStore *ObjectStore
+	listener   net.Listener
+	sessions   map[string]*Session
+	mu         sync.RWMutex
+	config     Config
+	shutdownCh chan struct{}
+	wg         sync.WaitGroup
+	storage    *Storage
+	baseDir    string
 }
 
 // Session represents an active possession session
@@ -60,37 +61,22 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	homeDir, _ := os.UserHomeDir()
 	baseDir := filepath.Join(homeDir, ".port42")
 	
-	// Initialize object store first (memory store depends on it)
-	log.Printf("🗄️ Initializing object store...")
-	objectStore, err := NewObjectStore(baseDir)
+	// Initialize unified storage
+	log.Printf("🗄️ Initializing storage...")
+	storage, err := NewStorage(baseDir)
 	if err != nil {
-		log.Printf("❌ Failed to initialize object store: %v", err)
-		// Continue without object store for now
+		log.Printf("❌ Failed to initialize storage: %v", err)
+		// Continue without storage for now
 	} else {
-		log.Printf("✅ Object store initialized successfully")
-	}
-	
-	// Initialize memory store with object store
-	log.Printf("🔍 Initializing memory store with base dir: %s", baseDir)
-	var memoryStore *MemoryStore
-	if objectStore != nil {
-		memoryStore, err = NewMemoryStore(baseDir, objectStore)
-		if err != nil {
-			log.Printf("❌ Failed to initialize memory store: %v", err)
-			// Continue without persistence
-		} else {
-			log.Printf("✅ Memory store initialized successfully with object store")
-		}
-	} else {
-		log.Printf("⚠️ Memory store not initialized - object store required")
+		log.Printf("✅ Storage initialized successfully")
 	}
 	
 	return &Daemon{
-		listener:    listener,
-		sessions:    make(map[string]*Session),
-		shutdownCh:  make(chan struct{}),
-		memoryStore: memoryStore,
-		objectStore: objectStore,
+		listener:   listener,
+		sessions:   make(map[string]*Session),
+		shutdownCh: make(chan struct{}),
+		storage:    storage,
+		baseDir:    baseDir,
 		config: Config{
 			Port:         port,
 			AIBackend:    "http://localhost:3000/api/ai", // Default, can be overridden
@@ -107,7 +93,7 @@ func (d *Daemon) Start() {
 	log.Printf("🐬 Daemon starting with config: %+v", d.config)
 	
 	// Load recent sessions from disk
-	if d.memoryStore != nil {
+	if d.storage != nil {
 		d.loadRecentSessions()
 	}
 	
@@ -199,11 +185,171 @@ func (d *Daemon) handleRequest(req Request) Response {
 	case "ping":
 		// Simple ping handler for connection checks
 		return NewResponse(req.ID, true)
+	case "store_path":
+		return d.handleStorePath(req)
+	case "update_path":
+		return d.handleUpdatePath(req)
+	case "delete_path":
+		return d.handleDeletePath(req)
+	case "create_memory":
+		return d.handleCreateMemory(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
 		return resp
 	}
+}
+
+// Virtual filesystem handlers - thin wrappers that delegate to storage
+
+// handleStorePath stores content at a virtual path
+func (d *Daemon) handleStorePath(req Request) Response {
+	var payload struct {
+		Path     string                 `json:"path"`
+		Content  string                 `json:"content"` // base64 encoded
+		Metadata map[string]interface{} `json:"metadata,omitempty"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Decode content
+	content, err := base64.StdEncoding.DecodeString(payload.Content)
+	if err != nil {
+		return NewErrorResponse(req.ID, "Failed to decode content: "+err.Error())
+	}
+
+	// Delegate to storage
+	result, err := d.storage.HandleStorePath(payload.Path, content, payload.Metadata)
+	if err != nil {
+		return NewErrorResponse(req.ID, err.Error())
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(result)
+	return resp
+}
+
+// handleUpdatePath updates content at a virtual path
+func (d *Daemon) handleUpdatePath(req Request) Response {
+	var payload struct {
+		Path            string                 `json:"path"`
+		Content         string                 `json:"content,omitempty"` // base64, optional
+		MetadataUpdates map[string]interface{} `json:"metadata_updates,omitempty"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Decode content if provided
+	var content []byte
+	if payload.Content != "" {
+		var err error
+		content, err = base64.StdEncoding.DecodeString(payload.Content)
+		if err != nil {
+			return NewErrorResponse(req.ID, "Failed to decode content: "+err.Error())
+		}
+	}
+
+	// Delegate to storage
+	result, err := d.storage.HandleUpdatePath(payload.Path, content, payload.MetadataUpdates)
+	if err != nil {
+		return NewErrorResponse(req.ID, err.Error())
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(result)
+	return resp
+}
+
+// handleDeletePath removes a virtual path
+func (d *Daemon) handleDeletePath(req Request) Response {
+	var payload struct {
+		Path string `json:"path"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Delegate to storage
+	result, err := d.storage.HandleDeletePath(payload.Path)
+	if err != nil {
+		return NewErrorResponse(req.ID, err.Error())
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(result)
+	return resp
+}
+
+// handleCreateMemory creates a new memory (session) thread
+func (d *Daemon) handleCreateMemory(req Request) Response {
+	var payload struct {
+		Agent          string `json:"agent"`
+		InitialMessage string `json:"initial_message,omitempty"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Delegate to storage for memory ID generation
+	result, err := d.storage.HandleCreateMemory(payload.Agent, payload.InitialMessage)
+	if err != nil {
+		return NewErrorResponse(req.ID, err.Error())
+	}
+
+	// Extract memory ID from result
+	memoryID := result["memory_id"].(string)
+
+	// Create actual session
+	session := d.getOrCreateSession(memoryID, payload.Agent)
+
+	// Add initial message if provided
+	if payload.InitialMessage != "" {
+		session.mu.Lock()
+		session.Messages = append(session.Messages, Message{
+			Role:      "user",
+			Content:   payload.InitialMessage,
+			Timestamp: time.Now(),
+		})
+		session.mu.Unlock()
+
+		// Save to disk
+		if d.storage != nil {
+			d.storage.SaveSession(session)
+		}
+	}
+
+	// Add session details to result
+	result["created_at"] = session.CreatedAt
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(result)
+	return resp
+}
+
+// Path resolution methods
+
+// resolvePath resolves a virtual path to an object ID
+func (d *Daemon) resolvePath(path string) string {
+	if d.storage == nil {
+		return ""
+	}
+	return d.storage.ResolvePath(path)
+}
+
+// listVirtualPath lists entries in a virtual directory
+func (d *Daemon) listVirtualPath(path string) []map[string]interface{} {
+	if d.storage == nil {
+		return []map[string]interface{}{}
+	}
+	
+	// Use storage method that includes active sessions
+	return d.storage.ListPathWithActiveSessions(path, d.sessions)
 }
 
 // Session management methods
@@ -223,8 +369,8 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	}
 	
 	// Step 2: Check on disk (NEW)
-	if d.memoryStore != nil {
-		if persistedSession, err := d.memoryStore.LoadSession(sessionID); err == nil {
+	if d.storage != nil {
+		if persistedSession, err := d.storage.LoadSession(sessionID); err == nil {
 			// Convert from PersistentSession to Session
 			session := &Session{
 				ID:               persistedSession.ID,
@@ -272,12 +418,11 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	log.Printf("📊 Session added to map. Current map size: %d", len(d.sessions))
 	
 	// Save new session to disk
-	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.memoryStore != nil)
-	if d.memoryStore != nil {
-		log.Printf("💾 Queuing save for new session %s", sessionID)
+	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.storage != nil)
+	if d.storage != nil {
+		log.Printf("🔍 [NEW_SESSION] Saving newly created session %s", sessionID)
 		go func() {
-			log.Printf("🏃 Goroutine started for saving session %s", sessionID)
-			if err := d.memoryStore.SaveSession(session); err != nil {
+			if err := d.storage.SaveSession(session); err != nil {
 				log.Printf("❌ Failed to save new session: %v", err)
 			} else {
 				log.Printf("✅ Successfully saved session %s", sessionID)
@@ -301,7 +446,7 @@ func (d *Daemon) getSession(sessionID string) (*Session, bool) {
 
 // loadRecentSessions loads active/idle sessions from disk on startup
 func (d *Daemon) loadRecentSessions() {
-	sessions, err := d.memoryStore.LoadRecentSessions(1) // Last 24 hours
+	sessions, err := d.storage.LoadRecentSessions(1) // Last 24 hours
 	if err != nil {
 		log.Printf("Failed to load recent sessions: %v", err)
 		return
@@ -381,8 +526,8 @@ func (d *Daemon) cleanupSessions() {
 						log.Printf("⏸️  Session %s is now idle (no activity for %v)", id, session.IdleTimeout)
 						
 						// Save idle state to disk
-						if d.memoryStore != nil {
-							go d.memoryStore.SaveSession(session)
+						if d.storage != nil {
+							go d.storage.SaveSession(session)
 						}
 					}
 					
@@ -393,8 +538,8 @@ func (d *Daemon) cleanupSessions() {
 						log.Printf("🚪 Session %s abandoned (idle for %v)", id, timeSinceActivity)
 						
 						// Save final state and remove from memory
-						if d.memoryStore != nil {
-							go d.memoryStore.SaveSession(session)
+						if d.storage != nil {
+							go d.storage.SaveSession(session)
 						}
 						delete(d.sessions, id)
 					}
@@ -413,8 +558,8 @@ func (d *Daemon) cleanupSessions() {
 			// Save all active sessions before shutdown
 			d.mu.RLock()
 			for _, session := range d.sessions {
-				if d.memoryStore != nil && (session.State == SessionActive || session.State == SessionIdle) {
-					d.memoryStore.SaveSession(session)
+				if d.storage != nil && (session.State == SessionActive || session.State == SessionIdle) {
+					d.storage.SaveSession(session)
 				}
 			}
 			d.mu.RUnlock()
@@ -526,9 +671,9 @@ func (d *Daemon) handleMemory(req Request) Response {
 	var recentSummaries []SessionSummary
 	var stats *MemoryStats
 	
-	if d.memoryStore != nil {
+	if d.storage != nil {
 		// Load last 7 days of sessions
-		if sessions, err := d.memoryStore.LoadRecentSessions(7); err == nil {
+		if sessions, err := d.storage.LoadRecentSessions(7); err == nil {
 			// Convert to summaries
 			recentSummaries = make([]SessionSummary, 0, len(sessions))
 			for _, ps := range sessions {
@@ -542,7 +687,14 @@ func (d *Daemon) handleMemory(req Request) Response {
 				})
 			}
 		}
-		stats = d.memoryStore.GetStats()
+		// Convert StorageStats to MemoryStats for compatibility
+		sStats := d.storage.GetStats()
+		stats = &MemoryStats{
+			TotalSessions:     sStats.TotalSessions,
+			ActiveSessions:    sStats.ActiveSessions,
+			CommandsGenerated: 0, // TODO: track commands
+			LastSessionTime:   sStats.LastUpdated,
+		}
 	}
 	
 	data := map[string]interface{}{
@@ -594,18 +746,16 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 	d.mu.RUnlock()
 	
 	// Try to load from disk
-	if d.memoryStore != nil {
-		if persistedSession, err := d.memoryStore.LoadSession(sessionID); err == nil {
+	if d.storage != nil {
+		if session, err := d.storage.LoadSession(sessionID); err == nil {
 			data := map[string]interface{}{
-				"id":           persistedSession.ID,
-				"agent":        persistedSession.Agent,
-				"state":        persistedSession.State,
-				"created_at":   persistedSession.CreatedAt,
-				"last_activity": persistedSession.LastActivity,
-				"updated_at":   persistedSession.UpdatedAt,
-				"messages":     persistedSession.Messages,
-				"command_generated": persistedSession.CommandGenerated,
-				"metadata":     persistedSession.Metadata,
+				"id":           session.ID,
+				"agent":        session.Agent,
+				"state":        session.State,
+				"created_at":   session.CreatedAt,
+				"last_activity": session.LastActivity,
+				"messages":     session.Messages,
+				"command_generated": session.CommandGenerated,
 			}
 			resp.SetData(data)
 			return resp
@@ -619,7 +769,7 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 
 // Command generation functionality
 func (d *Daemon) generateCommand(spec *CommandSpec) error {
-	log.Printf("🌊 Crystallizing command '%s'...", spec.Name)
+	log.Printf("🔍 [GENERATE_COMMAND] Starting generation for '%s' (session=%s)", spec.Name, spec.SessionID)
 	
 	// Check for dependencies
 	if len(spec.Dependencies) > 0 {
@@ -675,42 +825,15 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 			implementation)
 	}
 	
-	// Store in object store
-	if d.objectStore == nil {
-		return fmt.Errorf("object store not initialized")
+	// Store command using unified storage
+	if d.storage == nil {
+		return fmt.Errorf("storage not initialized")
 	}
 	
-	// Create metadata for the command
-	metadata := &Metadata{
-		Type:        "command",
-		Title:       spec.Name,
-		Description: spec.Description,
-		Tags:        extractTags(spec),
-		Session:     spec.SessionID,
-		Agent:       spec.Agent,
-		Lifecycle:   "active",
-		Importance:  "medium",
-		Paths: []string{
-			fmt.Sprintf("commands/%s", spec.Name),
-			fmt.Sprintf("by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
-			fmt.Sprintf("by-type/command/%s", spec.Name),
-		},
+	// Store command with metadata and symlink
+	if err := d.storage.StoreCommand(spec, code); err != nil {
+		return fmt.Errorf("failed to store command: %v", err)
 	}
-	
-	// Add session path if we have a session ID
-	if spec.SessionID != "" {
-		metadata.Paths = append(metadata.Paths, 
-			fmt.Sprintf("memory/sessions/%s/generated/%s", spec.SessionID, spec.Name))
-	}
-	
-	// Store content with metadata
-	objectID, err := d.objectStore.StoreWithMetadata([]byte(code), metadata)
-	if err != nil {
-		return fmt.Errorf("failed to store command in object store: %v", err)
-	}
-	
-	log.Printf("✨ Command '%s' crystallized in object store: %s", spec.Name, objectID[:12]+"...")
-	log.Printf("🌊 Virtual paths: %v", metadata.Paths)
 	
 	// Log to memory (simple for now)
 	d.logCommandGeneration(spec)
@@ -748,16 +871,6 @@ func extractTags(spec *CommandSpec) []string {
 	}
 	
 	return tags
-}
-
-// isCommonWord checks if a word is too common to be a useful tag
-func isCommonWord(word string) bool {
-	common := map[string]bool{
-		"that": true, "this": true, "with": true, "from": true,
-		"have": true, "been": true, "will": true, "your": true,
-		"what": true, "when": true, "where": true, "which": true,
-	}
-	return common[word]
 }
 
 // Generate dependency check code for commands
