@@ -74,6 +74,8 @@ type CommandSpec struct {
 	Implementation string   `json:"implementation"`
 	Language       string   `json:"language"` // bash, python, etc
 	Dependencies   []string `json:"dependencies,omitempty"` // External commands required
+	SessionID      string   `json:"session_id,omitempty"` // Session that created this
+	Agent          string   `json:"agent,omitempty"` // Agent that created this
 }
 
 // NewAnthropicClient creates a new Claude client
@@ -359,6 +361,10 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Check if we have a command spec to generate
 	if commandSpec != nil {
+		// Add session and agent info to command spec
+		commandSpec.SessionID = session.ID
+		commandSpec.Agent = session.Agent
+		
 		// Store command info in session
 		session.CommandGenerated = commandSpec
 		session.State = SessionCompleted

@@ -670,28 +670,89 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 			implementation)
 	}
 	
-	// Create commands directory
-	homeDir, _ := os.UserHomeDir()
-	cmdDir := filepath.Join(homeDir, ".port42", "commands")
-	if err := os.MkdirAll(cmdDir, 0755); err != nil {
-		return fmt.Errorf("failed to create commands directory: %v", err)
+	// Store in object store
+	if d.objectStore == nil {
+		return fmt.Errorf("object store not initialized")
 	}
 	
-	// Write command file
-	cmdPath := filepath.Join(cmdDir, spec.Name)
-	if err := os.WriteFile(cmdPath, []byte(code), 0755); err != nil {
-		return fmt.Errorf("failed to write command: %v", err)
+	// Create metadata for the command
+	metadata := &Metadata{
+		Type:        "command",
+		Title:       spec.Name,
+		Description: spec.Description,
+		Tags:        extractTags(spec),
+		Session:     spec.SessionID,
+		Agent:       spec.Agent,
+		Lifecycle:   "active",
+		Importance:  "medium",
+		Paths: []string{
+			fmt.Sprintf("commands/%s", spec.Name),
+			fmt.Sprintf("by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
+			fmt.Sprintf("by-type/command/%s", spec.Name),
+		},
 	}
 	
-	log.Printf("✨ Command '%s' crystallized at %s", spec.Name, cmdPath)
+	// Add session path if we have a session ID
+	if spec.SessionID != "" {
+		metadata.Paths = append(metadata.Paths, 
+			fmt.Sprintf("memory/sessions/%s/generated/%s", spec.SessionID, spec.Name))
+	}
 	
-	// Update PATH if needed
-	d.ensureCommandsInPath()
+	// Store content with metadata
+	objectID, err := d.objectStore.StoreWithMetadata([]byte(code), metadata)
+	if err != nil {
+		return fmt.Errorf("failed to store command in object store: %v", err)
+	}
+	
+	log.Printf("✨ Command '%s' crystallized in object store: %s", spec.Name, objectID[:12]+"...")
+	log.Printf("🌊 Virtual paths: %v", metadata.Paths)
 	
 	// Log to memory (simple for now)
 	d.logCommandGeneration(spec)
 	
 	return nil
+}
+
+// extractTags extracts relevant tags from a command spec
+func extractTags(spec *CommandSpec) []string {
+	tags := []string{spec.Language}
+	
+	// Add language-specific tags
+	switch spec.Language {
+	case "python":
+		tags = append(tags, "script", "python3")
+	case "node", "javascript":
+		tags = append(tags, "script", "nodejs", "javascript")
+	default:
+		tags = append(tags, "script", "bash", "shell")
+	}
+	
+	// Add dependency tags
+	for _, dep := range spec.Dependencies {
+		tags = append(tags, dep)
+	}
+	
+	// Extract keywords from name and description
+	words := strings.Fields(spec.Name + " " + spec.Description)
+	for _, word := range words {
+		word = strings.ToLower(word)
+		// Add meaningful words as tags (skip common words)
+		if len(word) > 3 && !isCommonWord(word) {
+			tags = append(tags, word)
+		}
+	}
+	
+	return tags
+}
+
+// isCommonWord checks if a word is too common to be a useful tag
+func isCommonWord(word string) bool {
+	common := map[string]bool{
+		"that": true, "this": true, "with": true, "from": true,
+		"have": true, "been": true, "will": true, "your": true,
+		"what": true, "when": true, "where": true, "which": true,
+	}
+	return common[word]
 }
 
 // Generate dependency check code for commands
