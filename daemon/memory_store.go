@@ -24,10 +24,11 @@ const (
 
 // MemoryStore handles persistent storage of sessions
 type MemoryStore struct {
-	baseDir   string
-	indexPath string
-	mu        sync.RWMutex
-	index     *MemoryIndex
+	baseDir     string
+	indexPath   string
+	mu          sync.RWMutex
+	index       *MemoryIndex
+	objectStore *ObjectStore
 }
 
 // MemoryIndex tracks all sessions for quick lookup
@@ -79,21 +80,18 @@ type CommandGenerationInfo struct {
 }
 
 // NewMemoryStore creates a new memory store
-func NewMemoryStore(baseDir string) (*MemoryStore, error) {
+func NewMemoryStore(baseDir string, objectStore *ObjectStore) (*MemoryStore, error) {
 	store := &MemoryStore{
-		baseDir:   baseDir,
-		indexPath: filepath.Join(baseDir, "memory", "index.json"),
+		baseDir:     baseDir,
+		indexPath:   filepath.Join(baseDir, "memory", "sessions.json"), // Keep for index only
+		objectStore: objectStore,
 	}
 
-	// Create directory structure
+	// Create directory for index file only
 	memoryDir := filepath.Join(baseDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	
-	log.Printf("🔍 Creating memory directories at: %s", sessionsDir)
-	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create memory directories: %v", err)
+	if err := os.MkdirAll(memoryDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create memory directory: %v", err)
 	}
-	log.Printf("✅ Memory directories created successfully")
 
 	// Load or create index
 	if err := store.loadIndex(); err != nil {
@@ -109,7 +107,11 @@ func NewMemoryStore(baseDir string) (*MemoryStore, error) {
 
 // SaveSession persists a session to disk
 func (m *MemoryStore) SaveSession(session *Session) error {
-	log.Printf("💾 Attempting to save session %s", session.ID)
+	log.Printf("💾 Attempting to save session %s to object store", session.ID)
+	
+	if m.objectStore == nil {
+		return fmt.Errorf("object store not initialized")
+	}
 	
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -124,7 +126,7 @@ func (m *MemoryStore) SaveSession(session *Session) error {
 		LastActivity: session.LastActivity,
 		Messages:     session.Messages,
 		Metadata: map[string]interface{}{
-			"model": "claude-3-5-sonnet-20241022", // Could be dynamic
+			"model": "claude-3-5-sonnet-20241022",
 		},
 	}
 
@@ -133,51 +135,79 @@ func (m *MemoryStore) SaveSession(session *Session) error {
 		ps.CommandGenerated = &CommandGenerationInfo{
 			Name:      session.CommandGenerated.Name,
 			CreatedAt: time.Now(),
-			Path:      filepath.Join(m.baseDir, "commands", session.CommandGenerated.Name),
+			Path:      fmt.Sprintf("commands/%s", session.CommandGenerated.Name),
 		}
 	}
 
-	// Generate filename
-	date := ps.CreatedAt.Format("2006-01-02")
-	slug := m.generateSlug(session)
-	filename := fmt.Sprintf("session-%d-%s.json", ps.CreatedAt.Unix(), slug)
-	
-	// Create date directory
-	dateDir := filepath.Join(m.baseDir, "memory", "sessions", date)
-	if err := os.MkdirAll(dateDir, 0755); err != nil {
-		return fmt.Errorf("failed to create date directory: %v", err)
-	}
-
-	// Save session file
-	filePath := filepath.Join(dateDir, filename)
-	log.Printf("🔍 Saving session to file: %s", filePath)
-	
+	// Serialize session
 	data, err := json.MarshalIndent(ps, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal session: %v", err)
 	}
 
-	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write session file: %v", err)
+	// Create metadata for the session
+	metadata := &Metadata{
+		Type:        "session",
+		Title:       fmt.Sprintf("Session %s", session.ID),
+		Description: fmt.Sprintf("AI conversation with %s", session.Agent),
+		Tags:        m.extractSessionTags(session),
+		Session:     session.ID,
+		Agent:       session.Agent,
+		Lifecycle:   m.mapStateToLifecycle(session.State),
+		Paths: []string{
+			fmt.Sprintf("memory/sessions/%s", session.ID),
+			fmt.Sprintf("memory/sessions/by-date/%s/%s", 
+				session.CreatedAt.Format("2006-01-02"), session.ID),
+			fmt.Sprintf("memory/sessions/by-agent/%s/%s", 
+				m.cleanAgentName(session.Agent), session.ID),
+		},
 	}
-	log.Printf("✅ Session file written successfully")
 
-	// Update index
-	m.updateIndex(session, date, slug, filepath.Join(date, filename))
+	// Store in object store
+	objectID, err := m.objectStore.StoreWithMetadata(data, metadata)
+	if err != nil {
+		return fmt.Errorf("failed to store session in object store: %v", err)
+	}
 
-	log.Printf("💾 Saved session %s to %s", session.ID, filename)
+	// Update index with object reference
+	date := ps.CreatedAt.Format("2006-01-02")
+	slug := m.generateSlug(session)
+	// Store object ID in the file field for now (will be migrated to object references)
+	m.updateIndex(session, date, slug, objectID)
+
+	log.Printf("✅ Session %s saved to object store: %s", session.ID, objectID[:12]+"...")
+	log.Printf("🌊 Virtual paths: %v", metadata.Paths)
 	return nil
 }
 
-// LoadSession loads a specific session by ID from disk
+// LoadSession loads a specific session by ID from object store
 func (m *MemoryStore) LoadSession(id string) (*PersistentSession, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Search index for session file
+	// Search index for session
 	for _, summary := range m.index.Sessions {
 		if summary.ID == id {
-			// summary.File already contains the relative path from sessions dir
+			// Check if File contains an object ID (new format) or file path (legacy)
+			if strings.HasPrefix(summary.File, "obj-") || len(summary.File) == 64 {
+				// New format: object ID stored in File field
+				if m.objectStore != nil {
+					data, err := m.objectStore.Read(summary.File)
+					if err != nil {
+						return nil, fmt.Errorf("failed to read session from object store: %v", err)
+					}
+					
+					session := &PersistentSession{}
+					if err := json.Unmarshal(data, session); err != nil {
+						return nil, fmt.Errorf("failed to unmarshal session: %v", err)
+					}
+					
+					log.Printf("✅ Loaded session %s from object store", id)
+					return session, nil
+				}
+			}
+			
+			// Legacy format: file path
 			filePath := filepath.Join(m.baseDir, "memory", "sessions", summary.File)
 			session, err := m.loadSessionFromFile(filePath)
 			if err != nil {
@@ -201,9 +231,11 @@ func (m *MemoryStore) LoadRecentSessions(days int) ([]*PersistentSession, error)
 
 	for _, summary := range m.index.Sessions {
 		if summary.CreatedAt.After(cutoff) {
-			filePath := filepath.Join(m.baseDir, "memory", "sessions", summary.File)
-			if session, err := m.loadSessionFromFile(filePath); err == nil {
+			// Try to load session (LoadSession handles both object store and legacy)
+			if session, err := m.LoadSession(summary.ID); err == nil {
 				sessions = append(sessions, session)
+			} else {
+				log.Printf("Failed to load session %s: %v", summary.ID, err)
 			}
 		}
 	}
@@ -365,4 +397,59 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// extractSessionTags extracts relevant tags from a session
+func (m *MemoryStore) extractSessionTags(session *Session) []string {
+	tags := []string{"conversation", "ai", strings.ToLower(session.Agent)}
+	
+	if session.CommandGenerated != nil {
+		tags = append(tags, "command-generated", session.CommandGenerated.Name)
+	}
+	
+	// Add state as tag
+	tags = append(tags, string(session.State))
+	
+	// Extract keywords from messages (limited to avoid too many tags)
+	for i, msg := range session.Messages {
+		if i > 5 { // Only process first few messages to avoid tag explosion
+			break
+		}
+		words := strings.Fields(msg.Content)
+		for _, word := range words {
+			word = strings.ToLower(word)
+			if len(word) > 5 && !isCommonWord(word) {
+				tags = append(tags, word)
+				if len(tags) > 20 { // Limit total tags
+					return tags
+				}
+			}
+		}
+	}
+	
+	return tags
+}
+
+// mapStateToLifecycle maps session state to object lifecycle
+func (m *MemoryStore) mapStateToLifecycle(state SessionState) string {
+	switch state {
+	case SessionActive:
+		return "active"
+	case SessionCompleted:
+		return "stable"
+	case SessionAbandoned:
+		return "archived"
+	default:
+		return "draft"
+	}
+}
+
+// cleanAgentName makes agent names filesystem-friendly
+func (m *MemoryStore) cleanAgentName(agent string) string {
+	// Remove @ prefix and make filesystem-friendly
+	agent = strings.TrimPrefix(agent, "@")
+	agent = strings.ReplaceAll(agent, " ", "-")
+	agent = strings.ReplaceAll(agent, "/", "-")
+	agent = strings.ToLower(agent)
+	return agent
 }

@@ -60,17 +60,7 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	homeDir, _ := os.UserHomeDir()
 	baseDir := filepath.Join(homeDir, ".port42")
 	
-	// Initialize memory store
-	log.Printf("🔍 Initializing memory store with base dir: %s", baseDir)
-	memoryStore, err := NewMemoryStore(baseDir)
-	if err != nil {
-		log.Printf("❌ Failed to initialize memory store: %v", err)
-		// Continue without persistence
-	} else {
-		log.Printf("✅ Memory store initialized successfully (not nil: %v)", memoryStore != nil)
-	}
-	
-	// Initialize object store
+	// Initialize object store first (memory store depends on it)
 	log.Printf("🗄️ Initializing object store...")
 	objectStore, err := NewObjectStore(baseDir)
 	if err != nil {
@@ -78,6 +68,21 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 		// Continue without object store for now
 	} else {
 		log.Printf("✅ Object store initialized successfully")
+	}
+	
+	// Initialize memory store with object store
+	log.Printf("🔍 Initializing memory store with base dir: %s", baseDir)
+	var memoryStore *MemoryStore
+	if objectStore != nil {
+		memoryStore, err = NewMemoryStore(baseDir, objectStore)
+		if err != nil {
+			log.Printf("❌ Failed to initialize memory store: %v", err)
+			// Continue without persistence
+		} else {
+			log.Printf("✅ Memory store initialized successfully with object store")
+		}
+	} else {
+		log.Printf("⚠️ Memory store not initialized - object store required")
 	}
 	
 	return &Daemon{
