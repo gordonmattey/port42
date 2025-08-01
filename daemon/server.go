@@ -21,6 +21,7 @@ type Daemon struct {
 	shutdownCh  chan struct{}
 	wg          sync.WaitGroup
 	memoryStore *MemoryStore
+	objectStore *ObjectStore
 }
 
 // Session represents an active possession session
@@ -69,11 +70,22 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 		log.Printf("✅ Memory store initialized successfully (not nil: %v)", memoryStore != nil)
 	}
 	
+	// Initialize object store
+	log.Printf("🗄️ Initializing object store...")
+	objectStore, err := NewObjectStore(baseDir)
+	if err != nil {
+		log.Printf("❌ Failed to initialize object store: %v", err)
+		// Continue without object store for now
+	} else {
+		log.Printf("✅ Object store initialized successfully")
+	}
+	
 	return &Daemon{
 		listener:    listener,
 		sessions:    make(map[string]*Session),
 		shutdownCh:  make(chan struct{}),
 		memoryStore: memoryStore,
+		objectStore: objectStore,
 		config: Config{
 			Port:         port,
 			AIBackend:    "http://localhost:3000/api/ai", // Default, can be overridden
