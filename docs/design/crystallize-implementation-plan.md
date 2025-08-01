@@ -1,10 +1,13 @@
 # /crystallize Extension Implementation Plan
 
+**Purpose**: Technical implementation roadmap with time estimates and file changes.
+**Scope**: Day-by-day tasks, specific files to modify, testing approach.
+
 ## Summary
 
 Extend the `/crystallize` command in Port 42 to support three distinct output types:
-1. **Commands** - Executable tools (current behavior)
-2. **Documents** - Markdown knowledge artifacts
+1. **Commands** - Executable CLI tools (current behavior)
+2. **Artifacts** - Any file type (docs, code, designs, media)
 3. **Data** - CRUD-based data management commands
 
 ## Implementation Steps (2-Day Sprint)
@@ -14,25 +17,32 @@ Extend the `/crystallize` command in Port 42 to support three distinct output ty
 **Morning (4 hours)**
 1. Update CLI (`interactive.rs`) - 1 hour:
    ```rust
-   enum CrystallizeType { Auto, Command, Document, Data }
+   enum CrystallizeType { Auto, Command, Artifact, Data }
    ```
    - Parse `/crystallize [type]` syntax
    - Pass type in request payload
+   - Add `is_interactive` flag to requests
 
-2. Update Daemon types - 1 hour:
+2. Context-Aware Tool Provisioning - 1.5 hours:
+   - Implement tool gating logic
+   - No tools by default in interactive mode
+   - Auto-detect generation intent for one-shot CLI
+   - Only provide tools when explicitly requested
+
+3. Update Daemon types - 0.5 hours:
    - Add `artifact_type` field to request
-   - Add `DocumentSpec` and `DataCommandSpec` types
-   - Extend session to track any artifact type
+   - Add `ArtifactSpec` and `DataCommandSpec` types
+   - Extend session to track any output type
 
-3. Update AI prompts - 2 hours:
+4. Update AI prompts - 1 hour:
    - Create type-specific prompts
-   - Add JSON examples for each type
-   - Test prompt effectiveness
+   - Add explicit tool usage guidelines
+   - Emphasize tools should only be used when appropriate
 
 **Afternoon (4 hours)**
-4. Document generation - 2 hours:
+4. Artifact generation - 2 hours:
    - File generation logic
-   - Markdown formatting with metadata
+   - Support multiple file types
    - Directory structure creation
    - Update artifact index
 
@@ -80,7 +90,7 @@ Extend the `/crystallize` command in Port 42 to support three distinct output ty
 ### Daemon Side
 - `daemon/possession.go` - Handle different artifact types
 - `daemon/artifact_store.go` - New file for artifact management & indexing
-- `daemon/document_generator.go` - Document generation logic
+- `daemon/artifact_generator.go` - Artifact generation logic
 - `daemon/data_templates.go` - Templates for data commands
 - `daemon/metadata_extractor.go` - Extract tags, keywords, embeddings
 - `daemon/server.go` - Route generation based on type

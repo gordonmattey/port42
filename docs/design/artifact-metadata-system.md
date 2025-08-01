@@ -1,13 +1,17 @@
 # Artifact Metadata & Indexing System
 
+**Purpose**: Design for metadata storage, indexing, search, and lifecycle management.
+**Scope**: Index structure, search queries, cleanup policies, tool gating strategy.
+
 ## The Problem
 
-As Port 42 generates more artifacts (documents, code, data), we need:
+As Port 42 generates more artifacts, we need:
 - Fast search and filtering across all artifacts
 - Rich metadata for context and relationships
 - Version tracking and evolution history
 - Relevance scoring for AI context
 - Cleanup of outdated content
+- **Prevention of artifact sprawl** due to aggressive tool usage
 
 ## Proposed Solution
 
@@ -21,9 +25,10 @@ As Port 42 generates more artifacts (documents, code, data), we need:
   "stats": {
     "total_artifacts": 342,
     "by_type": {
-      "document": 156,
+      "documents": 156,
       "code": 89,
-      "data": 97
+      "designs": 45,
+      "media": 12
     },
     "total_size_mb": 234.5
   },
@@ -41,8 +46,7 @@ As Port 42 generates more artifacts (documents, code, data), we need:
       "size_bytes": 4567890,
       
       // Rich metadata
-      "tags": ["dashboard", "metrics", "react", "realtime"],
-      "categories": ["analytics", "monitoring"],
+      "tags": ["dashboard", "metrics", "react", "realtime", "analytics", "monitoring"],
       "session_id": "sess-abc123",
       "agent": "@ai-engineer",
       "parent_artifacts": ["art-1737123000-design-doc"],
@@ -63,7 +67,6 @@ As Port 42 generates more artifacts (documents, code, data), we need:
       
       // AI context
       "summary": "A React dashboard that displays real-time metrics...",
-      "keywords": ["metrics", "visualization", "websocket", "d3-charts"],
       "embeddings": [0.123, 0.456, ...], // For semantic search
       
       // Relationships
@@ -93,7 +96,7 @@ draft → active → stable → archived → deprecated
 ```bash
 # Subcommand: port42 search
 port42 search --type code --tags dashboard --recent 7d
-port42 search --category analytics --importance high
+port42 search --tags analytics --importance high
 port42 search "real-time metrics" --semantic  # Uses embeddings
 port42 search --session sess-abc123  # All artifacts from session
 port42 search --unused 30d  # Cleanup candidates
@@ -117,10 +120,8 @@ port42 search --unused 30d  # Cleanup candidates
 ### 5. Auto-Tagging & Categorization
 
 AI automatically extracts:
-- **Tags**: Specific technologies, concepts, tools
-- **Categories**: High-level groupings (analytics, auth, ui, etc.)
-- **Keywords**: For full-text search
-- **Summary**: One-line description
+- **Tags**: Technologies, concepts, tools, and high-level groupings
+- **Summary**: One-line description  
 - **Embeddings**: For semantic similarity
 
 ### 6. Cleanup & Maintenance
@@ -185,6 +186,23 @@ For AI conversations, automatically include:
    - Cross-references
    - Dependency graph
 
+## Tool Gating Strategy
+
+To prevent artifact sprawl from aggressive AI tool usage:
+
+1. **Interactive Sessions**: No generation tools by default
+   - Pure conversation until `/crystallize` is used
+   - Tools only provided when explicitly requested
+   
+2. **Non-Interactive CLI**: Context-aware tool provisioning
+   - Detect generation intent ("create a command", "build a tool")
+   - Provide appropriate tools automatically
+   - Preserve current one-shot convenience
+
+3. **Tool Usage Guidelines**: Updated prompts emphasize restraint
+   - "Only use tools when explicitly appropriate"
+   - "Don't create artifacts for every idea discussed"
+
 ## Benefits
 
 1. **Find anything instantly** - Rich search across all artifacts
@@ -192,6 +210,7 @@ For AI conversations, automatically include:
 3. **Storage stays clean** - Automatic lifecycle management
 4. **See relationships** - Understand how artifacts connect
 5. **Track evolution** - Version history and changes
+6. **Intentional creation** - Artifacts only when truly needed
 
 ## Example Queries
 
@@ -208,8 +227,8 @@ port42 search --type code --accessed-before "30 days ago"
 # Find all artifacts from a specific conversation
 port42 search --session sess-abc123
 
-# Find high-importance documents about architecture  
-port42 search --type document --importance high --tags architecture
+# Find high-importance artifacts about architecture  
+port42 search --importance high --tags architecture
 ```
 
 This system scales elegantly from dozens to thousands of artifacts while keeping everything discoverable and maintaining relevant context for AI interactions.

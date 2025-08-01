@@ -1,19 +1,38 @@
 # Extended /crystallize Command Design
 
+**Purpose**: Feature specification for extending /crystallize to support multiple output types.
+**Scope**: Command syntax, API design, tool provisioning logic. Links to other docs for details.
+
 ## Overview
 
 Extend the `/crystallize` command to support three different output types:
-1. Commands (executable tools)
-2. Documents (markdown artifacts)
-3. Data Management (CRUD commands)
+1. Commands (executable CLI tools)
+2. Artifacts (any file: docs, code, designs, media)
+3. Data (CRUD management tools)
+
+**Key Change**: Tools are no longer provided by default to prevent aggressive auto-generation.
 
 ## Command Syntax
 
+### Interactive Mode (Conversational)
 ```bash
-/crystallize              # AI decides based on context
-/crystallize command      # Force command creation
-/crystallize document     # Create markdown artifact
-/crystallize data         # Create CRUD command
+possess @ai-muse
+> Let's explore ideas...        # No tools available
+> /crystallize                  # Now tools are provided, AI chooses type
+> /crystallize command          # Force command creation
+> /crystallize artifact         # Force artifact creation
+> /crystallize data             # Force data tool creation
+```
+
+### Non-Interactive Mode (One-Shot)
+```bash
+# Auto-detects intent and provides appropriate tool
+possess @ai-engineer "create a command that shows disk usage"
+possess @ai-muse "create a design for our architecture"
+possess @ai-growth "build a data tracker for metrics"
+
+# Just conversation, no tools
+possess @ai-founder "what's our pricing strategy?"
 ```
 
 ## Implementation Plan
@@ -31,8 +50,8 @@ fn handle_special_command(&mut self, input: &str) -> Result<bool> {
             self.request_crystallization(CrystallizeType::Command)?;
             Ok(true)
         }
-        "/crystallize document" => {
-            self.request_crystallization(CrystallizeType::Document)?;
+        "/crystallize artifact" => {
+            self.request_crystallization(CrystallizeType::Artifact)?;
             Ok(true)
         }
         "/crystallize data" => {
@@ -46,22 +65,54 @@ fn handle_special_command(&mut self, input: &str) -> Result<bool> {
 enum CrystallizeType {
     Auto,
     Command,
-    Document,
+    Artifact,
     Data,
 }
 ```
 
-### 2. Update Daemon Types (daemon/possession.go)
+### 2. Context-Aware Tool Provisioning (daemon/possession.go)
 
 ```go
-// ArtifactSpec for documents and data
+func getToolsForRequest(request *Request, agent *AgentInfo) []AnthropicTool {
+    // Interactive mode - no tools by default
+    if request.IsInteractive {
+        // Only provide tools when explicitly requested
+        if strings.Contains(request.Message, "/crystallize") {
+            return getRequestedTools(request.Message)
+        }
+        return []AnthropicTool{} // No tools during conversation
+    }
+    
+    // Non-interactive mode - detect intent
+    if looksLikeGenerationRequest(request.Message) {
+        return []AnthropicTool{detectAppropriateTools(request.Message)}
+    }
+    
+    // Default: no tools
+    return []AnthropicTool{}
+}
+
+func looksLikeGenerationRequest(message string) bool {
+    patterns := []string{
+        "create a command", "build a tool", "make a command",
+        "write a document", "create a dashboard", "build an app",
+        "design a", "create a diagram", "generate a mockup",
+    }
+    // Check if message indicates generation intent
+}
+```
+
+### 3. Update Daemon Types (daemon/possession.go)
+
+```go
+// ArtifactSpec for artifacts (docs, code, designs, etc)
 type ArtifactSpec struct {
-    Type        string `json:"type"`        // "document" or "data"
+    Type        string `json:"type"`        // "document", "code", "design", "media"
     Name        string `json:"name"`
     Description string `json:"description"`
-    Content     string `json:"content"`     // For documents
-    Schema      string `json:"schema"`      // For data
-    Operations  []string `json:"operations"` // For data: ["create", "list", "update", "delete"]
+    Content     string `json:"content"`     // File content or description
+    FileType    string `json:"file_type"`   // Extension: .md, .js, .svg, etc
+    Files       []FileSpec `json:"files"`   // For multi-file artifacts
 }
 
 // Update session to support both
@@ -72,26 +123,28 @@ type Session struct {
 }
 ```
 
-### 3. Different Prompts for Different Types
+### 4. Different Prompts for Different Types
 
 ```go
 func getCrystallizationPrompt(crystallizeType string) string {
+    baseGuidance := "You now have access to generation tools. Only use them if there's a clear artifact to create based on our conversation. "
+    
     switch crystallizeType {
     case "command":
-        return "I want you to CREATE A COMMAND based on our conversation..."
-    case "document":
-        return "I want you to CREATE A DOCUMENT based on our conversation. Generate a markdown document that captures the key insights, decisions, or knowledge we've discussed. Format it with clear sections and actionable content."
+        return baseGuidance + "If appropriate, CREATE A COMMAND based on our conversation..."
+    case "artifact":
+        return baseGuidance + "If appropriate, CREATE AN ARTIFACT based on our conversation. This could be a document, code, design, diagram, or any other file that captures our discussion."
     case "data":
-        return "I want you to CREATE A DATA MANAGEMENT COMMAND based on our conversation. This should be a command that manages structured data with CRUD operations (create, read, update, delete). Include the data schema and operations."
+        return baseGuidance + "If appropriate, CREATE A DATA MANAGEMENT COMMAND based on our conversation. This should be a command that manages structured data with CRUD operations."
     default:
-        return "Based on our conversation, please create the most appropriate artifact: either a command (executable tool), a document (markdown knowledge), or a data management tool (CRUD operations). Choose what best captures our discussion."
+        return baseGuidance + "Based on our conversation, create the most appropriate output if one is needed: either a command (executable tool), an artifact (any file type), or a data management tool (CRUD operations)."
     }
 }
 ```
 
-### 4. Document Generation with Metadata
+### 5. Artifact Storage Structure
 
-Documents would be saved to `~/.port42/artifacts/` with organization:
+Artifacts are saved to `~/.port42/artifacts/` with organization:
 
 ```
 ~/.port42/artifacts/
@@ -113,56 +166,16 @@ Each artifact is indexed with:
 - Usage statistics and importance scoring
 - Embeddings for semantic search
 
-### 5. Data Management Command Template
-
-```bash
-#!/bin/bash
-# Generated by Port 42
-# Data management command for: {{.Name}}
-# Schema: {{.Schema}}
-
-DATA_FILE="$HOME/.port42/data/{{.Name}}.json"
-
-case "$1" in
-    create)
-        # Create new entry
-        ;;
-    list)
-        # List all entries
-        ;;
-    update)
-        # Update existing entry
-        ;;
-    delete)
-        # Delete entry
-        ;;
-    *)
-        echo "Usage: {{.Name}} [create|list|update|delete]"
-        ;;
-esac
-```
-
-### 6. Metadata Integration
-
-When any artifact is created:
-1. Extract metadata (tags, keywords, summary)
-2. Add to central index with relationships
-3. Calculate initial importance score
-4. Set lifecycle state to "draft"
-5. Link to parent session and related artifacts
-
-This enables:
-- `port42 search` - Find artifacts by type, tags, content
-- `port42 clean` - Manage storage with lifecycle rules
-- Smart AI context - Include relevant artifacts automatically
 
 ## Benefits
 
 1. **User Control**: Explicitly choose output type when needed
-2. **AI Intelligence**: Let AI decide when type not specified
+2. **AI Intelligence**: Let AI decide when type not specified  
 3. **Clear Organization**: Different storage for different artifact types
 4. **Extensibility**: Easy to add new crystallization types
 5. **Scalability**: Metadata system prevents artifact sprawl
+6. **Intentional Generation**: No more accidental artifacts - tools only when requested
+7. **Context Awareness**: One-shot CLI still works intuitively
 
 ## Migration Path
 
