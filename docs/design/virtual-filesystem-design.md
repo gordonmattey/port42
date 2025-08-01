@@ -320,12 +320,12 @@ The three models map to filesystem paths:
 
 ### Implementation Steps
 
-1. **Remove FUSE** ✓
+1. **Remove FUSE** ✓ DONE
    - Clean up fuse.rs, mount.rs
    - Remove mount/unmount commands
    - Remove fuser dependency
 
-2. **Implement Write Operations**
+2. **Implement Write Operations** DONE
    - Add store_path handler
    - Add update_path handler  
    - Add delete_path handler
@@ -336,7 +336,7 @@ The three models map to filesystem paths:
    - Update all protocol messages
    - Update CLI commands
 
-4. **Symlink Creation**
+4. **Symlink Creation** DONE
    - Modify command generation
    - Ensure executable permissions
    - Test PATH execution
