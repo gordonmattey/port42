@@ -1,14 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	daemon "github.com/port42/port42/daemon"
 )
 
 func main() {
@@ -20,7 +17,7 @@ func main() {
 	defer os.RemoveAll(tempDir)
 
 	// Create object store
-	store, err := daemon.NewObjectStore(tempDir)
+	store, err := NewObjectStore(tempDir)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create object store: %v", err))
 	}
@@ -37,7 +34,7 @@ func main() {
 	fmt.Println("\n✅ All object store tests passed!")
 }
 
-func testBasicStorage(store *daemon.ObjectStore) {
+func testBasicStorage(store *ObjectStore) {
 	fmt.Println("1. Testing basic storage and retrieval...")
 
 	content := []byte("Hello, Port 42! The dolphins are here.")
@@ -70,11 +67,11 @@ func testBasicStorage(store *daemon.ObjectStore) {
 	fmt.Println("   ✓ Content retrieved successfully")
 }
 
-func testMetadata(store *daemon.ObjectStore) {
+func testMetadata(store *ObjectStore) {
 	fmt.Println("\n2. Testing metadata storage...")
 
 	// Create metadata
-	meta := &daemon.Metadata{
+	meta := &Metadata{
 		ID:          "test-object-123",
 		Paths:       []string{"commands/test-cmd", "by-date/2024-01-15/test-cmd"},
 		Type:        "command",
@@ -115,7 +112,7 @@ func testMetadata(store *daemon.ObjectStore) {
 	fmt.Println("   ✓ Metadata loaded and verified")
 }
 
-func testDuplicateContent(store *daemon.ObjectStore) {
+func testDuplicateContent(store *ObjectStore) {
 	fmt.Println("\n3. Testing duplicate content handling...")
 
 	content := []byte("Duplicate content test")
@@ -140,7 +137,7 @@ func testDuplicateContent(store *daemon.ObjectStore) {
 	fmt.Printf("   ✓ Same content produces same ID: %s\n", id1[:12]+"...")
 }
 
-func testLargeContent(store *daemon.ObjectStore) {
+func testLargeContent(store *ObjectStore) {
 	fmt.Println("\n4. Testing large content...")
 
 	// Create 1MB of content
@@ -168,11 +165,11 @@ func testLargeContent(store *daemon.ObjectStore) {
 	fmt.Printf("   ✓ Stored and retrieved %d bytes\n", len(largeContent))
 }
 
-func testStoreWithMetadata(store *daemon.ObjectStore) {
+func testStoreWithMetadata(store *ObjectStore) {
 	fmt.Println("\n5. Testing store with metadata...")
 
 	content := []byte("#!/bin/bash\necho 'Hello from Port 42!'")
-	meta := &daemon.Metadata{
+	meta := &Metadata{
 		Paths:       []string{"commands/hello-p42", "by-date/2024-01-15/hello-p42"},
 		Type:        "command",
 		Title:       "Hello Port 42",
@@ -206,7 +203,7 @@ func testStoreWithMetadata(store *daemon.ObjectStore) {
 	fmt.Println("   ✓ Content and metadata stored together")
 }
 
-func testListObjects(store *daemon.ObjectStore) {
+func testListObjects(store *ObjectStore) {
 	fmt.Println("\n6. Testing list objects...")
 
 	// Store a few objects
@@ -249,7 +246,7 @@ func testListObjects(store *daemon.ObjectStore) {
 	fmt.Printf("   ✓ Listed %d objects\n", len(allIDs))
 }
 
-func testVirtualPaths(store *daemon.ObjectStore) {
+func testVirtualPaths(store *ObjectStore) {
 	fmt.Println("\n7. Testing virtual path concepts...")
 
 	// Simulate storing the same file accessible from multiple paths
@@ -262,7 +259,7 @@ func testVirtualPaths(store *daemon.ObjectStore) {
 	}
 
 	// Create metadata with multiple virtual paths
-	meta := &daemon.Metadata{
+	meta := &Metadata{
 		ID: id,
 		Paths: []string{
 			"projects/realtime-sync/architecture.md",

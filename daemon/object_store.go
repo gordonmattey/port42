@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -234,7 +235,7 @@ func (o *ObjectStore) List() ([]string, error) {
 		}
 		
 		// Convert path back to ID: 3a/4f/2b8c9d... -> 3a4f2b8c9d...
-		parts := filepath.SplitList(rel)
+		parts := strings.Split(rel, string(filepath.Separator))
 		if len(parts) == 3 {
 			id := parts[0] + parts[1] + parts[2]
 			ids = append(ids, id)
