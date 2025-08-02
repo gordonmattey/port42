@@ -100,3 +100,25 @@ type SessionSummary struct {
 	MessageCount int       `json:"message_count"`
 	State        string    `json:"state"`
 }
+
+// SearchFilters defines filters for searching objects
+type SearchFilters struct {
+	Path   string    `json:"path,omitempty"`   // Limit to paths under this prefix
+	Type   string    `json:"type,omitempty"`   // Object type filter
+	After  time.Time `json:"after,omitempty"`  // Created after
+	Before time.Time `json:"before,omitempty"` // Created before
+	Agent  string    `json:"agent,omitempty"`  // Filter by agent
+	Tags   []string  `json:"tags,omitempty"`   // Must have all these tags
+	Limit  int       `json:"limit,omitempty"`  // Max results (default 20)
+}
+
+// SearchResult represents a search match
+type SearchResult struct {
+	Path        string   `json:"path"`
+	ObjectID    string   `json:"object_id"`
+	Type        string   `json:"type"`
+	Score       float64  `json:"score"`
+	Snippet     string   `json:"snippet"`      // Context around match
+	Metadata    Metadata `json:"metadata"`     // Full metadata
+	MatchFields []string `json:"match_fields"` // Which fields matched
+}

@@ -199,6 +199,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleReadPath(req)
 	case "get_metadata":
 		return d.handleGetMetadata(req)
+	case "search":
+		return d.handleSearch(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -506,6 +508,33 @@ func (d *Daemon) handleGetMetadata(req Request) Response {
 
 	resp := NewResponse(req.ID, true)
 	resp.SetData(responseData)
+	return resp
+}
+
+// handleSearch searches across the virtual filesystem
+func (d *Daemon) handleSearch(req Request) Response {
+	var payload struct {
+		Query   string        `json:"query"`
+		Filters SearchFilters `json:"filters"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Perform search
+	results, err := d.storage.SearchObjects(payload.Query, payload.Filters)
+	if err != nil {
+		return NewErrorResponse(req.ID, fmt.Sprintf("Search failed: %v", err))
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(map[string]interface{}{
+		"query":   payload.Query,
+		"filters": payload.Filters,
+		"results": results,
+		"count":   len(results),
+	})
 	return resp
 }
 

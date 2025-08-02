@@ -3,7 +3,7 @@ use colored::*;
 use serde_json::json;
 use crate::client::DaemonClient;
 use crate::types::Request;
-use chrono::{DateTime, Utc, Local};
+use chrono::{DateTime, Local};
 
 pub fn handle_info(client: &mut DaemonClient, path: String) -> Result<()> {
     // Create request

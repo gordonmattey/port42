@@ -116,6 +116,40 @@ pub enum Commands {
         /// Path to inspect
         path: String,
     },
+    
+    /// Search across the virtual filesystem
+    Search {
+        /// Search query
+        query: String,
+        
+        /// Limit search to paths under this prefix
+        #[arg(long)]
+        path: Option<String>,
+        
+        /// Filter by object type
+        #[arg(long = "type")]
+        type_filter: Option<String>,
+        
+        /// Filter by creation date after (YYYY-MM-DD)
+        #[arg(long)]
+        after: Option<String>,
+        
+        /// Filter by creation date before (YYYY-MM-DD)
+        #[arg(long)]
+        before: Option<String>,
+        
+        /// Filter by agent name
+        #[arg(long)]
+        agent: Option<String>,
+        
+        /// Filter by tags (can specify multiple)
+        #[arg(long = "tag")]
+        tags: Vec<String>,
+        
+        /// Maximum number of results to show
+        #[arg(long, short = 'n', default_value = "20")]
+        limit: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -292,6 +326,11 @@ fn main() -> Result<()> {
         Some(Commands::Info { path }) => {
             let mut client = client::DaemonClient::new(port);
             info::handle_info(&mut client, path)?;
+        }
+        
+        Some(Commands::Search { query, path, type_filter, after, before, agent, tags, limit }) => {
+            let mut client = client::DaemonClient::new(port);
+            search::handle_search(&mut client, query, path, type_filter, after, before, agent, tags, limit)?;
         }
         
         None => {

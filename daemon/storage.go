@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1014,4 +1015,297 @@ func (s *Storage) removeCommandSymlink(cmdName string) error {
 
 func generateMemoryID() string {
 	return fmt.Sprintf("mem-%d", time.Now().Unix())
+}
+
+// SearchObjects searches across all objects in the virtual filesystem
+func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchResult, error) {
+	results := []SearchResult{}
+	
+	// Default limit
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	
+	// Load all metadata files
+	entries, err := os.ReadDir(s.metadataDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read metadata directory: %v", err)
+	}
+	
+	// Convert query to lowercase for case-insensitive search
+	queryLower := strings.ToLower(query)
+	
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		
+		// Load metadata
+		objID := strings.TrimSuffix(entry.Name(), ".json")
+		metadata, err := s.LoadMetadata(objID)
+		if err != nil {
+			log.Printf("Failed to load metadata for %s: %v", objID, err)
+			continue
+		}
+		
+		// Apply filters
+		if !matchesFilters(metadata, filters) {
+			continue
+		}
+		
+		// Search in metadata fields
+		score, matchFields, snippet := searchInMetadata(metadata, queryLower)
+		
+		// If no metadata match and query exists, optionally search in content
+		if score == 0 && query != "" && metadata.Size < 100*1024 { // Only for small files
+			contentScore, contentSnippet := s.searchInContent(objID, queryLower, metadata.Type)
+			if contentScore > 0 {
+				score = contentScore * 0.8 // Content matches score lower than metadata
+				matchFields = append(matchFields, "content")
+				snippet = contentSnippet
+			}
+		}
+		
+		// Skip if no match
+		if score == 0 && query != "" {
+			continue
+		}
+		
+		// Pick the best path for display
+		displayPath := ""
+		if len(metadata.Paths) > 0 {
+			// Prefer shorter, more intuitive paths
+			displayPath = metadata.Paths[0]
+			for _, path := range metadata.Paths {
+				if len(path) < len(displayPath) && !strings.Contains(path, "by-date") {
+					displayPath = path
+				}
+			}
+		}
+		
+		result := SearchResult{
+			Path:        displayPath,
+			ObjectID:    objID,
+			Type:        metadata.Type,
+			Score:       score,
+			Snippet:     snippet,
+			Metadata:    *metadata,
+			MatchFields: matchFields,
+		}
+		
+		results = append(results, result)
+		
+		// Stop if we have enough results
+		if len(results) >= limit {
+			break
+		}
+	}
+	
+	// Sort by score (highest first)
+	sort.Slice(results, func(i, j int) bool {
+		// Primary sort by score
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+		// Secondary sort by creation date (newest first)
+		return results[i].Metadata.Created.After(results[j].Metadata.Created)
+	})
+	
+	// Trim to limit
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	
+	return results, nil
+}
+
+// matchesFilters checks if metadata matches all provided filters
+func matchesFilters(metadata *Metadata, filters SearchFilters) bool {
+	// Path filter
+	if filters.Path != "" {
+		hasMatchingPath := false
+		for _, path := range metadata.Paths {
+			if strings.HasPrefix(path, filters.Path) {
+				hasMatchingPath = true
+				break
+			}
+		}
+		if !hasMatchingPath {
+			return false
+		}
+	}
+	
+	// Type filter
+	if filters.Type != "" && metadata.Type != filters.Type {
+		return false
+	}
+	
+	// Date filters
+	if !filters.After.IsZero() && metadata.Created.Before(filters.After) {
+		return false
+	}
+	if !filters.Before.IsZero() && metadata.Created.After(filters.Before) {
+		return false
+	}
+	
+	// Agent filter
+	if filters.Agent != "" {
+		// Normalize agent names (remove @ prefix for comparison)
+		filterAgent := strings.TrimPrefix(filters.Agent, "@")
+		metadataAgent := strings.TrimPrefix(metadata.Agent, "@")
+		if !strings.EqualFold(filterAgent, metadataAgent) {
+			return false
+		}
+	}
+	
+	// Tag filters (must have all specified tags)
+	if len(filters.Tags) > 0 {
+		for _, requiredTag := range filters.Tags {
+			hasTag := false
+			for _, tag := range metadata.Tags {
+				if strings.EqualFold(tag, requiredTag) {
+					hasTag = true
+					break
+				}
+			}
+			if !hasTag {
+				return false
+			}
+		}
+	}
+	
+	return true
+}
+
+// searchInMetadata searches for query in metadata fields and returns score
+func searchInMetadata(metadata *Metadata, queryLower string) (float64, []string, string) {
+	score := 0.0
+	matchFields := []string{}
+	snippet := ""
+	
+	// Empty query matches everything with base score
+	if queryLower == "" {
+		return 1.0, []string{"all"}, metadata.Description
+	}
+	
+	// Search in description (highest weight)
+	if strings.Contains(strings.ToLower(metadata.Description), queryLower) {
+		score += 3.0
+		matchFields = append(matchFields, "description")
+		snippet = extractSnippet(metadata.Description, queryLower)
+	}
+	
+	// Search in title
+	if strings.Contains(strings.ToLower(metadata.Title), queryLower) {
+		score += 2.5
+		matchFields = append(matchFields, "title")
+		if snippet == "" {
+			snippet = metadata.Title
+		}
+	}
+	
+	// Search in tags
+	for _, tag := range metadata.Tags {
+		if strings.Contains(strings.ToLower(tag), queryLower) {
+			score += 2.0
+			matchFields = append(matchFields, "tags")
+			if snippet == "" {
+				snippet = fmt.Sprintf("Tag: %s", tag)
+			}
+			break
+		}
+	}
+	
+	// Search in session ID
+	if strings.Contains(strings.ToLower(metadata.Session), queryLower) {
+		score += 1.5
+		matchFields = append(matchFields, "session")
+	}
+	
+	// Search in agent
+	if strings.Contains(strings.ToLower(metadata.Agent), queryLower) {
+		score += 1.5
+		matchFields = append(matchFields, "agent")
+	}
+	
+	// Search in paths (lowest weight)
+	for _, path := range metadata.Paths {
+		if strings.Contains(strings.ToLower(path), queryLower) {
+			score += 0.5
+			matchFields = append(matchFields, "path")
+			break
+		}
+	}
+	
+	// Boost recent items slightly
+	age := time.Since(metadata.Created)
+	if age < 24*time.Hour {
+		score *= 1.2
+	} else if age < 7*24*time.Hour {
+		score *= 1.1
+	}
+	
+	return score, matchFields, snippet
+}
+
+// searchInContent searches in the actual content of an object
+func (s *Storage) searchInContent(objID, queryLower, objType string) (float64, string) {
+	content, err := s.Read(objID)
+	if err != nil {
+		return 0, ""
+	}
+	
+	contentStr := string(content)
+	contentLower := strings.ToLower(contentStr)
+	
+	if !strings.Contains(contentLower, queryLower) {
+		return 0, ""
+	}
+	
+	// Base score for content match
+	score := 1.0
+	
+	// Count occurrences (max 5 for scoring)
+	count := strings.Count(contentLower, queryLower)
+	if count > 5 {
+		count = 5
+	}
+	score += float64(count) * 0.2
+	
+	snippet := extractSnippet(contentStr, queryLower)
+	
+	return score, snippet
+}
+
+// extractSnippet extracts a snippet around the query match
+func extractSnippet(text, query string) string {
+	textLower := strings.ToLower(text)
+	idx := strings.Index(textLower, query)
+	if idx == -1 {
+		return ""
+	}
+	
+	// Extract ~80 chars around the match
+	start := idx - 40
+	if start < 0 {
+		start = 0
+	}
+	
+	end := idx + len(query) + 40
+	if end > len(text) {
+		end = len(text)
+	}
+	
+	snippet := text[start:end]
+	
+	// Add ellipsis if truncated
+	if start > 0 {
+		snippet = "..." + snippet
+	}
+	if end < len(text) {
+		snippet = snippet + "..."
+	}
+	
+	return strings.TrimSpace(snippet)
 }
