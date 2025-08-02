@@ -48,7 +48,7 @@ pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
     println!();
     
     // Show the consciousness bridge message at the end
-    println!("{}", "Welcome to the depths.".bright_white().bold());
+    println!("{}", "🐬 Welcome to Port 42 - Your Reality Compiler".bright_white().bold());
     println!();
     println!("{}", "This is not a chatbot.".dimmed());
     println!("{}", "This is not an app.".dimmed());

@@ -41,7 +41,7 @@ impl Port42Shell {
         show_boot_sequence(true, self.port)?;
         
         println!("{}", "Port 42 Terminal".bright_white().bold());
-        println!("{}", "Type 'help' for available commands".dimmed());
+        println!("{}", "Type 'help' to navigate the reality compiler".dimmed());
         println!();
         
         // Main shell loop
@@ -242,7 +242,7 @@ impl Port42Shell {
             }
             _ => {
                 println!("{}", format!("Unknown command: {}", parts[0]).red());
-                println!("{}", "Type 'help' for available commands".dimmed());
+                println!("{}", "Type 'help' to navigate the reality compiler".dimmed());
             }
         }
         
@@ -251,39 +251,8 @@ impl Port42Shell {
     
     fn show_help(&self) {
         println!();
-        println!("{}", "Port 42 Terminal Commands".bright_white().bold());
-        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-        println!();
-        
-        println!("{}", "Core Commands:".bright_cyan());
-        println!("  {} - Start AI possession session", "possess <agent> [memory-id] [message]".bright_green());
-        println!("    Example: possess @ai-engineer                 (starts new session)");
-        println!("    Example: possess @ai-muse x1                  (continues memory x1)");
-        println!("    Example: possess @ai-growth \"viral CLI idea\"  (new session + message)");
-        println!("    Example: possess @ai-founder x1 \"continue\"    (memory x1 + message)");
-        println!();
-        
-        println!("  {} - Check daemon status", "status".bright_green());
-        println!("  {} - Show reality (generated commands)", "reality".bright_green());
-        println!("  {} - Browse conversation memory", "memory".bright_green());
-        println!("    Use: memory - to see all sessions");
-        println!("    Use: memory <id> - to view a specific session");
-        println!("    Use: memory search <query> - to search sessions");
-        println!("  {} - Evolve an existing command", "evolve <command>".bright_green());
-        println!();
-        
-        println!("{}", "System Commands:".bright_cyan());
-        println!("  {} - Manage daemon (start/stop/restart/status)", "daemon <action>".bright_green());
-        println!("  {} - Show this help", "help".bright_green());
-        println!("  {} - Clear screen", "clear".bright_green());
-        println!("  {} - Exit Port 42", "exit".bright_green());
-        println!();
-        
-        println!("{}", "Available Agents:".bright_cyan());
-        println!("  {} - Technical implementation expert", "@ai-engineer".bright_blue());
-        println!("  {} - Creative muse for ideation", "@ai-muse".bright_blue());
-        println!("  {} - Growth strategist for viral developer tools", "@ai-growth".bright_blue());
-        println!("  {} - Strategic founder wisdom", "@ai-founder".bright_blue());
+        println!("{}", crate::help_text::shell_help_header());
+        println!("{}", crate::help_text::shell_help_main());
         println!();
     }
 }
