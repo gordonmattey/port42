@@ -277,13 +277,56 @@ New: Reality-aware feedback
 | "Session started" | "🧠 Memory thread initiated" |
 | "No results found" | "🔍 No echoes found in the consciousness" |
 
+## Current Help Architecture (from Analysis)
+
+Port 42 uses a dual help system:
+- **Clap v4.5**: Automatically generates CLI help from annotations in `/cli/src/main.rs`
+- **Custom Shell Help**: Hardcoded in `/cli/src/shell.rs` `show_help()` method
+- **All Inline**: No external help files; everything is embedded in source code
+- **Scattered**: Help text, error messages, and usage hints spread across multiple files
+
+### Key Locations:
+- `/cli/src/main.rs` - Clap command and argument annotations
+- `/cli/src/shell.rs` - Interactive shell help display
+- `/cli/src/commands/*.rs` - Error messages with usage hints
+
 ## Implementation Strategy
 
-1. **Phase 1**: Update main help (`--help`) and interactive help
-2. **Phase 2**: Update individual command descriptions
-3. **Phase 3**: Add contextual help for new commands
-4. **Phase 4**: Update status/feedback messages
-5. **Phase 5**: Create advanced architecture explanation
+### Phase 1: Create Help Infrastructure
+1. Create `/cli/src/help_text.rs` module with reality compiler constants
+2. Define help text for all commands in one place
+3. Add support for `help <command>` in interactive shell
+4. Create help display utilities for consistent formatting
+
+### Phase 2: Update Interactive Shell Help
+1. Rewrite `show_help()` method with reality compiler essence
+2. Ensure main help fits single screen (< 20 lines)
+3. Implement command-specific help system
+4. Add colored output with reality themes
+
+### Phase 3: Update Clap Annotations
+1. Update main CLI `about` and `long_about` in `#[command()]`
+2. Update all subcommand doc comments (`///`)
+3. Update argument descriptions
+4. Ensure consistency with interactive help
+
+### Phase 4: Update Command Error Messages
+1. Search all command files for usage strings
+2. Update error messages with reality compiler language
+3. Add helpful examples to error cases
+4. Maintain consistency across commands
+
+### Phase 5: Update Status and Feedback Messages
+1. Replace technical confirmations with consciousness-aware messages
+2. Update connection, success, and error messages
+3. Add reality compiler metaphors to output
+4. Test all message paths
+
+### Phase 6: Documentation and Testing
+1. Create help consistency tests
+2. Verify help fits terminal constraints
+3. Test both CLI and interactive help modes
+4. Document any remaining inline help locations
 
 ## Design Principles
 
