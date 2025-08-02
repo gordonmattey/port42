@@ -6,3 +6,4 @@ pub mod memory;
 pub mod possess;
 pub mod status;
 pub mod ls;
+pub mod cat;

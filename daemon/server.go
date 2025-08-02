@@ -195,6 +195,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleCreateMemory(req)
 	case "list_path":
 		return d.handleListPath(req)
+	case "read_path":
+		return d.handleReadPath(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -358,6 +360,60 @@ func (d *Daemon) handleListPath(req Request) Response {
 		"path":    path,
 		"entries": entries,
 	})
+	return resp
+}
+
+// handleReadPath reads content from a virtual path
+func (d *Daemon) handleReadPath(req Request) Response {
+	var payload struct {
+		Path string `json:"path"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Resolve path to object ID
+	objID := d.resolvePath(payload.Path)
+	if objID == "" {
+		return NewErrorResponse(req.ID, fmt.Sprintf("Path not found: %s", payload.Path))
+	}
+
+	// Read content
+	content, err := d.storage.Read(objID)
+	if err != nil {
+		return NewErrorResponse(req.ID, fmt.Sprintf("Failed to read content: %v", err))
+	}
+
+	// Load metadata
+	metadata, err := d.storage.LoadMetadata(objID)
+	if err != nil {
+		// Continue without metadata - it's optional
+		log.Printf("Warning: Failed to load metadata for %s: %v", objID, err)
+	}
+
+	// Prepare response data
+	responseData := map[string]interface{}{
+		"content": base64.StdEncoding.EncodeToString(content),
+		"size":    len(content),
+		"path":    payload.Path,
+	}
+
+	// Add metadata if available
+	if metadata != nil {
+		responseData["metadata"] = map[string]interface{}{
+			"type":        metadata.Type,
+			"created":     metadata.Created,
+			"modified":    metadata.Modified,
+			"agent":       metadata.Agent,
+			"session":     metadata.Session,
+			"title":       metadata.Title,
+			"description": metadata.Description,
+		}
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(responseData)
 	return resp
 }
 

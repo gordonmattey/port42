@@ -26,6 +26,8 @@ atty = "0.2"
 which = "6.0"
 libc = "0.2"
 rustyline = "14.0"
+base64 = "0.22"
+regex = "1.10"
 
 # We'll add tokio later when we need async for streaming
 # tokio = { version = "1.40", features = ["net", "io-util", "macros", "rt-multi-thread"] }

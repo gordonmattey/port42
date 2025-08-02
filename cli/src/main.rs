@@ -104,6 +104,12 @@ pub enum Commands {
         /// Path to list (default: /)
         path: Option<String>,
     },
+    
+    /// Display content from virtual filesystem
+    Cat {
+        /// Path to read
+        path: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -270,6 +276,11 @@ fn main() -> Result<()> {
         Some(Commands::Ls { path }) => {
             let mut client = client::DaemonClient::new(port);
             ls::handle_ls(&mut client, path)?;
+        }
+        
+        Some(Commands::Cat { path }) => {
+            let mut client = client::DaemonClient::new(port);
+            cat::handle_cat(&mut client, path)?;
         }
         
         None => {

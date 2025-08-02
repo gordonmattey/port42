@@ -265,10 +265,15 @@ func (s *Storage) SaveSession(session *Session) error {
 		Agent:       session.Agent,
 		Lifecycle:   mapStateToLifecycle(session.State),
 		Paths: []string{
-			fmt.Sprintf("memory/sessions/%s", session.ID),
-			fmt.Sprintf("memory/sessions/by-date/%s/%s", 
+			fmt.Sprintf("/memory/%s", session.ID),                    // Direct memory access
+			fmt.Sprintf("/memory/sessions/%s", session.ID),           // Type-specific access
+			fmt.Sprintf("/memory/sessions/by-date/%s/%s",            // Date organization
 				session.CreatedAt.Format("2006-01-02"), session.ID),
-			fmt.Sprintf("memory/sessions/by-agent/%s/%s", 
+			fmt.Sprintf("/memory/sessions/by-agent/%s/%s",           // Agent organization
+				cleanAgentName(session.Agent), session.ID),
+			fmt.Sprintf("/by-date/%s/memory/%s",                     // Global date view
+				session.CreatedAt.Format("2006-01-02"), session.ID),
+			fmt.Sprintf("/by-agent/%s/memory/%s",                    // Global agent view
 				cleanAgentName(session.Agent), session.ID),
 		},
 	}
@@ -394,16 +399,17 @@ func (s *Storage) StoreCommand(spec *CommandSpec, code string) error {
 		Lifecycle:   "active",
 		Importance:  "medium",
 		Paths: []string{
-			fmt.Sprintf("commands/%s", spec.Name),
-			fmt.Sprintf("by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
-			fmt.Sprintf("by-type/command/%s", spec.Name),
+			fmt.Sprintf("/commands/%s", spec.Name),
+			fmt.Sprintf("/by-date/%s/%s", time.Now().Format("2006-01-02"), spec.Name),
+			fmt.Sprintf("/by-type/command/%s", spec.Name),
 		},
 	}
 	
 	// Add session path if we have a session ID
 	if spec.SessionID != "" {
 		metadata.Paths = append(metadata.Paths, 
-			fmt.Sprintf("memory/sessions/%s/generated/%s", spec.SessionID, spec.Name))
+			fmt.Sprintf("/memory/%s/generated/%s", spec.SessionID, spec.Name),
+			fmt.Sprintf("/memory/sessions/%s/generated/%s", spec.SessionID, spec.Name))
 	}
 	
 	// Store content with metadata
