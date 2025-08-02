@@ -401,8 +401,8 @@ This separation of concerns delivers:
 
 ## Future Vision
 
-- **Distributed consciousness**: UERP protocol for multi-node reality
 - **Semantic navigation**: Navigate by meaning, not paths
+- **Distributed consciousness**: UERP protocol for multi-node reality
 - **Time travel**: View your workspace at any point in history
 - **Collective intelligence**: Merge realities with your team
 

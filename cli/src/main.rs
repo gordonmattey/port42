@@ -110,6 +110,12 @@ pub enum Commands {
         /// Path to read
         path: String,
     },
+    
+    /// Show metadata information for a path
+    Info {
+        /// Path to inspect
+        path: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -281,6 +287,11 @@ fn main() -> Result<()> {
         Some(Commands::Cat { path }) => {
             let mut client = client::DaemonClient::new(port);
             cat::handle_cat(&mut client, path)?;
+        }
+        
+        Some(Commands::Info { path }) => {
+            let mut client = client::DaemonClient::new(port);
+            info::handle_info(&mut client, path)?;
         }
         
         None => {

@@ -197,6 +197,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleListPath(req)
 	case "read_path":
 		return d.handleReadPath(req)
+	case "get_metadata":
+		return d.handleGetMetadata(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -409,6 +411,96 @@ func (d *Daemon) handleReadPath(req Request) Response {
 			"session":     metadata.Session,
 			"title":       metadata.Title,
 			"description": metadata.Description,
+		}
+	}
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(responseData)
+	return resp
+}
+
+// handleGetMetadata retrieves enriched metadata for a virtual path
+func (d *Daemon) handleGetMetadata(req Request) Response {
+	var payload struct {
+		Path string `json:"path"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Resolve path to object ID
+	objID := d.resolvePath(payload.Path)
+	if objID == "" {
+		return NewErrorResponse(req.ID, fmt.Sprintf("Path not found: %s", payload.Path))
+	}
+
+	// Load metadata
+	metadata, err := d.storage.LoadMetadata(objID)
+	if err != nil {
+		// Try to create basic metadata if none exists
+		metadata = &Metadata{
+			ID:      objID,
+			Type:    "unknown",
+			Created: time.Now(),
+			Paths:   []string{payload.Path},
+		}
+	}
+
+	// Get actual content size
+	content, err := d.storage.Read(objID)
+	actualSize := int64(0)
+	if err == nil {
+		actualSize = int64(len(content))
+		metadata.Size = actualSize
+	}
+
+	// Prepare enriched metadata response
+	responseData := map[string]interface{}{
+		"path":      payload.Path,
+		"object_id": objID,
+		"type":      metadata.Type,
+		"subtype":   metadata.Subtype,
+		"created":   metadata.Created,
+		"modified":  metadata.Modified,
+		"accessed":  metadata.Accessed,
+		"size":      actualSize,
+		
+		// Content info
+		"title":       metadata.Title,
+		"description": metadata.Description,
+		"tags":        metadata.Tags,
+		
+		// Context
+		"session":    metadata.Session,
+		"agent":      metadata.Agent,
+		"lifecycle":  metadata.Lifecycle,
+		"importance": metadata.Importance,
+		"usage_count": metadata.UsageCount,
+		
+		// Relationships
+		"paths":         metadata.Paths,
+		"relationships": metadata.Relationships,
+		
+		// Computed fields
+		"age_seconds":       time.Since(metadata.Created).Seconds(),
+		"modified_seconds":  time.Since(metadata.Modified).Seconds(),
+	}
+
+	// Add active session info if this is a memory path
+	if strings.HasPrefix(payload.Path, "/memory/") {
+		parts := strings.Split(payload.Path, "/")
+		if len(parts) >= 3 {
+			sessionID := parts[2]
+			d.mu.RLock()
+			if session, exists := d.sessions[sessionID]; exists {
+				responseData["active_session"] = map[string]interface{}{
+					"state":         string(session.State),
+					"message_count": len(session.Messages),
+					"last_activity": session.LastActivity,
+				}
+			}
+			d.mu.RUnlock()
 		}
 	}
 
