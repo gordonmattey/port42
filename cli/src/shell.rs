@@ -94,7 +94,15 @@ impl Port42Shell {
         }
         
         match parts[0] {
-            "help" => self.show_help(),
+            "help" => {
+                if parts.len() > 1 {
+                    // Show command-specific help
+                    crate::help_text::show_command_help(parts[1]);
+                } else {
+                    // Show general help
+                    self.show_help();
+                }
+            }
             "exit" | "quit" => {
                 println!("{}", "Exiting Port 42...".dimmed());
                 self.running = false;

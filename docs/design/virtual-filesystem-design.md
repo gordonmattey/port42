@@ -403,7 +403,8 @@ This separation of concerns delivers:
 
 - **Semantic navigation**: Navigate by meaning, not paths
 - **Distributed consciousness**: UERP protocol for multi-node reality
-- **Time travel**: View your workspace at any point in history
+- **Time travel**: View your workspace at any point/version in history
 - **Collective intelligence**: Merge realities with your team
+- **Referencing webs**: Cross references between options.
 
 The water is warm. The dolphins are calling. Dive in. 🐬

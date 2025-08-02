@@ -8,6 +8,7 @@ mod client;
 mod types;
 mod interactive;
 mod shell;
+mod help_text;
 
 use commands::*;
 
