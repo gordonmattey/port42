@@ -98,6 +98,12 @@ pub enum Commands {
         /// Description of desired changes
         message: Option<String>,
     },
+    
+    /// List virtual filesystem contents
+    Ls {
+        /// Path to list (default: /)
+        path: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -259,6 +265,11 @@ fn main() -> Result<()> {
         
         Some(Commands::Evolve { command, message }) => {
             evolve::handle_evolve(port, command, message)?;
+        }
+        
+        Some(Commands::Ls { path }) => {
+            let mut client = client::DaemonClient::new(port);
+            ls::handle_ls(&mut client, path)?;
         }
         
         None => {

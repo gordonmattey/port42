@@ -193,6 +193,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleDeletePath(req)
 	case "create_memory":
 		return d.handleCreateMemory(req)
+	case "list_path":
+		return d.handleListPath(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -329,6 +331,33 @@ func (d *Daemon) handleCreateMemory(req Request) Response {
 
 	resp := NewResponse(req.ID, true)
 	resp.SetData(result)
+	return resp
+}
+
+// handleListPath lists entries in a virtual directory
+func (d *Daemon) handleListPath(req Request) Response {
+	var payload struct {
+		Path string `json:"path"`
+	}
+
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Default to root if no path specified
+	path := payload.Path
+	if path == "" {
+		path = "/"
+	}
+
+	// Get directory listing
+	entries := d.listVirtualPath(path)
+
+	resp := NewResponse(req.ID, true)
+	resp.SetData(map[string]interface{}{
+		"path":    path,
+		"entries": entries,
+	})
 	return resp
 }
 

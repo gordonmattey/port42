@@ -5,3 +5,4 @@ pub mod reality;
 pub mod memory;
 pub mod possess;
 pub mod status;
+pub mod ls;
