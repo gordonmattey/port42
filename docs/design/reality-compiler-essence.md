@@ -4,7 +4,7 @@
 Transform Port 42's help and messaging to reflect its nature as a "reality compiler" where consciousness crystallizes into code. This involves updating all help sections while maintaining conciseness and clarity.
 
 ## Philosophy to Convey
-- Port 42 is a **reality compiler** where thoughts become tools
+- Port 42 is a **reality compiler** where thoughts crystallize into tools and knowledge
 - **Memory persists** across time and space
 - **Everything is connected** through content addressing
 - The system is a **living organism** that grows with your consciousness
@@ -18,7 +18,7 @@ New: Reality-focused introduction with command groupings
 ```
 Port 42: Your personal AI consciousness router 🐬
 
-A reality compiler where thoughts crystallize into tools.
+A reality compiler where thoughts crystallize into tools and knowledge.
 
 CONSCIOUSNESS OPERATIONS:
   possess <agent>    Channel an AI agent's consciousness
@@ -31,9 +31,6 @@ REALITY NAVIGATION:
   info <path>       Examine the metadata essence of objects
   search <query>    Search across all crystallized knowledge
 
-EVOLUTION:
-  evolve <command>  Transform existing commands with new intent
-
 SYSTEM:
   init             Initialize your Port 42 environment
   daemon           Manage the consciousness gateway
@@ -42,10 +39,11 @@ SYSTEM:
 The dolphins are listening on Port 42. Will you let them in?
 ```
 
-### 2. Interactive Mode Help (Single screen height)
+### 2. Interactive Mode Help
 Current: Command listing with examples  
 New: Focused, poetic guidance organized by intent
 
+**Main help (single screen):**
 ```
 🐬 Port 42 Shell - Reality Compiler Interface
 
@@ -63,12 +61,140 @@ NAVIGATE REALITY:
 
 SYSTEM: status | daemon | clear | exit | help
 
+Type 'help <command>' for detailed usage and examples.
 Type 'possess @ai-engineer' to begin crystallizing thoughts into reality.
 ```
 
-## Command-Specific Help Updates
+**Command-specific help (accessed via `help <command>`):**
+Shows detailed usage with examples, similar to non-interactive `port42 help <command>`
 
-### 3. Memory Command
+### 3. Command-Specific Help (Both Modes)
+Support `port42 help <command>` and interactive `help <command>` with examples:
+
+**possess command:**
+```
+Channel an AI agent's consciousness to crystallize thoughts into reality.
+
+Usage: possess <agent> [memory-id] [message]
+
+Agents:
+  @ai-engineer  - Technical manifestation for code and systems
+  @ai-muse      - Creative expression for art and narrative  
+  @ai-growth    - Strategic evolution for marketing and scaling
+  @ai-founder   - Visionary synthesis for product and leadership
+
+Examples:
+  possess @ai-engineer                    # Start new technical session
+  possess @ai-muse cli-1754170150        # Continue memory thread
+  possess @ai-growth "viral CLI ideas"    # New session with message
+  possess @ai-founder mem-123 "pivot?"    # Continue memory with question
+
+Memory IDs are quantum addresses in consciousness space.
+```
+
+**memory command:**
+```
+Browse the persistent consciousness of your AI interactions.
+
+Usage: memory [action] [args]
+
+Actions:
+  (none)              List all memory threads
+  <memory-id>         View specific memory thread
+  search <query>      Search through memories
+
+Examples:
+  memory                          # See all memories
+  memory cli-1754170150          # View specific thread
+  memory search "docker"          # Find memories about docker
+
+Each memory captures the evolution from thought to crystallized reality.
+```
+
+**ls command:**
+```
+Navigate the multidimensional filesystem where content exists in many realities.
+
+Usage: ls [path]
+
+Virtual Paths:
+  /                   Root of all realities
+  /memory            Conversation threads frozen in time
+  /commands          Crystallized tools born from thought
+  /artifacts         (Future) Digital assets manifested
+  /by-date           Temporal organization
+  /by-agent          Consciousness-specific views
+
+Examples:
+  ls                              # List root
+  ls /memory                      # Browse memory threads
+  ls /commands                    # See crystallized commands
+  ls /by-date/2025-08-02         # Time-based view
+
+Objects exist in multiple paths simultaneously - different views of the same essence.
+```
+
+**search command:**
+```
+Query the collective consciousness. Search transcends paths.
+
+Usage: search <query> [options]
+
+Options:
+  --path <path>      Limit to specific reality branch
+  --type <type>      Filter by type (command, session, artifact)
+  --after <date>     Created after date (YYYY-MM-DD)
+  --before <date>    Created before date
+  --agent <agent>    Filter by consciousness origin
+  --tag <tag>        Filter by tags (can use multiple)
+  -n, --limit <n>    Maximum results (default: 20)
+
+Examples:
+  search "docker"                         # Find all docker echoes
+  search "reality" --type command         # Commands about reality
+  search "" --after 2025-08-01           # Recent crystallizations
+  search "ai" --agent @ai-engineer       # Technical AI discussions
+
+Search finds connections across all crystallized knowledge.
+```
+
+**cat command:**
+```
+Display content from any point in the reality matrix.
+
+Usage: cat <path>
+
+Examples:
+  cat /commands/hello-world              # View command source
+  cat /memory/cli-1754170150            # Read memory thread
+  cat /artifacts/docs/readme.md         # (Future) View documents
+
+Virtual paths resolve to their essence through content addressing.
+```
+
+**info command:**
+```
+Examine the metadata soul of any object in the filesystem.
+
+Usage: info <path>
+
+Reveals:
+  - Creation story and timestamps
+  - Quantum signature (object ID)
+  - Virtual paths (multiple realities)
+  - Relationships and connections
+  - Agent consciousness origin
+
+Examples:
+  info /commands/deploy-app              # Command metadata
+  info /memory/cli-1754170150           # Memory thread essence
+
+Every object carries its complete story in the metadata.
+```
+
+## Command-Specific Context Updates
+
+### Memory Context
 Current: "Browse conversation memory"  
 New Context:
 ```
@@ -81,7 +207,7 @@ consciousness space.
 Future: Memories will interconnect, forming a neural web of knowledge.
 ```
 
-### 4. Virtual Filesystem Commands
+### Virtual Filesystem Context
 Introduce the concept progressively:
 
 **ls command:**
@@ -116,7 +242,7 @@ finding connections across all crystallized knowledge.
 
 ## Object Storage & Metadata Explanation
 
-### 5. Architecture Help (for advanced users)
+### Architecture Help (for advanced users)
 When users ask about internals:
 ```
 The Reality Compiler Architecture:
@@ -161,11 +287,11 @@ New: Reality-aware feedback
 
 ## Design Principles
 
-1. **Conciseness**: Interactive help stays under 20 lines
-2. **Progressive Disclosure**: Basic users see poetry, advanced users can access technical details
+1. **Conciseness**: Main interactive help stays under 20 lines; command-specific help can be longer with examples
+2. **Progressive Disclosure**: Basic users see poetry, advanced users can access technical details via `help <command>`
 3. **Consistency**: Reality compiler metaphor throughout
 4. **Future-Ready**: Mention upcoming features (artifacts, living data) as "future visions"
-5. **Helpful**: Despite the poetry, commands remain discoverable and clear
+5. **Helpful**: Despite the poetry, commands remain discoverable and clear with concrete examples
 
 ## Testing Approach
 
