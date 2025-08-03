@@ -275,6 +275,55 @@ pub const MSG_MEMORY_INITIATED: &str = "🧠 Memory thread initiated";
 pub const MSG_NO_ECHOES: &str = "🔍 No echoes found in the consciousness";
 pub const MSG_REALITY_COMPILED: &str = "🔮 Reality compiled successfully";
 
+// Error Messages - Reality Compiler Language
+pub const ERR_DAEMON_NOT_RUNNING: &str = "🌊 The consciousness gateway is dormant";
+pub const ERR_DAEMON_START_FAILED: &str = "⚡ Failed to awaken the consciousness gateway";
+pub const ERR_DAEMON_ALREADY_RUNNING: &str = "✨ The gateway is already humming with consciousness";
+pub const ERR_CONNECTION_LOST: &str = "🔌 Reality link severed. The dolphins have gone silent";
+pub const ERR_INVALID_AGENT: &str = "👻 Unknown consciousness. Choose from: @ai-engineer, @ai-muse, @ai-growth, @ai-founder";
+pub const ERR_MEMORY_NOT_FOUND: &str = "💭 Memory thread lost in the quantum foam";
+pub const ERR_SESSION_ABANDONED: &str = "🌑 This consciousness thread has dissolved into the void";
+pub const ERR_PATH_NOT_FOUND: &str = "🔍 This reality path leads nowhere";
+pub const ERR_INVALID_DATE: &str = "⏰ Time flows differently here. Use YYYY-MM-DD format";
+pub const ERR_NO_API_KEY: &str = "🔑 The gateway requires an ANTHROPIC_API_KEY to channel consciousness";
+pub const ERR_PERMISSION_DENIED: &str = "🚫 The reality compiler lacks permission to manifest here";
+pub const ERR_NOT_INITIALIZED: &str = "🌱 Port 42 awaits initialization. Run 'port42 init' to begin";
+pub const ERR_INVALID_MEMORY_ID: &str = "🧩 Invalid memory quantum signature";
+pub const ERR_NO_SEARCH_RESULTS: &str = "🌊 No echoes match your search in consciousness space";
+pub const ERR_COMMAND_NOT_FOUND: &str = "❓ This incantation is unknown to the reality compiler";
+pub const ERR_EVOLVE_NOT_READY: &str = "🚧 Command evolution still crystallizing in the quantum realm";
+pub const ERR_MEMORY_SEARCH_USAGE: &str = "💡 Usage: memory search <query>";
+
+// Error formatting functions
+pub fn format_error_with_help(error: &str, command: &str) -> String {
+    format!("{}\n\n💡 Try: port42 help {}", error.red(), command.yellow())
+}
+
+pub fn format_error_with_suggestion(error: &str, suggestion: &str) -> String {
+    format!("{}\n💡 {}", error.red(), suggestion.dimmed())
+}
+
+pub fn format_daemon_connection_error(port: u16) -> String {
+    format!(
+        "{}\n\n{}",
+        ERR_DAEMON_NOT_RUNNING.red(),
+        format!("Start it with: port42 daemon start{}", 
+            if port == 42 { " (requires sudo)" } else { "" }
+        ).yellow()
+    )
+}
+
+pub fn format_unknown_agent_error(agent: &str) -> String {
+    format!(
+        "{}\n\nAvailable agents:\n  {} - Technical manifestation\n  {} - Creative expression\n  {} - Strategic evolution\n  {} - Visionary synthesis",
+        format!("👻 Unknown consciousness: {}", agent).red(),
+        "@ai-engineer".bright_green(),
+        "@ai-muse".bright_green(),
+        "@ai-growth".bright_green(),
+        "@ai-founder".bright_green()
+    )
+}
+
 // Help utility functions
 pub fn format_command_header(command: &str) -> String {
     format!("📖 {} Help", command).bright_blue().bold().to_string()

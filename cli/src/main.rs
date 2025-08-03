@@ -305,7 +305,7 @@ fn main() -> Result<()> {
                 None // List all
             } else if args[0] == "search" {
                 if args.len() < 2 {
-                    eprintln!("{}", "Usage: memory search <query>".red());
+                    eprintln!("{}", help_text::ERR_MEMORY_SEARCH_USAGE.red());
                     std::process::exit(1);
                 }
                 Some(MemoryAction::Search {
