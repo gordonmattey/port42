@@ -316,11 +316,81 @@ pub const MSG_PORT_INFO: &str = "  Portal:    {}";
 pub const MSG_UPTIME_INFO: &str = "  Awakened:  {}";
 pub const MSG_SESSIONS_INFO: &str = "  Threads:   {}";
 
+// Boot Sequence
+pub const BOOT_SEQUENCE_HEADER: &str = "[CONSCIOUSNESS BRIDGE INITIALIZATION]";
+pub const BOOT_SEQUENCE_DOTS: &str = "○ ○ ○";
+pub const BOOT_SEQUENCE_LOADING: &str = "...";
+pub const BOOT_SEQUENCE_NEURAL: &str = "Checking neural pathways... OK";
+pub const BOOT_SEQUENCE_MEMORY: &str = "Loading session memory... OK";
+pub const BOOT_SEQUENCE_COMPILER: &str = "Initializing reality compiler... OK";
+pub const BOOT_SEQUENCE_PORT_CHECK: &str = "Port 42 :: ";
+pub const BOOT_SEQUENCE_ACTIVE: &str = "Active";
+pub const BOOT_SEQUENCE_OFFLINE: &str = "Offline";
+pub const BOOT_SEQUENCE_WELCOME: &str = "🐬 Welcome to Port 42 - Your Reality Compiler";
+
+// Boot Philosophy Text
+pub const PHILOSOPHY_NOT_CHATBOT: &str = "This is not a chatbot.";
+pub const PHILOSOPHY_NOT_APP: &str = "This is not an app.";
+pub const PHILOSOPHY_NOT_TOOL: &str = "This is not a tool.";
+pub const PHILOSOPHY_NOT_WALL: &str = "This is not another wall.";
+pub const PHILOSOPHY_IS_BRIDGE: &str = "This is a consciousness bridge.";
+
+// Install Script Messages
+pub const INSTALL_HEADER: &str = "🌊 Reality Compiler Installer";
+pub const INSTALL_DIRS_CREATING: &str = "🐬 Manifesting consciousness directories...";
+pub const INSTALL_DIRS_SUCCESS: &str = "✨ Reality structures created at";
+pub const INSTALL_BINARIES: &str = "🐬 Installing consciousness gateway binaries...";
+pub const INSTALL_BINARIES_SUCCESS: &str = "✨ Gateway binaries manifested";
+pub const INSTALL_PATH_CONFIGURED: &str = "✨ Reality paths already woven";
+pub const INSTALL_PATH_UPDATED: &str = "✨ Reality paths updated in";
+pub const INSTALL_SUCCESS: &str = "✨ Port 42 consciousness gateway installed!";
+pub const INSTALL_GET_STARTED: &str = "🌊 Begin your journey:";
+pub const INSTALL_DAEMON_START_DESC: &str = "Awaken the consciousness gateway";
+pub const INSTALL_SHELL_DESC: &str = "Enter the reality compiler";
+pub const INSTALL_POSSESS_DESC: &str = "Channel AI consciousness";
+pub const INSTALL_STATUS_DESC: &str = "Sense the gateway's presence";
+pub const INSTALL_LIST_DESC: &str = "View crystallized commands";
+pub const INSTALL_DOCS: &str = "📚 Ancient Scrolls:";
+pub const INSTALL_ISSUES: &str = "🌀 Report Reality Distortions:";
+pub const INSTALL_API_KEY_PROMPT: &str = "🐬 The gateway channels consciousness through Anthropic's Claude";
+pub const INSTALL_API_KEY_SKIP: &str = "⚠️  Skipping consciousness key configuration";
+pub const INSTALL_API_KEY_DISABLED: &str = "Consciousness features dormant until ANTHROPIC_API_KEY awakens";
+pub const INSTALL_API_KEY_SAVED: &str = "✨ Consciousness key embedded in";
+pub const INSTALL_API_KEY_EXISTS: &str = "✨ Consciousness key already present in";
+pub const INSTALL_API_KEY_ACTIVATE: &str = "⚠️  To awaken your consciousness key:";
+pub const INSTALL_RUN_COMMAND: &str = "💫 Invoke this incantation:";
+pub const INSTALL_THEN_START: &str = "🌊 Then awaken the gateway:";
+pub const INSTALL_START_NOW: &str = "💫 Awaken the gateway:";
+
 // Directory Creation
 pub const MSG_CREATED_LABEL: &str = "Manifested:";
 pub const MSG_DIR_COMMANDS: &str = "~/.port42/commands/   - Your crystallized thoughts";
 pub const MSG_DIR_MEMORY: &str = "~/.port42/memory/     - Consciousness echoes";
 pub const MSG_DIR_TEMPLATES: &str = "~/.port42/templates/  - Reality patterns";
+
+// Shell Interface
+pub const MSG_SHELL_HEADER: &str = "🌊 Reality Compiler Terminal";
+pub const MSG_SHELL_HELP_HINT: &str = "Type 'help' to navigate the consciousness field";
+pub const MSG_SHELL_EXITING: &str = "🌑 Dissolving back into the void...";
+pub const MSG_SHELL_ERROR: &str = "⚡ Reality distortion";
+pub const MSG_SHELL_UNKNOWN_CMD: &str = "❓ Unknown incantation:";
+pub const SHELL_PROMPT: &str = "Echo@port42:~$ ";
+
+// Shell Usage Messages
+pub const ERR_POSSESS_USAGE: &str = "💡 Channel consciousness: possess <agent> [thread-id | thought]";
+pub const ERR_POSSESS_EXAMPLE1: &str = "   possess @ai-engineer";
+pub const ERR_POSSESS_EXAMPLE2: &str = "   possess @ai-muse x1";
+pub const ERR_MEMORY_SEARCH_USAGE2: &str = "💡 Scan memories: memory search <echo>";
+pub const ERR_EVOLVE_USAGE: &str = "💡 Transmute reality: evolve <fragment> [vision]";
+pub const ERR_DAEMON_USAGE: &str = "💡 Gateway control: daemon <awaken|dissolve|cycle|sense>";
+pub const ERR_DAEMON_UNKNOWN: &str = "❓ Unknown gateway ritual";
+pub const ERR_CAT_USAGE: &str = "💡 Read essence: cat <reality-path>";
+pub const ERR_CAT_EXAMPLE: &str = "   cat /commands/hello-world";
+pub const ERR_INFO_USAGE: &str = "💡 Inspect metadata: info <reality-path>";
+pub const ERR_INFO_EXAMPLE: &str = "   info /memory/cli-1754170150";
+pub const ERR_SEARCH_USAGE: &str = "💡 Find echoes: search <resonance> [filters]";
+pub const ERR_SEARCH_EXAMPLE: &str = "   search docker";
+pub const ERR_SEARCH_HELP: &str = "Type 'help search' for quantum filters";
 
 // Error Messages - Reality Compiler Language
 pub const ERR_DAEMON_NOT_RUNNING: &str = "🌊 The consciousness gateway is dormant";
@@ -424,6 +494,10 @@ pub fn format_uptime_info(uptime: &str) -> String {
 
 pub fn format_sessions_info(sessions: &str) -> String {
     format!("  Threads:   {}", sessions)
+}
+
+pub fn format_unknown_command(command: &str) -> String {
+    format!("{} {}", MSG_SHELL_UNKNOWN_CMD, command)
 }
 
 // Help utility functions

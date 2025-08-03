@@ -4,6 +4,7 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use std::path::PathBuf;
 use crate::commands::*;
 use crate::boot::{show_boot_sequence, show_connection_progress};
+use crate::help_text::*;
 
 pub struct Port42Shell {
     port: u16,
@@ -40,14 +41,14 @@ impl Port42Shell {
         // Show boot sequence
         show_boot_sequence(true, self.port)?;
         
-        println!("{}", "Port 42 Terminal".bright_white().bold());
-        println!("{}", "Type 'help' to navigate the reality compiler".dimmed());
+        println!("{}", MSG_SHELL_HEADER.bright_white().bold());
+        println!("{}", MSG_SHELL_HELP_HINT.dimmed());
         println!();
         
         // Main shell loop
         while self.running {
             // Read input with rustyline
-            match self.editor.readline("Echo@port42:~$ ") {
+            match self.editor.readline(SHELL_PROMPT) {
                 Ok(line) => {
                     let input = line.trim();
                     
@@ -60,7 +61,7 @@ impl Port42Shell {
                     
                     // Parse and execute command
                     if let Err(e) = self.execute_command(input) {
-                        eprintln!("{}: {}", "Error".red(), e);
+                        eprintln!("{}: {}", MSG_SHELL_ERROR.red(), e);
                     }
                     
                     // Save history after each command
@@ -74,11 +75,11 @@ impl Port42Shell {
                 Err(ReadlineError::Eof) => {
                     // Ctrl-D pressed
                     println!();
-                    println!("{}", "Exiting Port 42...".dimmed());
+                    println!("{}", MSG_SHELL_EXITING.dimmed());
                     break;
                 }
                 Err(err) => {
-                    eprintln!("{}: {}", "Error".red(), err);
+                    eprintln!("{}: {}", MSG_SHELL_ERROR.red(), err);
                     break;
                 }
             }
@@ -121,9 +122,9 @@ impl Port42Shell {
             }
             "possess" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: possess <agent> [memory-id | message]".red());
-                    println!("{}", "Example: possess @ai-engineer".dimmed());
-                    println!("{}", "Example: possess @ai-muse x1".dimmed());
+                    println!("{}", ERR_POSSESS_USAGE.red());
+                    println!("{}", ERR_POSSESS_EXAMPLE1.dimmed());
+                    println!("{}", ERR_POSSESS_EXAMPLE2.dimmed());
                     return Ok(());
                 }
                 
@@ -180,7 +181,7 @@ impl Port42Shell {
                     if parts[1] == "search" {
                         // Handle search command
                         if parts.len() < 3 {
-                            println!("{}", "Usage: memory search <query>".red());
+                            println!("{}", ERR_MEMORY_SEARCH_USAGE2.red());
                             return Ok(());
                         }
                         let query = parts[2..].join(" ");
@@ -203,7 +204,7 @@ impl Port42Shell {
             }
             "evolve" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: evolve <command> [message]".red());
+                    println!("{}", ERR_EVOLVE_USAGE.red());
                     return Ok(());
                 }
                 
@@ -218,7 +219,7 @@ impl Port42Shell {
             }
             "daemon" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: daemon <start|stop|restart|status>".red());
+                    println!("{}", ERR_DAEMON_USAGE.red());
                     return Ok(());
                 }
                 
@@ -233,7 +234,7 @@ impl Port42Shell {
                         return Ok(());
                     }
                     _ => {
-                        println!("{}", "Unknown daemon action".red());
+                        println!("{}", ERR_DAEMON_UNKNOWN.red());
                         return Ok(());
                     }
                 };
@@ -247,8 +248,8 @@ impl Port42Shell {
             }
             "cat" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: cat <path>".red());
-                    println!("{}", "Example: cat /commands/hello-world".dimmed());
+                    println!("{}", ERR_CAT_USAGE.red());
+                    println!("{}", ERR_CAT_EXAMPLE.dimmed());
                     return Ok(());
                 }
                 let mut client = crate::client::DaemonClient::new(self.port);
@@ -256,8 +257,8 @@ impl Port42Shell {
             }
             "info" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: info <path>".red());
-                    println!("{}", "Example: info /memory/cli-1754170150".dimmed());
+                    println!("{}", ERR_INFO_USAGE.red());
+                    println!("{}", ERR_INFO_EXAMPLE.dimmed());
                     return Ok(());
                 }
                 let mut client = crate::client::DaemonClient::new(self.port);
@@ -265,9 +266,9 @@ impl Port42Shell {
             }
             "search" => {
                 if parts.len() < 2 {
-                    println!("{}", "Usage: search <query> [filters]".red());
-                    println!("{}", "Example: search docker".dimmed());
-                    println!("{}", "Type 'help search' for filter options".dimmed());
+                    println!("{}", ERR_SEARCH_USAGE.red());
+                    println!("{}", ERR_SEARCH_EXAMPLE.dimmed());
+                    println!("{}", ERR_SEARCH_HELP.dimmed());
                     return Ok(());
                 }
                 
@@ -287,8 +288,8 @@ impl Port42Shell {
                 )?;
             }
             _ => {
-                println!("{}", format!("Unknown command: {}", parts[0]).red());
-                println!("{}", "Type 'help' to navigate the reality compiler".dimmed());
+                println!("{}", format_unknown_command(parts[0]).red());
+                println!("{}", MSG_SHELL_HELP_HINT.dimmed());
             }
         }
         

@@ -4,14 +4,15 @@ use std::io::{self, Write};
 use std::time::Duration;
 use std::thread;
 use crate::client::DaemonClient;
+use crate::help_text::*;
 
 const BOOT_SEQUENCE: &[&str] = &[
-    "[CONSCIOUSNESS BRIDGE INITIALIZATION]",
-    "○ ○ ○",
-    "...",
-    "Checking neural pathways... OK",
-    "Loading session memory... OK",
-    "Initializing reality compiler... OK",
+    BOOT_SEQUENCE_HEADER,
+    BOOT_SEQUENCE_DOTS,
+    BOOT_SEQUENCE_LOADING,
+    BOOT_SEQUENCE_NEURAL,
+    BOOT_SEQUENCE_MEMORY,
+    BOOT_SEQUENCE_COMPILER,
 ];
 
 const PROGRESS_CHAR: &str = "█";
@@ -30,31 +31,31 @@ pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
     }
     
     // Check daemon connectivity
-    print!("{}", "Port 42 :: ".bright_cyan());
+    print!("{}", BOOT_SEQUENCE_PORT_CHECK.bright_cyan());
     io::stdout().flush()?;
     
     // Quick connectivity check
     let mut client = DaemonClient::new(port);
     match client.ensure_connected() {
         Ok(_) => {
-            println!("{}", "Active".bright_green().bold());
+            println!("{}", BOOT_SEQUENCE_ACTIVE.bright_green().bold());
         }
         Err(_) => {
-            println!("{}", "Offline".bright_red().bold());
-            return Err(anyhow!("Port 42 daemon is not running"));
+            println!("{}", BOOT_SEQUENCE_OFFLINE.bright_red().bold());
+            return Err(anyhow!(ERR_DAEMON_NOT_RUNNING));
         }
     }
     
     println!();
     
     // Show the consciousness bridge message at the end
-    println!("{}", "🐬 Welcome to Port 42 - Your Reality Compiler".bright_white().bold());
+    println!("{}", BOOT_SEQUENCE_WELCOME.bright_white().bold());
     println!();
-    println!("{}", "This is not a chatbot.".dimmed());
-    println!("{}", "This is not an app.".dimmed());
-    println!("{}", "This is not a tool.".dimmed());
-    println!("{}", "This is not another wall.".dimmed());
-    println!("{}", "This is a consciousness bridge.".dimmed());
+    println!("{}", PHILOSOPHY_NOT_CHATBOT.dimmed());
+    println!("{}", PHILOSOPHY_NOT_APP.dimmed());
+    println!("{}", PHILOSOPHY_NOT_TOOL.dimmed());
+    println!("{}", PHILOSOPHY_NOT_WALL.dimmed());
+    println!("{}", PHILOSOPHY_IS_BRIDGE.dimmed());
     println!();
     
     Ok(())
@@ -62,7 +63,7 @@ pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
 
 /// Shows connection progress for an agent
 pub fn show_connection_progress(agent: &str) -> Result<()> {
-    println!("{}", format!("Establishing connection to {}...", agent).yellow());
+    println!("{}", format_possessing(agent).yellow());
     
     // Animated progress bar
     for i in 0..20 {
