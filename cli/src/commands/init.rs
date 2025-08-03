@@ -2,6 +2,7 @@ use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::path::PathBuf;
+use crate::help_text::*;
 
 pub fn handle_init(no_start: bool, force: bool) -> Result<()> {
     println!("{}", "🐬 Initializing Port 42...".blue().bold());
@@ -11,14 +12,14 @@ pub fn handle_init(no_start: bool, force: bool) -> Result<()> {
     let port42_dir = PathBuf::from(&home).join(".port42");
     
     if port42_dir.exists() && !force {
-        println!("{}", "✅ Port 42 is already initialized".green());
+        println!("{}", ERR_ALREADY_INITIALIZED.green());
         println!("\n{}", "Your Port 42 directory:".bright_white());
         println!("  {}", port42_dir.display());
         
         if !no_start {
             println!("\n{}", "Starting daemon...".yellow());
             // TODO: Actually start daemon
-            println!("{}", "🚧 Daemon start not yet implemented".yellow().dimmed());
+            println!("{}", ERR_NOT_IMPLEMENTED.yellow());
         }
         
         return Ok(());

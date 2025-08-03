@@ -3,6 +3,7 @@ use colored::*;
 use serde_json::json;
 use crate::client::DaemonClient;
 use crate::types::{Request, SearchFilters};
+use crate::help_text::*;
 use chrono::{DateTime, Local, NaiveDate, TimeZone};
 
 pub fn handle_search(
@@ -59,20 +60,23 @@ pub fn handle_search(
     };
     
     let response = client.request(request)
-        .context("Failed to search")?;
+        .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {
-        let error = response.error.as_deref().unwrap_or("Unknown error");
-        eprintln!("{}: {}", "Search failed".red(), error);
+        let error = response.error.as_deref().unwrap_or("Connection lost");
+        eprintln!("{}", format_error_with_suggestion(
+            ERR_CONNECTION_LOST,
+            error
+        ));
         return Ok(());
     }
     
     // Extract results
     let data = response.data.as_ref()
-        .ok_or_else(|| anyhow::anyhow!("No data in response"))?;
+        .ok_or_else(|| anyhow::anyhow!(ERR_INVALID_RESPONSE))?;
     
     let results = data["results"].as_array()
-        .ok_or_else(|| anyhow::anyhow!("Invalid results format"))?;
+        .ok_or_else(|| anyhow::anyhow!(ERR_INVALID_RESPONSE))?;
     
     let count = data["count"].as_u64().unwrap_or(0);
     
@@ -204,14 +208,17 @@ fn parse_date(date_str: &str) -> Result<String> {
     // Try parsing as date only (YYYY-MM-DD)
     if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
         let dt = date.and_hms_opt(0, 0, 0)
-            .ok_or_else(|| anyhow::anyhow!("Invalid date"))?;
+            .ok_or_else(|| anyhow::anyhow!(ERR_INVALID_DATE))?;
         let local = Local::now()
             .timezone()
             .from_local_datetime(&dt)
             .single()
-            .ok_or_else(|| anyhow::anyhow!("Invalid local time"))?;
+            .ok_or_else(|| anyhow::anyhow!(ERR_INVALID_DATE))?;
         return Ok(local.to_rfc3339());
     }
     
-    Err(anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD or RFC3339"))
+    Err(anyhow::anyhow!(format_error_with_suggestion(
+        ERR_INVALID_DATE,
+        "Examples: 2025-08-02 or 2025-08-02T15:30:00Z"
+    )))
 }

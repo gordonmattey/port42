@@ -3,6 +3,7 @@ use colored::*;
 use serde_json::json;
 use crate::client::DaemonClient;
 use crate::types::Request;
+use crate::help_text::*;
 use chrono::{DateTime, Local};
 
 pub fn handle_info(client: &mut DaemonClient, path: String) -> Result<()> {
@@ -17,15 +18,17 @@ pub fn handle_info(client: &mut DaemonClient, path: String) -> Result<()> {
     
     // Send request and get response
     let response = client.request(request)
-        .context("Failed to get metadata")?;
+        .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {
-        bail!("Failed to get info for {}: {}", path, 
-            response.error.unwrap_or_else(|| "Unknown error".to_string()));
+        bail!(format_error_with_suggestion(
+            ERR_PATH_NOT_FOUND,
+            &format!("Cannot inspect essence of '{}'", path)
+        ));
     }
     
     // Extract data
-    let data = response.data.context("No data in response")?;
+    let data = response.data.context(ERR_INVALID_RESPONSE)?;
     
     // Display formatted metadata
     display_metadata(&path, &data)?;

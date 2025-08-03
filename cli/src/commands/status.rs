@@ -5,6 +5,7 @@ use std::net::TcpStream;
 use std::time::Duration;
 
 use crate::types::{Request, Response};
+use crate::help_text::*;
 
 pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
     println!("{}", "🐬 Checking Port 42 status...".blue().bold());
@@ -16,11 +17,7 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
     ) {
         Ok(stream) => stream,
         Err(_) => {
-            println!("{}", "❌ Daemon not running".red());
-            println!("\n{}", "To start the daemon:".yellow());
-            println!("  {}", "sudo -E ./bin/port42d".bright_white());
-            println!("\n{}", "Or use:".yellow());
-            println!("  {}", "port42 daemon start".bright_white());
+            println!("{}", format_daemon_connection_error(port));
             return Ok(());
         }
     };
@@ -39,10 +36,10 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
     // Read response
     let mut buffer = vec![0; 4096];
     let n = stream.read(&mut buffer)
-        .context("Failed to read response from daemon")?;
+        .context(ERR_CONNECTION_LOST)?;
     
     let response: Response = serde_json::from_slice(&buffer[..n])
-        .context("Failed to parse daemon response")?;
+        .context(ERR_INVALID_RESPONSE)?;
     
     if response.success {
         println!("{}", "✅ Daemon is running".green().bold());
@@ -86,11 +83,11 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
             }
         }
         
-        println!("\n{}", "The dolphins are listening... 🐬".blue().italic());
+        println!("\n{}", MSG_DOLPHINS_LISTENING.blue().italic());
     } else {
-        println!("{}", "❌ Daemon returned error".red());
+        println!("{}", ERR_CONNECTION_LOST.red());
         if let Some(error) = response.error {
-            println!("  {}", error);
+            println!("  {}", error.dimmed());
         }
     }
     

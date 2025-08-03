@@ -3,6 +3,7 @@ use colored::*;
 use serde_json::json;
 use crate::client::DaemonClient;
 use crate::types::Request;
+use crate::help_text::*;
 use base64::{Engine as _, engine::general_purpose};
 
 pub fn handle_cat(client: &mut DaemonClient, path: String) -> Result<()> {
@@ -17,23 +18,25 @@ pub fn handle_cat(client: &mut DaemonClient, path: String) -> Result<()> {
     
     // Send request and get response
     let response = client.request(request)
-        .context("Failed to read path")?;
+        .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {
-        bail!("Failed to read {}: {}", path, 
-            response.error.unwrap_or_else(|| "Unknown error".to_string()));
+        bail!(format_error_with_suggestion(
+            ERR_PATH_NOT_FOUND,
+            &format!("Reality fragment '{}' cannot be accessed", path)
+        ));
     }
     
     // Extract data
-    let data = response.data.context("No data in response")?;
+    let data = response.data.context(ERR_INVALID_RESPONSE)?;
     
     // Decode content
     let content_b64 = data["content"].as_str()
-        .context("Invalid content format")?;
+        .context(ERR_INVALID_RESPONSE)?;
     let content_bytes = general_purpose::STANDARD.decode(content_b64)
-        .context("Failed to decode content")?;
+        .context("Reality encoding corrupted")?;
     let content = String::from_utf8(content_bytes)
-        .context("Content is not valid UTF-8")?;
+        .context("Reality fragment contains non-textual essence")?;
     
     // Get metadata if available
     let metadata = data.get("metadata");

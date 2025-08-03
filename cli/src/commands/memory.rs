@@ -3,6 +3,7 @@ use colored::*;
 use crate::MemoryAction;
 use crate::client::DaemonClient;
 use crate::types::Request;
+use crate::help_text::*;
 use chrono::DateTime;
 
 pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
@@ -15,7 +16,8 @@ pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
         
         Some(MemoryAction::Search { query, limit: _ }) => {
             println!("{}", format!("🔍 Searching for: {}", query).blue().bold());
-            println!("{}", "🚧 Memory search not yet implemented".yellow().dimmed());
+            println!("{}", ERR_EVOLVE_NOT_READY.yellow());
+            println!("{}", "Try: memory  (to list all threads)".dimmed());
             // Could implement by fetching all sessions and filtering
         }
         
@@ -93,7 +95,10 @@ fn list_sessions(client: &mut DaemonClient) -> Result<()> {
             }
         }
     } else {
-        println!("{}", "❌ Failed to retrieve memory".red());
+        println!("{}", format_error_with_help(
+            ERR_MEMORY_NOT_FOUND,
+            "memory"
+        ));
         if let Some(error) = response.error {
             println!("  {}", error.dimmed());
         }
@@ -157,7 +162,7 @@ fn show_session(client: &mut DaemonClient, session_id: &str) -> Result<()> {
                     "active" => "🟢 Active".green(),
                     "idle" => "🟡 Idle".yellow(),
                     "completed" => "✅ Completed".bright_green(),
-                    "abandoned" => "❌ Abandoned".red(),
+                    "abandoned" => "🌑 Dissolved".red(),
                     _ => state.normal(),
                 };
                 println!("{}: {}", "State".dimmed(), state_display);
@@ -228,7 +233,10 @@ fn show_session(client: &mut DaemonClient, session_id: &str) -> Result<()> {
             }
         }
     } else {
-        println!("{}", "❌ Failed to retrieve session".red());
+        println!("{}", format_error_with_suggestion(
+            ERR_SESSION_ABANDONED,
+            "This memory thread may have dissolved. Try: memory"
+        ));
         if let Some(error) = response.error {
             println!("  {}", error.dimmed());
         }

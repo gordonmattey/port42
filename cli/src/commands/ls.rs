@@ -3,6 +3,7 @@ use colored::*;
 use serde_json::json;
 use crate::client::DaemonClient;
 use crate::types::Request;
+use crate::help_text::*;
 
 pub fn handle_ls(client: &mut DaemonClient, path: Option<String>) -> Result<()> {
     // Default to root if no path specified
@@ -19,17 +20,19 @@ pub fn handle_ls(client: &mut DaemonClient, path: Option<String>) -> Result<()> 
     
     // Send request and get response
     let response = client.request(request)
-        .context("Failed to list path")?;
+        .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {
-        anyhow::bail!("Failed to list {}: {}", path, 
-            response.error.unwrap_or_else(|| "Unknown error".to_string()));
+        anyhow::bail!(format_error_with_suggestion(
+            ERR_PATH_NOT_FOUND,
+            &format!("Path '{}' does not exist in reality", path)
+        ));
     }
     
     // Extract data
-    let data = response.data.context("No data in response")?;
+    let data = response.data.context(ERR_INVALID_RESPONSE)?;
     let entries = data["entries"].as_array()
-        .context("Invalid entries format")?;
+        .context(ERR_INVALID_RESPONSE)?;
     
     // Display path
     if path != "/" {

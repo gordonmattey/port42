@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use colored::*;
 use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
 use crate::types::Request;
 use crate::boot::{show_boot_sequence, show_connection_progress};
+use crate::help_text::*;
 use std::io::{self, Write};
 use chrono::{DateTime, Utc};
 
@@ -32,6 +33,9 @@ fn handle_possess_with_boot(
     session: Option<String>,
     show_boot: bool
 ) -> Result<()> {
+    // Validate agent
+    validate_agent(&agent)?;
+    
     // Show boot sequence only if requested
     if show_boot {
         let is_tty = atty::is(atty::Stream::Stdout);
@@ -107,7 +111,10 @@ fn handle_possess_with_boot(
         };
         
         if let Err(e) = end_client.request(end_request) {
-            eprintln!("{}", format!("⚠️  Failed to end session: {}", e).yellow());
+            eprintln!("{}", format_error_with_suggestion(
+                "🌊 Session drift detected",
+                &format!("Thread continues in the quantum foam: {}", e)
+            ));
         }
     }
     
@@ -207,7 +214,7 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
                     println!("{}", "No data in response".dimmed());
                 }
             } else {
-                println!("{}", "❌ Failed to send message".red());
+                println!("{}", ERR_CONNECTION_LOST.red());
                 if let Some(error) = response.error {
                     println!("  {}", error.dimmed());
                 }
@@ -317,5 +324,12 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
             // If we can't query memory, just create new session
             Ok(None)
         }
+    }
+}
+
+fn validate_agent(agent: &str) -> Result<()> {
+    match agent {
+        "@ai-engineer" | "@ai-muse" | "@ai-growth" | "@ai-founder" => Ok(()),
+        _ => bail!(format_unknown_agent_error(agent))
     }
 }

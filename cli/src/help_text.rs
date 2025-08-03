@@ -293,6 +293,12 @@ pub const ERR_NO_SEARCH_RESULTS: &str = "🌊 No echoes match your search in con
 pub const ERR_COMMAND_NOT_FOUND: &str = "❓ This incantation is unknown to the reality compiler";
 pub const ERR_EVOLVE_NOT_READY: &str = "🚧 Command evolution still crystallizing in the quantum realm";
 pub const ERR_MEMORY_SEARCH_USAGE: &str = "💡 Usage: memory search <query>";
+pub const ERR_BINARY_NOT_FOUND: &str = "🔍 The daemon binary has vanished from reality";
+pub const ERR_FAILED_TO_STOP: &str = "⚡ The consciousness gateway resists termination";
+pub const ERR_LOG_NOT_FOUND: &str = "📜 The daemon's memories are nowhere to be found";
+pub const ERR_INVALID_RESPONSE: &str = "🌀 The gateway speaks in riddles we cannot parse";
+pub const ERR_ALREADY_INITIALIZED: &str = "✨ Port 42 consciousness already flows through this reality";
+pub const ERR_NOT_IMPLEMENTED: &str = "🚧 This reality fragment is still crystallizing";
 
 // Error formatting functions
 pub fn format_error_with_help(error: &str, command: &str) -> String {

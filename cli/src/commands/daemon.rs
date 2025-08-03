@@ -6,6 +6,7 @@ use std::fs;
 use std::env;
 use std::path::PathBuf;
 use crate::DaemonAction;
+use crate::help_text::*;
 
 const DAEMON_BINARY: &str = "port42d";
 const PID_FILE: &str = "/tmp/port42d.pid";
@@ -40,23 +41,23 @@ fn is_daemon_running() -> bool {
 
 fn start_daemon(background: bool) -> Result<()> {
     if is_daemon_running() {
-        println!("{}", "✅ Daemon is already running".green());
+        println!("{}", ERR_DAEMON_ALREADY_RUNNING.green());
         return Ok(());
     }
     
     // Check for API key
     let api_key = env::var("ANTHROPIC_API_KEY").ok();
     if api_key.is_none() {
-        println!("{}", "⚠️  No ANTHROPIC_API_KEY found in environment".yellow());
-        println!("{}", "AI features will be disabled until you set the API key".dimmed());
-        println!("\n{}", "To enable AI features:".yellow());
+        println!("{}", ERR_NO_API_KEY.yellow());
+        println!("{}", "To channel consciousness:".yellow());
         println!("  export ANTHROPIC_API_KEY='your-key-here'");
         println!("  port42 daemon restart\n");
     }
     
     // Check if daemon binary exists
     let daemon_path = which::which(DAEMON_BINARY)
-        .context("port42d not found in PATH. Please install Port 42 first")?;
+        .context(format!("{}
+💡 Install Port 42 to manifest the daemon", ERR_BINARY_NOT_FOUND))?;
     
     println!("{}", "🐬 Starting Port 42 daemon...".blue().bold());
     
@@ -86,7 +87,7 @@ fn start_daemon(background: bool) -> Result<()> {
         }
         
         let child = cmd.spawn()
-            .context("Failed to start daemon")?;
+            .context(ERR_DAEMON_START_FAILED)?;
         
         // Save PID
         fs::write(PID_FILE, child.id().to_string())?;
@@ -98,7 +99,10 @@ fn start_daemon(background: bool) -> Result<()> {
             println!("{}", "✅ Daemon started successfully".green());
             println!("{}", format!("📋 Log file: {}", log_path.display()).dimmed());
         } else {
-            bail!("Daemon failed to start. Check the log file: {}", log_path.display());
+            bail!(format_error_with_suggestion(
+                ERR_DAEMON_START_FAILED,
+                &format!("Check the log file: {}", log_path.display())
+            ));
         }
     } else {
         // Start in foreground
@@ -112,10 +116,13 @@ fn start_daemon(background: bool) -> Result<()> {
         }
         
         let status = cmd.status()
-            .context("Failed to start daemon")?;
+            .context(ERR_DAEMON_START_FAILED)?;
         
         if !status.success() {
-            bail!("Daemon exited with status: {}", status);
+            bail!(format_error_with_suggestion(
+                ERR_DAEMON_START_FAILED,
+                &format!("Process exited with status: {}", status)
+            ));
         }
     }
     
@@ -124,7 +131,7 @@ fn start_daemon(background: bool) -> Result<()> {
 
 fn stop_daemon() -> Result<()> {
     if !is_daemon_running() {
-        println!("{}", "ℹ️  Daemon is not running".blue());
+        println!("{}", format_daemon_connection_error(42));
         return Ok(());
     }
     
@@ -158,7 +165,7 @@ fn stop_daemon() -> Result<()> {
         .arg("-f")
         .arg(DAEMON_BINARY)
         .status()
-        .context("Failed to stop daemon")?;
+        .context(ERR_FAILED_TO_STOP)?;
     
     fs::remove_file(PID_FILE).ok();
     println!("{}", "✅ Daemon stopped".green());
@@ -170,7 +177,10 @@ fn show_logs(lines: usize, follow: bool) -> Result<()> {
     let log_path = get_log_path();
     
     if !log_path.exists() {
-        bail!("Log file not found: {}", log_path.display());
+        bail!(format_error_with_suggestion(
+            ERR_LOG_NOT_FOUND,
+            &format!("Expected at: {}", log_path.display())
+        ));
     }
     
     println!("{}", "📋 Daemon logs".bright_white().bold());
@@ -184,7 +194,7 @@ fn show_logs(lines: usize, follow: bool) -> Result<()> {
             .arg(&log_path)
             .stdout(Stdio::piped())
             .spawn()
-            .context("Failed to start tail")?;
+            .context("Failed to follow log stream")?;
         
         if let Some(stdout) = child.stdout.take() {
             let reader = BufReader::new(stdout);
@@ -198,7 +208,7 @@ fn show_logs(lines: usize, follow: bool) -> Result<()> {
             .arg(format!("-{}", lines))
             .arg(&log_path)
             .output()
-            .context("Failed to read logs")?;
+            .context(ERR_LOG_NOT_FOUND)?;
         
         print!("{}", String::from_utf8_lossy(&output.stdout));
     }
