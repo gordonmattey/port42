@@ -156,21 +156,36 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 		})
 	}
 	
-	// Check if this agent should use tools for command generation
+	// Check if this agent should use tools
 	var tools []AnthropicTool
 	
-	// Get agent config to check if it generates commands
+	// Get agent config
 	cleanName := strings.TrimPrefix(agentName, "@ai-")
 	cleanName = strings.TrimPrefix(cleanName, "@")
+	log.Printf("🔍 Checking tools for agent: %s (clean: %s), config exists: %v", agentName, cleanName, agentConfig != nil)
+	
 	if agentConfig != nil {
-		if agentInfo, exists := agentConfig.Agents[cleanName]; exists && !agentInfo.NoImplementation {
-			// This agent generates commands and artifacts, use tools
-			tools = []AnthropicTool{
-				getCommandGenerationTool(),
-				getArtifactGenerationTool(),
+		if agentInfo, exists := agentConfig.Agents[cleanName]; exists {
+			log.Printf("🔍 Agent %s found, NoImplementation: %v", cleanName, agentInfo.NoImplementation)
+			if agentInfo.NoImplementation {
+				// Agent marked as no implementation - only gets artifact tool
+				tools = []AnthropicTool{
+					getArtifactGenerationTool(),
+				}
+				log.Printf("🎨 Agent %s will use artifact generation only", agentName)
+			} else {
+				// Full implementation agent - gets both tools
+				tools = []AnthropicTool{
+					getCommandGenerationTool(),
+					getArtifactGenerationTool(),
+				}
+				log.Printf("🔧 Agent %s will use tool-based generation (commands and artifacts)", agentName)
 			}
-			log.Printf("🔧 Agent %s will use tool-based generation (commands and artifacts)", agentName)
+		} else {
+			log.Printf("⚠️ Agent %s not found in config", cleanName)
 		}
+	} else {
+		log.Printf("⚠️ Agent config is nil!")
 	}
 	
 	req := AnthropicRequest{
@@ -182,6 +197,8 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 		Temperature: modelConfig.Temperature,
 		Tools:       tools,
 	}
+	
+	log.Printf("🔧 Sending request with %d tools to API", len(tools))
 	
 	jsonData, err := json.Marshal(req)
 	if err != nil {

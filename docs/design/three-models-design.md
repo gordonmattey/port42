@@ -231,3 +231,8 @@ Port 42 becomes your **extended team**:
 - Your fundraising advisor who knows every investor interaction
 
 Not just commands, but a complete **cognitive infrastructure** for building a startup.
+
+
+  2. Implement /crystallize artifact - Add explicit command in the AI conversation handler
+  3. Add artifact-specific commands - Maybe view-artifact or open-artifact commands
+  4. Update CLI help - Document the new artifact capabilities

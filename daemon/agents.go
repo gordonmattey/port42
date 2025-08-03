@@ -19,8 +19,9 @@ type AgentConfig struct {
 
 // BaseGuidance contains shared implementation guidelines
 type BaseGuidance struct {
-	Implementation string `json:"implementation"`
-	FormatTemplate string `json:"format_template"`
+	Implementation   string `json:"implementation"`
+	FormatTemplate   string `json:"format_template"`
+	ArtifactGuidance string `json:"artifact_guidance"`
 }
 
 // Agent represents a single AI agent configuration
@@ -117,6 +118,10 @@ func GetAgentPrompt(agentName string) string {
 	// Build the full prompt
 	var prompt strings.Builder
 	prompt.WriteString(agent.Prompt)
+	
+	// Add artifact guidance for all agents
+	prompt.WriteString("\n\n")
+	prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
 	
 	// Add implementation guidance if agent creates commands
 	if !agent.NoImplementation {
