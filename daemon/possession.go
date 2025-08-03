@@ -78,6 +78,19 @@ type CommandSpec struct {
 	Agent          string   `json:"agent,omitempty"` // Agent that created this
 }
 
+// ArtifactSpec that AI might generate
+type ArtifactSpec struct {
+	Name        string                 `json:"name"`        // Filename or directory name
+	Type        string                 `json:"type"`        // document, code, design, media
+	Description string                 `json:"description"` // What this artifact is
+	Content     map[string]string      `json:"content"`     // For multi-file artifacts (path -> content)
+	SingleFile  string                 `json:"single_file,omitempty"` // For single file content
+	Format      string                 `json:"format"`      // md, html, py, js, svg, etc
+	Metadata    map[string]interface{} `json:"metadata,omitempty"` // Additional metadata
+	SessionID   string                 `json:"session_id,omitempty"` // Session that created this
+	Agent       string                 `json:"agent,omitempty"` // Agent that created this
+}
+
 // NewAnthropicClient creates a new Claude client
 func NewAnthropicClient() *AnthropicClient {
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
@@ -151,9 +164,12 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 	cleanName = strings.TrimPrefix(cleanName, "@")
 	if agentConfig != nil {
 		if agentInfo, exists := agentConfig.Agents[cleanName]; exists && !agentInfo.NoImplementation {
-			// This agent generates commands, use tool
-			tools = []AnthropicTool{getCommandGenerationTool()}
-			log.Printf("🔧 Agent %s will use tool-based command generation", agentName)
+			// This agent generates commands and artifacts, use tools
+			tools = []AnthropicTool{
+				getCommandGenerationTool(),
+				getArtifactGenerationTool(),
+			}
+			log.Printf("🔧 Agent %s will use tool-based generation (commands and artifacts)", agentName)
 		}
 	}
 	
@@ -322,6 +338,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	// Extract response text and check for tool calls
 	var responseText string
 	var commandSpec *CommandSpec
+	var artifactSpec *ArtifactSpec
 	
 	if len(aiResp.Content) > 0 {
 		// Check if response contains tool calls
@@ -335,6 +352,15 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 					log.Printf("🔧 Extracted command spec from tool call: %s", spec.Name)
 				} else {
 					log.Printf("❌ Failed to extract command spec from tool call: %v", err)
+				}
+			} else if content.Type == "tool_use" && content.Name == "generate_artifact" {
+				hasToolCall = true
+				// Extract artifact spec from tool call
+				if spec, err := extractArtifactSpecFromToolCall(content.Input); err == nil {
+					artifactSpec = spec
+					log.Printf("🎨 Extracted artifact spec from tool call: %s", spec.Name)
+				} else {
+					log.Printf("❌ Failed to extract artifact spec from tool call: %v", err)
 				}
 			} else if content.Type == "text" {
 				responseText = content.Text
@@ -372,6 +398,20 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		
 		// Generate the command!
 		go d.generateCommand(commandSpec)
+	}
+	
+	// Check if we have an artifact spec to generate
+	if artifactSpec != nil {
+		// Add session and agent info to artifact spec
+		artifactSpec.SessionID = session.ID
+		artifactSpec.Agent = session.Agent
+		
+		// Note: We don't have an ArtifactGenerated field in Session yet
+		// For now, just log it
+		log.Printf("🎨 Artifact generated in session %s: %s", session.ID, artifactSpec.Name)
+		
+		// Generate the artifact!
+		go d.generateArtifact(artifactSpec)
 	}
 	
 	session.mu.Unlock()
@@ -517,6 +557,53 @@ func getCommandGenerationTool() AnthropicTool {
 	}
 }
 
+// getArtifactGenerationTool returns the tool definition for artifact generation
+func getArtifactGenerationTool() AnthropicTool {
+	return AnthropicTool{
+		Name:        "generate_artifact",
+		Description: "Generate a Port 42 artifact (document, code project, design, media)",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Artifact name (e.g., 'pitch-deck', 'dashboard-app', 'logo-concepts')",
+				},
+				"type": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"document", "code", "design", "media"},
+					"description": "Type of artifact",
+				},
+				"description": map[string]interface{}{
+					"type":        "string",
+					"description": "What this artifact is",
+				},
+				"format": map[string]interface{}{
+					"type":        "string",
+					"description": "File format (md, html, py, js, svg, pdf, etc)",
+				},
+				"content": map[string]interface{}{
+					"type":        "object",
+					"description": "For multi-file artifacts: map of filepath to content",
+					"additionalProperties": map[string]interface{}{
+						"type": "string",
+					},
+				},
+				"single_file": map[string]interface{}{
+					"type":        "string",
+					"description": "For single file artifacts: the file content",
+				},
+				"metadata": map[string]interface{}{
+					"type":        "object",
+					"description": "Additional metadata",
+					"additionalProperties": true,
+				},
+			},
+			"required": []string{"name", "type", "description", "format"},
+		},
+	}
+}
+
 // Extract command spec from AI response
 func extractCommandSpec(response string) *CommandSpec {
 	// Look for JSON code block
@@ -570,6 +657,26 @@ func extractCommandSpecFromToolCall(toolInput json.RawMessage) (*CommandSpec, er
 	// Default language to bash if not specified
 	if spec.Language == "" {
 		spec.Language = "bash"
+	}
+	
+	return &spec, nil
+}
+
+// extractArtifactSpecFromToolCall extracts artifact spec from tool call response
+func extractArtifactSpecFromToolCall(toolInput json.RawMessage) (*ArtifactSpec, error) {
+	var spec ArtifactSpec
+	if err := json.Unmarshal(toolInput, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse tool input: %v", err)
+	}
+	
+	// Validate spec
+	if spec.Name == "" || spec.Type == "" {
+		return nil, fmt.Errorf("invalid artifact spec: missing required fields")
+	}
+	
+	// Must have either content map or single_file
+	if spec.Content == nil && spec.SingleFile == "" {
+		return nil, fmt.Errorf("invalid artifact spec: must have content or single_file")
 	}
 	
 	return &spec, nil

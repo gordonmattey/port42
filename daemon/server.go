@@ -1047,6 +1047,91 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 	return nil
 }
 
+// Artifact generation functionality
+func (d *Daemon) generateArtifact(spec *ArtifactSpec) error {
+	log.Printf("🔍 [GENERATE_ARTIFACT] Starting generation for '%s' (type=%s, session=%s)", 
+		spec.Name, spec.Type, spec.SessionID)
+	
+	// Check if storage is available
+	if d.storage == nil {
+		return fmt.Errorf("storage not initialized")
+	}
+	
+	// Determine the base path for the artifact
+	basePath := fmt.Sprintf("artifacts/%s/%s", spec.Type, spec.Name)
+	
+	// Handle single file vs multi-file artifacts
+	if spec.SingleFile != "" {
+		// Single file artifact
+		fullPath := basePath
+		if spec.Format != "" {
+			// Add extension if not already present
+			if !strings.Contains(spec.Name, ".") {
+				fullPath = fmt.Sprintf("%s.%s", basePath, spec.Format)
+			}
+		}
+		
+		// Store the single file
+		metadata := map[string]interface{}{
+			"type":                 spec.Type,
+			"format":               spec.Format,
+			"description":          spec.Description,
+			"crystallization_type": "artifact",
+			"session":              spec.SessionID,
+			"agent":                spec.Agent,
+		}
+		
+		// Add any additional metadata
+		for k, v := range spec.Metadata {
+			metadata[k] = v
+		}
+		
+		result, err := d.storage.HandleStorePath(fullPath, []byte(spec.SingleFile), metadata)
+		if err != nil {
+			return fmt.Errorf("failed to store artifact: %v", err)
+		}
+		
+		log.Printf("✨ Artifact stored: %s (id=%s)", fullPath, result["id"])
+		
+	} else if spec.Content != nil && len(spec.Content) > 0 {
+		// Multi-file artifact (e.g., a web app with multiple files)
+		for filePath, content := range spec.Content {
+			fullPath := fmt.Sprintf("%s/%s", basePath, filePath)
+			
+			// Infer file type from extension
+			fileType := "file"
+			if strings.HasSuffix(filePath, ".md") {
+				fileType = "document"
+			} else if strings.HasSuffix(filePath, ".js") || strings.HasSuffix(filePath, ".py") {
+				fileType = "code"
+			} else if strings.HasSuffix(filePath, ".html") || strings.HasSuffix(filePath, ".css") {
+				fileType = "web"
+			}
+			
+			metadata := map[string]interface{}{
+				"type":                 fileType,
+				"parent_type":          spec.Type,
+				"description":          spec.Description,
+				"crystallization_type": "artifact",
+				"session":              spec.SessionID,
+				"agent":                spec.Agent,
+				"artifact_name":        spec.Name,
+			}
+			
+			result, err := d.storage.HandleStorePath(fullPath, []byte(content), metadata)
+			if err != nil {
+				log.Printf("❌ Failed to store file %s: %v", filePath, err)
+				continue
+			}
+			
+			log.Printf("✨ Artifact file stored: %s (id=%s)", fullPath, result["id"])
+		}
+	}
+	
+	log.Printf("🎨 Artifact generation completed: %s", spec.Name)
+	return nil
+}
+
 // extractTags extracts relevant tags from a command spec
 func extractTags(spec *CommandSpec) []string {
 	tags := []string{spec.Language}
