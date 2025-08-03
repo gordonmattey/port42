@@ -240,6 +240,52 @@ impl Port42Shell {
                 
                 daemon::handle_daemon(action, self.port)?;
             }
+            "ls" => {
+                let path = parts.get(1).map(|s| s.to_string());
+                let mut client = crate::client::DaemonClient::new(self.port);
+                ls::handle_ls(&mut client, path)?;
+            }
+            "cat" => {
+                if parts.len() < 2 {
+                    println!("{}", "Usage: cat <path>".red());
+                    println!("{}", "Example: cat /commands/hello-world".dimmed());
+                    return Ok(());
+                }
+                let mut client = crate::client::DaemonClient::new(self.port);
+                cat::handle_cat(&mut client, parts[1].to_string())?;
+            }
+            "info" => {
+                if parts.len() < 2 {
+                    println!("{}", "Usage: info <path>".red());
+                    println!("{}", "Example: info /memory/cli-1754170150".dimmed());
+                    return Ok(());
+                }
+                let mut client = crate::client::DaemonClient::new(self.port);
+                info::handle_info(&mut client, parts[1].to_string())?;
+            }
+            "search" => {
+                if parts.len() < 2 {
+                    println!("{}", "Usage: search <query> [filters]".red());
+                    println!("{}", "Example: search docker".dimmed());
+                    println!("{}", "Type 'help search' for filter options".dimmed());
+                    return Ok(());
+                }
+                
+                // Basic search - just query, no filters from shell yet
+                let query = parts[1..].join(" ");
+                let mut client = crate::client::DaemonClient::new(self.port);
+                search::handle_search(
+                    &mut client,
+                    query,
+                    None,      // path
+                    None,      // type_filter
+                    None,      // after
+                    None,      // before
+                    None,      // agent
+                    vec![],    // tags
+                    None,      // limit
+                )?;
+            }
             _ => {
                 println!("{}", format!("Unknown command: {}", parts[0]).red());
                 println!("{}", "Type 'help' to navigate the reality compiler".dimmed());
