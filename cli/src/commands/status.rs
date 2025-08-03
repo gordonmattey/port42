@@ -8,7 +8,7 @@ use crate::types::{Request, Response};
 use crate::help_text::*;
 
 pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
-    println!("{}", "🐬 Checking Port 42 status...".blue().bold());
+    println!("{}", MSG_CHECKING_STATUS.blue().bold());
     
     // Try to connect
     let mut stream = match TcpStream::connect_timeout(
@@ -42,7 +42,7 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
         .context(ERR_INVALID_RESPONSE)?;
     
     if response.success {
-        println!("{}", "✅ Daemon is running".green().bold());
+        println!("{}", MSG_DAEMON_RUNNING.green().bold());
         
         if let Some(data) = response.data {
             // Extract daemon info
@@ -56,10 +56,10 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0);
             
-            println!("\n{}", "Connection Info:".bright_white());
-            println!("  Port:     {}", port.to_string().bright_cyan());
-            println!("  Uptime:   {}", uptime.bright_cyan());
-            println!("  Sessions: {}", sessions.to_string().bright_cyan());
+            println!("\n{}", MSG_CONNECTION_INFO.bright_white());
+            println!("{}", format_port_info(&port.to_string().bright_cyan().to_string()));
+            println!("{}", format_uptime_info(&uptime.bright_cyan().to_string()));
+            println!("{}", format_sessions_info(&sessions.to_string().bright_cyan().to_string()));
             
             if detailed {
                 println!("\n{}", "Detailed Status:".bright_white());

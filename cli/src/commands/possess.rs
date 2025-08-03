@@ -58,26 +58,26 @@ fn handle_possess_with_boot(
     
     if let Some(msg) = message {
         // Single message mode
-        println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
+        println!("{}", format_possessing(&agent).blue().bold());
         
         if !user_provided {
-            println!("{}", format!("✨ New session: {}", session_id).dimmed());
+            println!("{}", format_new_session(&session_id).dimmed());
         } else {
             // User provided the ID, so they intend to continue (even if it doesn't exist yet)
-            println!("{}", format!("↻ Session: {}", session_id).dimmed());
+            println!("{}", format_session_continuing(&session_id).dimmed());
         }
         println!();
         
         send_message(&mut client, &session_id, &agent, &msg)?;
     } else {
         // Interactive mode - show session status first
-        println!("{}", format!("🔮 Possessing {}...", agent).blue().bold());
+        println!("{}", format_possessing(&agent).blue().bold());
         
         if !user_provided {
-            println!("{}", format!("✨ New session: {}", session_id).dimmed());
+            println!("{}", format_new_session(&session_id).dimmed());
         } else {
             // User provided the ID, so they intend to continue (even if it doesn't exist yet)
-            println!("{}", format!("↻ Session: {}", session_id).dimmed());
+            println!("{}", format_session_continuing(&session_id).dimmed());
         }
         println!();
         
@@ -200,7 +200,7 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
                         if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
                             if let Some(spec) = data.get("command_spec") {
                                 if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
-                                    println!("{}", format!("✨ Command crystallized: {}", name).bright_green().bold());
+                                    println!("{}", format_command_born(&name).bright_green().bold());
                                     println!("{}", "Add to PATH to use:".yellow());
                                     println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
                                     println!();

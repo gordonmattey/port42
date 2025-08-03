@@ -15,7 +15,7 @@ pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
         }
         
         Some(MemoryAction::Search { query, limit: _ }) => {
-            println!("{}", format!("🔍 Searching for: {}", query).blue().bold());
+            println!("{}", format_searching(&query).blue().bold());
             println!("{}", ERR_EVOLVE_NOT_READY.yellow());
             println!("{}", "Try: memory  (to list all threads)".dimmed());
             // Could implement by fetching all sessions and filtering
@@ -30,7 +30,7 @@ pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
 }
 
 fn list_sessions(client: &mut DaemonClient) -> Result<()> {
-    println!("{}", "🧠 Conversation Memory".blue().bold());
+    println!("{}", MSG_MEMORY_HEADER.blue().bold());
     println!();
     
     // Query daemon for memory
@@ -47,7 +47,7 @@ fn list_sessions(client: &mut DaemonClient) -> Result<()> {
             // Show active sessions
             if let Some(active) = data.get("active_sessions").and_then(|v| v.as_array()) {
                 if !active.is_empty() {
-                    println!("{}", "Active Sessions:".bright_green().bold());
+                    println!("{}", MSG_ACTIVE_SESSIONS.bright_green().bold());
                     for session in active {
                         print_session_summary(session);
                     }
@@ -57,7 +57,7 @@ fn list_sessions(client: &mut DaemonClient) -> Result<()> {
             
             // Show recent sessions
             if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
-                println!("{}", format!("Recent Sessions ({} found):", recent.len()).bright_cyan().bold());
+                println!("{}", format_recent_sessions(recent.len()).bright_cyan().bold());
                 
                 // Group by date
                 let mut by_date: std::collections::HashMap<String, Vec<&serde_json::Value>> = std::collections::HashMap::new();

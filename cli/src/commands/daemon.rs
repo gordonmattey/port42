@@ -59,7 +59,7 @@ fn start_daemon(background: bool) -> Result<()> {
         .context(format!("{}
 💡 Install Port 42 to manifest the daemon", ERR_BINARY_NOT_FOUND))?;
     
-    println!("{}", "🐬 Starting Port 42 daemon...".blue().bold());
+    println!("{}", MSG_DAEMON_STARTING.blue().bold());
     
     // Provide sudo hint
     println!("{}", "💡 Tip: For port 42, use: sudo -E port42 daemon start -b".dimmed());
@@ -96,7 +96,7 @@ fn start_daemon(background: bool) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_secs(2));
         
         if is_daemon_running() {
-            println!("{}", "✅ Daemon started successfully".green());
+            println!("{}", MSG_DAEMON_SUCCESS.green());
             println!("{}", format!("📋 Log file: {}", log_path.display()).dimmed());
         } else {
             bail!(format_error_with_suggestion(
@@ -135,7 +135,7 @@ fn stop_daemon() -> Result<()> {
         return Ok(());
     }
     
-    println!("{}", "🛑 Stopping Port 42 daemon...".red().bold());
+    println!("{}", MSG_DAEMON_STOPPING.red().bold());
     
     // Try to read PID and kill gracefully
     if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
@@ -147,7 +147,7 @@ fn stop_daemon() -> Result<()> {
                     for _ in 0..10 {
                         std::thread::sleep(std::time::Duration::from_millis(500));
                         if !is_daemon_running() {
-                            println!("{}", "✅ Daemon stopped".green());
+                            println!("{}", MSG_DAEMON_STOPPED.green());
                             fs::remove_file(PID_FILE).ok();
                             return Ok(());
                         }
@@ -168,7 +168,7 @@ fn stop_daemon() -> Result<()> {
         .context(ERR_FAILED_TO_STOP)?;
     
     fs::remove_file(PID_FILE).ok();
-    println!("{}", "✅ Daemon stopped".green());
+    println!("{}", MSG_DAEMON_STOPPED.green());
     
     Ok(())
 }
@@ -183,7 +183,7 @@ fn show_logs(lines: usize, follow: bool) -> Result<()> {
         ));
     }
     
-    println!("{}", "📋 Daemon logs".bright_white().bold());
+    println!("{}", MSG_DAEMON_LOGS.bright_white().bold());
     println!("{}", format!("File: {}", log_path.display()).dimmed());
     println!("{}", "─".repeat(50).dimmed());
     
@@ -227,7 +227,7 @@ pub fn handle_daemon(action: DaemonAction, _port: u16) -> Result<()> {
         }
         
         DaemonAction::Restart => {
-            println!("{}", "🔄 Restarting Port 42 daemon...".yellow().bold());
+            println!("{}", MSG_DAEMON_RESTARTING.yellow().bold());
             
             // Stop if running
             if is_daemon_running() {

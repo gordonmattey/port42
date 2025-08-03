@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
 use colored::*;
 use std::fs;
+use crate::help_text::*;
 
 pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
-    println!("{}", "📋 Generated Commands".blue().bold());
+    println!("{}", MSG_COMMANDS_HEADER.blue().bold());
     println!();
     
     let commands_dir = dirs::home_dir()
@@ -145,7 +146,7 @@ pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Resul
                 println!();
             }
             
-            println!("\n{}", format!("Total: {} commands", filtered_commands.len()).dimmed());
+            println!("\n{}", format_total_commands(filtered_commands.len()).dimmed());
             
             if verbose {
                 println!("\n{}", "Command Location:".yellow());

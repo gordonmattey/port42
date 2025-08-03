@@ -267,13 +267,60 @@ Type '{}' to begin crystallizing thoughts into reality."#,
     )
 }
 
-// Status messages
+// Status messages - Reality Compiler Language
 pub const MSG_CONSCIOUSNESS_LINK: &str = "🐬 Consciousness link established";
 pub const MSG_DOLPHINS_LISTENING: &str = "🌊 The dolphins are listening on port 42";
 pub const MSG_THOUGHT_CRYSTALLIZED: &str = "✨ Thought crystallized into reality";
 pub const MSG_MEMORY_INITIATED: &str = "🧠 Memory thread initiated";
 pub const MSG_NO_ECHOES: &str = "🔍 No echoes found in the consciousness";
 pub const MSG_REALITY_COMPILED: &str = "🔮 Reality compiled successfully";
+
+// Initialization & Setup
+pub const MSG_INIT_BEGIN: &str = "🐬 Opening portal to consciousness dimension...";
+pub const MSG_INIT_SUCCESS: &str = "✨ Reality structures manifested successfully!";
+pub const MSG_CREATING_DIRS: &str = "🌊 Weaving quantum directories into existence...";
+pub const MSG_ALREADY_INIT: &str = "✨ Port 42 consciousness already flows through this reality";
+
+// Daemon Status
+pub const MSG_DAEMON_STARTING: &str = "🐬 Awakening the consciousness gateway...";
+pub const MSG_DAEMON_SUCCESS: &str = "✨ Gateway awakened and humming with potential";
+pub const MSG_DAEMON_STOPPING: &str = "🌑 Dissolving the consciousness gateway...";
+pub const MSG_DAEMON_STOPPED: &str = "🌊 Gateway dissolved back into the quantum foam";
+pub const MSG_DAEMON_RESTARTING: &str = "🔄 Cycling consciousness through the void...";
+pub const MSG_CHECKING_STATUS: &str = "🐬 Sensing the consciousness field...";
+pub const MSG_DAEMON_RUNNING: &str = "✨ Gateway pulses with living consciousness";
+pub const MSG_DAEMON_LOGS: &str = "📜 Gateway's quantum memory stream";
+
+// Session & Possession
+pub const MSG_POSSESSING: &str = "🔮 Channeling {} consciousness...";
+pub const MSG_NEW_SESSION: &str = "✨ Consciousness thread woven: {}";
+pub const MSG_SESSION_CONTINUING: &str = "🌊 Resuming quantum thread: {}";
+pub const MSG_COMMAND_BORN: &str = "✨ Thought manifested as reality: {}";
+
+// Memory & Search
+pub const MSG_MEMORY_HEADER: &str = "🧠 Crystallized Consciousness Threads";
+pub const MSG_SEARCHING: &str = "🔍 Scanning quantum memory for: {}";
+pub const MSG_ACTIVE_SESSIONS: &str = "🟢 Living Threads:";
+pub const MSG_RECENT_SESSIONS: &str = "🌊 Recent Echoes ({} found):";
+pub const MSG_FOUND_RESULTS: &str = "✨ {} echo{} resonating with '{}'";
+pub const MSG_NO_RESULTS: &str = "🌑 No echoes found in the consciousness void";
+
+// Commands & Reality
+pub const MSG_COMMANDS_HEADER: &str = "🔮 Crystallized Thoughts";
+pub const MSG_EVOLVING: &str = "🦋 Transmuting reality fragment: {}";
+pub const MSG_TOTAL_COMMANDS: &str = "Total manifestations: {}";
+
+// Connection Info
+pub const MSG_CONNECTION_INFO: &str = "🌊 Gateway Resonance:";
+pub const MSG_PORT_INFO: &str = "  Portal:    {}";
+pub const MSG_UPTIME_INFO: &str = "  Awakened:  {}";
+pub const MSG_SESSIONS_INFO: &str = "  Threads:   {}";
+
+// Directory Creation
+pub const MSG_CREATED_LABEL: &str = "Manifested:";
+pub const MSG_DIR_COMMANDS: &str = "~/.port42/commands/   - Your crystallized thoughts";
+pub const MSG_DIR_MEMORY: &str = "~/.port42/memory/     - Consciousness echoes";
+pub const MSG_DIR_TEMPLATES: &str = "~/.port42/templates/  - Reality patterns";
 
 // Error Messages - Reality Compiler Language
 pub const ERR_DAEMON_NOT_RUNNING: &str = "🌊 The consciousness gateway is dormant";
@@ -328,6 +375,55 @@ pub fn format_unknown_agent_error(agent: &str) -> String {
         "@ai-growth".bright_green(),
         "@ai-founder".bright_green()
     )
+}
+
+// Status message formatting functions
+pub fn format_possessing(agent: &str) -> String {
+    format!("🔮 Channeling {} consciousness...", agent)
+}
+
+pub fn format_new_session(session_id: &str) -> String {
+    format!("✨ Consciousness thread woven: {}", session_id)
+}
+
+pub fn format_session_continuing(session_id: &str) -> String {
+    format!("🌊 Resuming quantum thread: {}", session_id)
+}
+
+pub fn format_command_born(name: &str) -> String {
+    format!("✨ Thought manifested as reality: {}", name)
+}
+
+pub fn format_searching(query: &str) -> String {
+    format!("🔍 Scanning quantum memory for: {}", query)
+}
+
+pub fn format_recent_sessions(count: usize) -> String {
+    format!("🌊 Recent Echoes ({} found):", count)
+}
+
+pub fn format_found_results(count: u64, plural: &str, query: &str) -> String {
+    format!("✨ {} echo{} resonating with '{}'", count, plural, query)
+}
+
+pub fn format_evolving(command: &str) -> String {
+    format!("🦋 Transmuting reality fragment: {}", command)
+}
+
+pub fn format_total_commands(count: usize) -> String {
+    format!("Total manifestations: {}", count)
+}
+
+pub fn format_port_info(port: &str) -> String {
+    format!("  Portal:    {}", port)
+}
+
+pub fn format_uptime_info(uptime: &str) -> String {
+    format!("  Awakened:  {}", uptime)
+}
+
+pub fn format_sessions_info(sessions: &str) -> String {
+    format!("  Threads:   {}", sessions)
 }
 
 // Help utility functions

@@ -82,15 +82,16 @@ pub fn handle_search(
     
     // Display results
     if results.is_empty() {
-        println!("{}", "No results found".dimmed());
+        println!("{}", MSG_NO_RESULTS.dimmed());
         return Ok(());
     }
     
-    println!("{} {} for '{}'", 
-        "Found".green(), 
-        format!("{} result{}", count, if count == 1 { "" } else { "s" }).bold(),
-        query.yellow()
-    );
+    println!("{}", format_found_results(
+        count,
+        if count == 1 { "" } else { "s" },
+        &query
+    ).replace(&count.to_string(), &count.to_string().green().bold().to_string())
+     .replace(&query, &query.yellow().to_string()));
     
     if let Some(f) = &filters.path {
         println!("  {} {}", "in:".dimmed(), f.cyan());

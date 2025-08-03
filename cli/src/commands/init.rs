@@ -5,14 +5,14 @@ use std::path::PathBuf;
 use crate::help_text::*;
 
 pub fn handle_init(no_start: bool, force: bool) -> Result<()> {
-    println!("{}", "🐬 Initializing Port 42...".blue().bold());
+    println!("{}", MSG_INIT_BEGIN.blue().bold());
     
     // Check if already initialized
     let home = std::env::var("HOME")?;
     let port42_dir = PathBuf::from(&home).join(".port42");
     
     if port42_dir.exists() && !force {
-        println!("{}", ERR_ALREADY_INITIALIZED.green());
+        println!("{}", MSG_ALREADY_INIT.green());
         println!("\n{}", "Your Port 42 directory:".bright_white());
         println!("  {}", port42_dir.display());
         
@@ -26,7 +26,7 @@ pub fn handle_init(no_start: bool, force: bool) -> Result<()> {
     }
     
     // Create directories
-    println!("{}", "Creating directories...".dimmed());
+    println!("{}", MSG_CREATING_DIRS.dimmed());
     fs::create_dir_all(&port42_dir)?;
     fs::create_dir_all(port42_dir.join("commands"))?;
     fs::create_dir_all(port42_dir.join("memory").join("sessions"))?;
@@ -47,11 +47,11 @@ The dolphins are with you! 🐬
     
     fs::write(port42_dir.join("README.md"), readme_content)?;
     
-    println!("{}", "✅ Port 42 initialized successfully!".green().bold());
-    println!("\n{}", "Created:".bright_white());
-    println!("  ~/.port42/commands/   {}", "- Your custom commands".dimmed());
-    println!("  ~/.port42/memory/     {}", "- Conversation history".dimmed());
-    println!("  ~/.port42/templates/  {}", "- Command templates".dimmed());
+    println!("{}", MSG_INIT_SUCCESS.green().bold());
+    println!("\n{}", MSG_CREATED_LABEL.bright_white());
+    println!("  {}", MSG_DIR_COMMANDS.dimmed());
+    println!("  {}", MSG_DIR_MEMORY.dimmed());
+    println!("  {}", MSG_DIR_TEMPLATES.dimmed());
     
     if !no_start {
         println!("\n{}", "Next: Start the daemon".yellow());
