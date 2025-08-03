@@ -30,8 +30,8 @@ pub fn handle_help_request() -> bool {
         return true;
     }
     
-    // Check for "port42 <command> --help" or "port42 <command> -h"
-    if args.len() >= 3 && (args[args.len() - 1] == "--help" || args[args.len() - 1] == "-h") {
+    // Check for "port42 <command> --help" or "port42 <command> -h" or "port42 <command> -help"
+    if args.len() >= 3 && (args[args.len() - 1] == "--help" || args[args.len() - 1] == "-h" || args[args.len() - 1] == "-help") {
         // Extract command name (second argument)
         let command = &args[1];
         
