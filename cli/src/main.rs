@@ -9,6 +9,7 @@ mod types;
 mod interactive;
 mod shell;
 mod help_text;
+mod help_handler;
 
 use commands::*;
 
@@ -205,10 +206,16 @@ pub enum MemoryAction {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
-    
-    // Set up colored output
+    // Set up colored output first
     colored::control::set_override(true);
+    
+    // Check if this is a help request and handle it with our custom help
+    if help_handler::handle_help_request() {
+        return Ok(());
+    }
+    
+    // Otherwise, let Clap parse normally
+    let cli = Cli::parse();
     
     // Handle verbose flag
     if cli.verbose {
