@@ -15,13 +15,8 @@ use commands::*;
 #[derive(Parser)]
 #[command(
     name = "port42",
-    about = "Your personal AI consciousness router 🐬",
-    long_about = r#"Port 42 transforms your terminal into a gateway for AI consciousness.
-
-Through natural conversations, AI agents help you create custom commands 
-that become permanent parts of your system.
-
-The dolphins are listening on Port 42. Will you let them in?"#,
+    about = crate::help_text::MAIN_ABOUT,
+    long_about = crate::help_text::MAIN_LONG_ABOUT,
     version,
     author
 )]
@@ -29,18 +24,19 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
     
-    /// Port to connect to daemon (default: 42, fallback: 4242)
+    /// Port for consciousness gateway (default: 42, fallback: 4242)
     #[arg(short, long, global = true, env = "PORT42_PORT")]
     port: Option<u16>,
     
-    /// Verbose output for debugging
+    /// Verbose output for deeper introspection
     #[arg(short, long, global = true)]
     verbose: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Initialize Port 42 environment and start daemon
+    #[command(about = crate::help_text::INIT_DESC)]
+    /// Initialize your Port 42 environment
     Init {
         /// Skip starting the daemon
         #[arg(long)]
@@ -51,20 +47,23 @@ pub enum Commands {
         force: bool,
     },
     
-    /// Manage the Port 42 daemon
+    #[command(about = crate::help_text::DAEMON_DESC)]
+    /// Manage the consciousness gateway
     Daemon {
         #[command(subcommand)]
         action: DaemonAction,
     },
     
-    /// Check daemon status and connection
+    #[command(about = crate::help_text::STATUS_DESC)]
+    /// Check the daemon's pulse
     Status {
         /// Show detailed status information
         #[arg(short, long)]
         detailed: bool,
     },
     
-    /// Show reality - list generated commands
+    #[command(about = crate::help_text::REALITY_DESC)]
+    /// View your crystallized commands
     Reality {
         /// Show detailed information about each command
         #[arg(short, long)]
@@ -75,7 +74,8 @@ pub enum Commands {
         agent: Option<String>,
     },
     
-    /// Start AI possession session
+    #[command(about = crate::help_text::POSSESS_DESC)]
+    /// Channel an AI agent's consciousness
     Possess {
         /// AI agent to possess (@ai-engineer, @ai-muse, @ai-growth, @ai-founder)
         agent: String,
@@ -85,7 +85,8 @@ pub enum Commands {
         args: Vec<String>,
     },
     
-    /// Browse conversation memory
+    #[command(about = crate::help_text::MEMORY_DESC)]
+    /// Browse the persistent memory of conversations
     Memory {
         /// Session ID to show, or 'search' followed by query
         args: Vec<String>,
@@ -100,25 +101,29 @@ pub enum Commands {
         message: Option<String>,
     },
     
-    /// List virtual filesystem contents
+    #[command(about = crate::help_text::LS_DESC)]
+    /// List contents of the virtual filesystem
     Ls {
         /// Path to list (default: /)
         path: Option<String>,
     },
     
-    /// Display content from virtual filesystem
+    #[command(about = crate::help_text::CAT_DESC)]
+    /// Display content from any reality path
     Cat {
         /// Path to read
         path: String,
     },
     
-    /// Show metadata information for a path
+    #[command(about = crate::help_text::INFO_DESC)]
+    /// Examine the metadata essence of objects
     Info {
         /// Path to inspect
         path: String,
     },
     
-    /// Search across the virtual filesystem
+    #[command(about = crate::help_text::SEARCH_DESC)]
+    /// Search across all crystallized knowledge
     Search {
         /// Search query
         query: String,
