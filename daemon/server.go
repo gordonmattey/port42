@@ -159,6 +159,15 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	// Process request
 	resp := d.handleRequest(req)
 	
+	// Debug: Check response size
+	respJSON, _ := json.Marshal(resp)
+	log.Printf("🔍 Response size for [%s]: %d bytes", resp.ID, len(respJSON))
+	
+	// For very large responses, log a warning
+	if len(respJSON) > 1024*1024 { // 1MB
+		log.Printf("⚠️ Large response detected: %.2f MB", float64(len(respJSON))/(1024*1024))
+	}
+	
 	// Send response
 	if err := encoder.Encode(resp); err != nil {
 		log.Printf("Error encoding response to %s: %v", clientAddr, err)
@@ -358,6 +367,8 @@ func (d *Daemon) handleListPath(req Request) Response {
 
 	// Get directory listing
 	entries := d.listVirtualPath(path)
+	
+	log.Printf("🔍 List operation for path '%s' returned %d entries", path, len(entries))
 
 	resp := NewResponse(req.ID, true)
 	resp.SetData(map[string]interface{}{
@@ -1058,7 +1069,7 @@ func (d *Daemon) generateArtifact(spec *ArtifactSpec) error {
 	}
 	
 	// Determine the base path for the artifact
-	basePath := fmt.Sprintf("artifacts/%s/%s", spec.Type, spec.Name)
+	basePath := fmt.Sprintf("/artifacts/%s/%s", spec.Type, spec.Name)
 	
 	// Handle single file vs multi-file artifacts
 	if spec.SingleFile != "" {

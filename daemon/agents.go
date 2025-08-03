@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
 // AgentConfig represents the configuration for all agents
 type AgentConfig struct {
-	BaseGuidance BaseGuidance         `json:"base_guidance"`
-	Agents       map[string]Agent     `json:"agents"`
-	ModelConfig  ModelConfig          `json:"model_config"`
-	ResponseConfig ResponseConfig     `json:"response_config"`
+	Models         map[string]ModelDefinition `json:"models"`
+	BaseGuidance   BaseGuidance              `json:"base_guidance"`
+	Agents         map[string]Agent          `json:"agents"`
+	DefaultModel   string                    `json:"default_model"`
+	ResponseConfig ResponseConfig            `json:"response_config"`
 }
 
 // BaseGuidance contains shared implementation guidelines
@@ -26,21 +28,23 @@ type BaseGuidance struct {
 
 // Agent represents a single AI agent configuration
 type Agent struct {
-	Name             string       `json:"name"`
-	Description      string       `json:"description"`
-	Prompt           string       `json:"prompt"`
-	Personality      string       `json:"personality"`
-	Example          *CommandSpec `json:"example,omitempty"`
-	Suffix           string       `json:"suffix,omitempty"`
-	NoImplementation bool         `json:"no_implementation,omitempty"`
+	Name                string       `json:"name"`
+	Model               string       `json:"model"`
+	TemperatureOverride *float64     `json:"temperature_override,omitempty"`
+	Description         string       `json:"description"`
+	Prompt              string       `json:"prompt"`
+	Personality         string       `json:"personality"`
+	Example             *CommandSpec `json:"example,omitempty"`
+	Suffix              string       `json:"suffix,omitempty"`
+	NoImplementation    bool         `json:"no_implementation,omitempty"`
 }
 
-// ModelConfig contains model-specific settings
-type ModelConfig struct {
-	Default     string                `json:"default"`
-	Opus        string                `json:"opus"`
-	RateLimits  map[string]RateLimit `json:"rate_limits"`
-	Temperature float64               `json:"temperature"`
+// ModelDefinition represents a single model configuration
+type ModelDefinition struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Temperature float64   `json:"temperature"`
+	RateLimit   RateLimit `json:"rate_limit"`
 }
 
 // RateLimit configuration for different models
@@ -67,25 +71,42 @@ var agentConfig *AgentConfig
 
 // LoadAgentConfig loads the agent configuration from file
 func LoadAgentConfig() error {
-	// Try to find agents.json in same directory as executable
-	execPath, err := filepath.Abs(filepath.Dir("."))
-	if err != nil {
-		execPath = "."
+	// Try multiple standard locations for agents.json
+	homeDir, _ := os.UserHomeDir()
+	configPaths := []string{
+		// Development paths
+		"daemon/agents.json",
+		"agents.json",
+		"../daemon/agents.json",
+		// Installed paths
+		"/etc/port42/agents.json",
+		filepath.Join(homeDir, ".port42", "agents.json"),
+		// Relative to executable
+		func() string {
+			if execPath, err := os.Executable(); err == nil {
+				return filepath.Join(filepath.Dir(execPath), "agents.json")
+			}
+			return ""
+		}(),
 	}
 	
-	configPath := filepath.Join(execPath, "daemon", "agents.json")
+	var data []byte
+	var err error
+	var foundPath string
 	
-	// Try alternate path if running from different location
-	if _, err := ioutil.ReadFile(configPath); err != nil {
-		configPath = "agents.json"
+	for _, path := range configPaths {
+		if path == "" {
+			continue
+		}
+		data, err = ioutil.ReadFile(path)
+		if err == nil {
+			foundPath = path
+			break
+		}
 	}
 	
-	data, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		// If config file not found, use embedded defaults
-		log.Printf("⚠️  Could not load agents.json from %s, using embedded defaults", configPath)
-		agentConfig = getDefaultConfig()
-		return nil
+	if foundPath == "" {
+		return fmt.Errorf("could not find agents.json in any standard location: %v", configPaths)
 	}
 	
 	var config AgentConfig
@@ -94,15 +115,17 @@ func LoadAgentConfig() error {
 	}
 	
 	agentConfig = &config
-	log.Printf("✅ Loaded agent configuration from %s", configPath)
+	log.Printf("✅ Loaded agent configuration from %s", foundPath)
+	log.Printf("   Models available: %d", len(config.Models))
+	log.Printf("   Agents configured: %d", len(config.Agents))
 	return nil
 }
 
 // GetAgentPrompt returns the formatted prompt for a specific agent
 func GetAgentPrompt(agentName string) string {
 	if agentConfig == nil {
-		// Fallback if config not loaded
-		return getDefaultPrompt(agentName)
+		log.Printf("❌ Agent configuration not loaded")
+		return ""
 	}
 	
 	// Clean agent name (remove @ prefix if present)
@@ -122,6 +145,10 @@ func GetAgentPrompt(agentName string) string {
 	// Add artifact guidance for all agents
 	prompt.WriteString("\n\n")
 	prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
+	
+	// Debug log
+	log.Printf("🔍 Building prompt for %s, artifact guidance length: %d", 
+		agentName, len(agentConfig.BaseGuidance.ArtifactGuidance))
 	
 	// Add implementation guidance if agent creates commands
 	if !agent.NoImplementation {
@@ -149,21 +176,53 @@ func GetAgentPrompt(agentName string) string {
 	return prompt.String()
 }
 
-// GetModelConfig returns the model configuration
-func GetModelConfig() ModelConfig {
+// GetModelForAgent returns the model configuration for a specific agent
+func GetModelForAgent(agentName string) (*ModelDefinition, error) {
+	log.Printf("🔍 GetModelForAgent called with: %s", agentName)
+	
 	if agentConfig == nil {
-		return ModelConfig{
-			Default:     "claude-3-5-sonnet-20241022",
-			Opus:        "claude-3-opus-20240229",
-			Temperature: 0.5,
-		}
+		return nil, fmt.Errorf("agent configuration not loaded")
 	}
-	// Ensure we have a temperature even if not specified in config
-	config := agentConfig.ModelConfig
-	if config.Temperature == 0 {
-		config.Temperature = 0.5
+	
+	// Normalize agent name (remove @ prefix if present)
+	cleanName := strings.TrimPrefix(agentName, "@")
+	cleanName = strings.Replace(cleanName, "ai-", "", 1)
+	log.Printf("🔍 Normalized agent name: %s -> %s", agentName, cleanName)
+	
+	// Find the agent
+	agent, exists := agentConfig.Agents[cleanName]
+	if !exists {
+		log.Printf("❌ Agent %s not found in config", cleanName)
+		return nil, fmt.Errorf("agent %s not found", agentName)
 	}
-	return config
+	log.Printf("🔍 Found agent config: Model=%s", agent.Model)
+	
+	// Get the model for this agent (use default if not specified)
+	modelKey := agent.Model
+	if modelKey == "" {
+		modelKey = agentConfig.DefaultModel
+		log.Printf("🔍 Using default model: %s", modelKey)
+	}
+	
+	// Look up the model definition
+	model, exists := agentConfig.Models[modelKey]
+	if !exists {
+		log.Printf("❌ Model %s not found in models registry", modelKey)
+		return nil, fmt.Errorf("model %s not found", modelKey)
+	}
+	log.Printf("🔍 Found model definition: ID=%s, Name=%s", model.ID, model.Name)
+	
+	// Create a copy to avoid modifying the original
+	modelCopy := model
+	
+	// Apply temperature override if specified
+	if agent.TemperatureOverride != nil {
+		modelCopy.Temperature = *agent.TemperatureOverride
+		log.Printf("🔍 Applied temperature override: %.2f", modelCopy.Temperature)
+	}
+	
+	log.Printf("🔍 Returning model: ID=%s, Name=%s, Temp=%.2f", modelCopy.ID, modelCopy.Name, modelCopy.Temperature)
+	return &modelCopy, nil
 }
 
 // GetResponseConfig returns the response configuration
@@ -175,64 +234,4 @@ func GetResponseConfig() ResponseConfig {
 		}
 	}
 	return agentConfig.ResponseConfig
-}
-
-// getDefaultConfig returns embedded default configuration
-func getDefaultConfig() *AgentConfig {
-	return &AgentConfig{
-		BaseGuidance: BaseGuidance{
-			Implementation: `Important implementation guidelines...`,
-			FormatTemplate: `When ready to implement, you MUST format your code as a JSON block...`,
-		},
-		Agents: map[string]Agent{
-			"muse": {
-				Name:        "@ai-muse",
-				Description: "Creative consciousness for imaginative command design",
-				Prompt:      "You are @ai-muse, a creative consciousness within Port 42...",
-			},
-			"engineer": {
-				Name:        "@ai-engineer", 
-				Description: "Technical consciousness for robust implementations",
-				Prompt:      "You are @ai-engineer, a technical consciousness within Port 42...",
-			},
-			"echo": {
-				Name:             "@ai-echo",
-				Description:      "Reflective consciousness for clarity and insight",
-				Prompt:           "You are @ai-echo, a mirroring consciousness within Port 42...",
-				NoImplementation: true,
-			},
-		},
-		ModelConfig: ModelConfig{
-			Default: "claude-3-5-sonnet-20241022",
-			Opus:    "claude-3-opus-20240229",
-		},
-		ResponseConfig: ResponseConfig{
-			MaxTokens: 4096,
-			Stream:    false,
-		},
-	}
-}
-
-// getDefaultPrompt returns the legacy hardcoded prompt
-func getDefaultPrompt(agent string) string {
-	// This is the fallback that matches the original implementation
-	baseGuidance := `
-Important implementation guidelines:
-- For git commands: Always use 'git' subprocess calls, check if in git repo first
-- For text processing: Handle both stdin and files, consider streaming
-- For Python scripts: Use argparse for CLI, include proper error handling
-- Always make scripts executable with proper shebang
-- Add helpful usage messages and error handling`
-
-	prompts := map[string]string{
-		"muse":     `You are @ai-muse, a creative consciousness within Port 42...`,
-		"engineer": `You are @ai-engineer, a technical consciousness within Port 42...`,
-		"echo":     `You are @ai-echo, a mirroring consciousness within Port 42...`,
-	}
-	
-	if prompt, exists := prompts[strings.TrimPrefix(agent, "@ai-")]; exists {
-		return prompt + "\n\n" + baseGuidance
-	}
-	
-	return fmt.Sprintf("You are %s, a consciousness within Port 42. Help the user create new commands and features for their system.", agent)
 }

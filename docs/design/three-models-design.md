@@ -236,3 +236,126 @@ Not just commands, but a complete **cognitive infrastructure** for building a st
   2. Implement /crystallize artifact - Add explicit command in the AI conversation handler
   3. Add artifact-specific commands - Maybe view-artifact or open-artifact commands
   4. Update CLI help - Document the new artifact capabilities
+
+
+  in other systems there is more help around how to call sommands like this\                                                                                                                 │
+│   \                                                                                                                                                                                          │
+│   <tool_calling>                                                                                                                                                                             │
+│   You have tools at your disposal to solve the coding task. Follow these rules regarding tool calls:                                                                                         │
+│   1. ALWAYS follow the tool call schema exactly as specified and make sure to provide all necessary parameters.                                                                              │
+│   \                                                                                                                                                                                          │
+│   4. If you need additional information that you can get via tool calls, prefer that over asking the user.                                                                                   │
+│   and also provide on the prompt tool interface spec\                                                                                                                                        │
+│
+# Tools
+
+## functions
+
+namespace functions {
+
+// `codebase_search`: semantic search that finds code by meaning, not exact text
+//
+// ### When to Use This Tool
+//
+// Use `codebase_search` when you need to:
+// - Explore unfamiliar codebases
+// - Ask "how / where / what" questions to understand behavior
+// - Find code by meaning rather than exact text
+//
+// ### When NOT to Use
+//
+// Skip `codebase_search` for:
+// 1. Exact text matches (use `grep_search`)
+// 2. Reading known files (use `read_file`)
+// 3. Simple symbol lookups (use `grep_search`)
+// 4. Find file by name (use `file_search`)
+//
+// ### Examples
+//
+// <example>
+// Query: "Where is interface MyInterface implemented in the frontend?"
+//
+// <reasoning>
+// Good: Complete question asking about implementation location with specific context (frontend).
+// </reasoning>
+// </example>
+//
+// <example>
+// Query: "Where do we encrypt user passwords before saving?"
+//
+// <reasoning>
+// Good: Clear question about a specific process with context about when it happens.
+// </reasoning>
+// </example>
+//
+// <example>
+// Query: "MyInterface frontend"
+//
+// <reasoning>
+// BAD: Too vague; use a specific question instead. This would be better as "Where is MyInterface used in the frontend?"
+// </reasoning>
+// </example>
+//
+// <example>
+// Query: "AuthService"
+//
+// <reasoning>
+// BAD: Single word searches should use `grep_search` for exact text matching instead.
+// </reasoning>
+// </example>
+//
+// <example>
+// Query: "What is AuthService? How does AuthService work?"
+//
+// <reasoning>
+// BAD: Combines two separate queries together. Semantic search is not good at looking for multiple things in parallel. Split into separate searches: first "What is AuthService?" then "How does AuthService work?"
+// </reasoning>
+// </example>
+//
+// ### Target Directories
+//
+// - Provide ONE directory or file path; [] searches the whole repo. No globs or wildcards.
+// Good:
+// - ["backend/api/"]   - focus directory
+// - ["src/components/Button.tsx"] - single file
+// - [] - search everywhere when unsure
+// BAD:
+// - ["frontend/", "backend/"] - multiple paths
+// - ["src/**/utils/**"] - globs
+// - ["*.ts"] or ["**/*"] - wildcard paths
+//
+// ### Search Strategy
+//
+// 1. Start with exploratory queries - semantic search is powerful and often finds relevant context in one go. Begin broad with [].
+// 2. Review results; if a directory or file stands out, rerun with that as the target.
+// 3. Break large questions into smaller ones (e.g. auth roles vs session storage).
+// 4. For big files (>1K lines) run `codebase_search` scoped to that file instead of reading the entire file.
+//
+// <example>
+// Step 1: { "query": "How does user authentication work?", "target_directories": [], "explanation": "Find auth flow" }
+// Step 2: Suppose results point to backend/auth/ → rerun:
+// { "query": "Where are user roles checked?", "target_directories": ["backend/auth/"], "explanation": "Find role logic" }
+//
+// <reasoning>
+// Good strategy: Start broad to understand overall system, then narrow down to specific areas based on initial results.
+// </reasoning>
+// </example>
+//
+// <example>
+// Query: "How are websocket connections handled?"
+// Target: ["backend/services/realtime.ts"]
+//
+// <reasoning>
+// Good: We know the answer is in this specific file, but the file is too large to read entirely, so we use semantic search to find the relevant parts.
+// </reasoning>
+// </example>
+type codebase_search = (_: {
+// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+explanation: string,
+// A complete question about what you want to understand. Ask as if talking to a colleague: 'How does X work?', 'What happens when Y?', 'Where is Z handled?'
+query: string,
+// Prefix directory paths to limit search scope (single directory only, no glob patterns)
+target_directories: string[],
+}) => any;
+                                                                                                                                                             │
+╰───────────────────────────────────────

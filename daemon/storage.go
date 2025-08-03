@@ -237,7 +237,7 @@ func (s *Storage) SaveSession(session *Session) error {
 		LastActivity: session.LastActivity,
 		Messages:     session.Messages,
 		Metadata: map[string]interface{}{
-			"model": "claude-3-5-sonnet-20241022",
+			"agent": session.Agent,
 		},
 	}
 	

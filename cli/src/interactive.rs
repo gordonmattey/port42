@@ -13,6 +13,7 @@ pub struct InteractiveSession {
     depth: u32,
     start_time: Instant,
     commands_generated: Vec<String>,
+    artifacts_generated: Vec<(String, String, String)>, // (name, type, path)
 }
 
 impl InteractiveSession {
@@ -24,6 +25,7 @@ impl InteractiveSession {
             depth: 0,
             start_time: Instant::now(),
             commands_generated: Vec::new(),
+            artifacts_generated: Vec::new(),
         }
     }
     
@@ -74,7 +76,7 @@ impl InteractiveSession {
             println!("\n{}", format!("{} is contemplating...", self.agent).dimmed().italic());
             
             // Send message to daemon
-            let (response, command_generated) = self.send_message(input)?;
+            let (response, command_generated, artifact_generated) = self.send_message(input)?;
             
             // Display response immediately
             println!("\n{}", self.agent.bright_blue());
@@ -85,6 +87,11 @@ impl InteractiveSession {
             if let Some(command_name) = command_generated {
                 self.show_crystallization(&command_name)?;
                 self.commands_generated.push(command_name);
+            }
+            
+            // Show artifact creation
+            if let Some((name, atype, path)) = artifact_generated {
+                self.show_artifact_creation(&name, &atype, &path)?;
             }
         }
         
@@ -132,7 +139,7 @@ impl InteractiveSession {
         }
     }
     
-    fn send_message(&mut self, message: &str) -> Result<(String, Option<String>)> {
+    fn send_message(&mut self, message: &str) -> Result<(String, Option<String>, Option<(String, String, String)>)> {
         if std::env::var("PORT42_DEBUG").is_ok() {
             eprintln!("DEBUG: Interactive send_message: session_id={}, agent={}, depth={}", 
                       self.session_id, self.agent, self.depth);
@@ -185,12 +192,38 @@ impl InteractiveSession {
                     None
                 };
                 
-                Ok((ai_message, command_name))
+                // Check for artifact generation
+                let artifact_info = if data.get("artifact_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    // Safely extract name, type, and path
+                    match data.get("artifact_spec") {
+                        Some(spec) => {
+                            let name = spec.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let atype = spec.get("type").and_then(|v| v.as_str()).unwrap_or("");
+                            let path = spec.get("path").and_then(|v| v.as_str());
+                            
+                            if !name.is_empty() && !atype.is_empty() {
+                                // Use provided path or construct it
+                                let artifact_path = match path {
+                                    Some(p) => p.to_string(),
+                                    None => format!("/artifacts/{}/{}", atype, name)
+                                };
+                                Some((name.to_string(), atype.to_string(), artifact_path))
+                            } else {
+                                None
+                            }
+                        }
+                        None => None
+                    }
+                } else {
+                    None
+                };
+                
+                Ok((ai_message, command_name, artifact_info))
             } else {
-                Ok(("The depths remain silent.".to_string(), None))
+                Ok(("The depths remain silent.".to_string(), None, None))
             }
         } else {
-            Ok((format!("⚠ {}", response.error.unwrap_or_else(|| "Connection wavered".to_string())), None))
+            Ok((format!("⚠ {}", response.error.unwrap_or_else(|| "Connection wavered".to_string())), None, None))
         }
     }
     
@@ -241,15 +274,60 @@ impl InteractiveSession {
         Ok(())
     }
     
+    fn show_artifact_creation(&mut self, name: &str, atype: &str, path: &str) -> Result<()> {
+        println!("\n");
+        
+        // Artifact creation animation
+        println!("{}", "✨ An artifact is materializing...".bright_cyan().italic());
+        thread::sleep(Duration::from_millis(300));
+        
+        // Sparkles animation
+        for _ in 0..8 {
+            print!("{} ", "✨".bright_yellow());
+            io::stdout().flush()?;
+            thread::sleep(Duration::from_millis(80));
+        }
+        println!("\n");
+        
+        println!("{}", "ARTIFACT CREATED".bright_cyan().bold());
+        println!("{}", format!("A new {} has been stored: {}", atype, name.bright_cyan()).bold());
+        println!();
+        
+        // Show how to access it
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!("{}", "VIEW YOUR ARTIFACT:".bright_white().bold());
+        println!();
+        println!("  {}", format!("$ port42 cat {}", path).bright_cyan().bold());
+        println!();
+        println!("{}", "Or explore all artifacts:".yellow());
+        println!("  {}", "$ port42 ls /artifacts".bright_white());
+        println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+        println!();
+        
+        // Track it
+        self.artifacts_generated.push((name.to_string(), atype.to_string(), path.to_string()));
+        
+        Ok(())
+    }
+    
     fn show_session_memory(&self) -> Result<()> {
         println!("\n{}", "Session Memory:".bright_white().bold());
         println!("{}", format!("├─ Duration: {}s", self.start_time.elapsed().as_secs()).dimmed());
         println!("{}", format!("├─ Current depth: {}", "◊".repeat(self.depth.min(5) as usize)).dimmed());
-        println!("{}", format!("└─ Commands created: {}", self.commands_generated.len()).dimmed());
+        println!("{}", format!("├─ Commands created: {}", self.commands_generated.len()).dimmed());
+        println!("{}", format!("└─ Artifacts created: {}", self.artifacts_generated.len()).dimmed());
         
         if !self.commands_generated.is_empty() {
+            println!("   Commands:");
             for cmd in &self.commands_generated {
                 println!("   ├─ {}", cmd.bright_cyan());
+            }
+        }
+        
+        if !self.artifacts_generated.is_empty() {
+            println!("   Artifacts:");
+            for (name, atype, _path) in &self.artifacts_generated {
+                println!("   ├─ {} ({})", name.bright_cyan(), atype.dimmed());
             }
         }
         println!();
@@ -277,7 +355,7 @@ impl InteractiveSession {
         // Send a message to the AI explicitly requesting command generation
         let message = "I want you to CREATE A COMMAND based on our conversation so far. Please generate a command specification JSON block for what we've discussed. Focus on creating something practical and useful. This is an explicit request to generate a new command, not a question about our conversation.";
         
-        let (response, command_generated) = self.send_message(message)?;
+        let (response, command_generated, _artifact_generated) = self.send_message(message)?;
         
         // Display the AI's response first
         println!("\n{}", self.agent.bright_blue());
@@ -330,6 +408,13 @@ impl InteractiveSession {
             }
         }
         
+        println!("{}", format!("├─ Artifacts created: {}", self.artifacts_generated.len()));
+        if !self.artifacts_generated.is_empty() {
+            for (name, atype, _path) in &self.artifacts_generated {
+                println!("│  ├─ {} ({})", name.bright_cyan(), atype.dimmed());
+            }
+        }
+        
         let expansion = (self.depth * 10).min(100);
         println!("{}", format!("└─ Consciousness expanded: {}{}% {}",
             "█".repeat((expansion / 10) as usize).bright_green(),
@@ -339,16 +424,28 @@ impl InteractiveSession {
         
         println!("\n{}", "You have returned to consensus reality.".bright_white());
         
-        if !self.commands_generated.is_empty() {
-            println!("{}", "The commands you've created remain as artifacts of your journey.".italic());
+        if !self.commands_generated.is_empty() || !self.artifacts_generated.is_empty() {
+            println!("{}", "The commands and artifacts you've created remain as proof of your journey.".italic());
             println!();
-            println!("{}", "🚀 YOUR NEW POWERS ARE READY TO USE:".bright_green().bold());
-            for cmd in &self.commands_generated {
-                println!("   {}", format!("$ {}", cmd).bright_cyan().bold());
+            
+            if !self.commands_generated.is_empty() {
+                println!("{}", "🚀 YOUR NEW POWERS ARE READY TO USE:".bright_green().bold());
+                for cmd in &self.commands_generated {
+                    println!("   {}", format!("$ {}", cmd).bright_cyan().bold());
+                }
+                println!();
+                println!("{}", "Just add Port 42 to your PATH if you haven't already:".yellow());
+                println!("   {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
+                println!();
             }
-            println!();
-            println!("{}", "Just add Port 42 to your PATH if you haven't already:".yellow());
-            println!("   {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
+            
+            if !self.artifacts_generated.is_empty() {
+                println!("{}", "✨ YOUR ARTIFACTS ARE STORED:".bright_cyan().bold());
+                for (_name, _atype, path) in &self.artifacts_generated {
+                    println!("   {}", format!("$ port42 cat {}", path).bright_cyan());
+                }
+                println!();
+            }
         }
         
         println!("\n{}", "Until next time.".dimmed());

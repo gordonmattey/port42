@@ -207,6 +207,27 @@ fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, messag
                                 }
                             }
                         }
+                        
+                        // Check if artifact was generated
+                        if data.get("artifact_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            if let Some(spec) = data.get("artifact_spec") {
+                                if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
+                                    if let Some(artifact_type) = spec.get("type").and_then(|v| v.as_str()) {
+                                        // Use the full path if provided, otherwise construct it
+                                        let artifact_path = if let Some(path) = spec.get("path").and_then(|v| v.as_str()) {
+                                            path.to_string()
+                                        } else {
+                                            format!("/artifacts/{}/{}", artifact_type, name)
+                                        };
+                                        
+                                        println!("{}", format!("✨ Artifact created: {} ({})", name, artifact_type).bright_cyan().bold());
+                                        println!("{}", "View with:".yellow());
+                                        println!("  {}", format!("port42 cat {}", artifact_path).bright_white());
+                                        println!();
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         println!("{}", "No message in response".dimmed());
                     }

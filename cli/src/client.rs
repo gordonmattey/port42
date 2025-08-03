@@ -124,8 +124,22 @@ impl DaemonClient {
             eprintln!("DEBUG: About to read response line");
         }
         
-        let bytes_read = reader.read_line(&mut line)
-            .map_err(|e| self.enhance_io_error(e, "reading response"))?;
+        // Retry on EAGAIN (Resource temporarily unavailable)
+        let mut retry_count = 0;
+        let bytes_read = loop {
+            match reader.read_line(&mut line) {
+                Ok(bytes) => break bytes,
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && retry_count < 3 => {
+                    if std::env::var("PORT42_DEBUG").is_ok() {
+                        eprintln!("DEBUG: Got EAGAIN, retry {} of 3", retry_count + 1);
+                    }
+                    retry_count += 1;
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                Err(e) => return Err(self.enhance_io_error(e, "reading response")),
+            }
+        };
             
         if std::env::var("PORT42_DEBUG").is_ok() {
             eprintln!("DEBUG: Read {} bytes, has_newline={}", bytes_read, line.ends_with('\n'));
@@ -313,6 +327,14 @@ impl DaemonClient {
                     "{}\n\n{}",
                     format!("⏱️  Timeout while {}", context).red().bold(),
                     "The operation took too long. The daemon might be processing another request.".yellow()
+                )
+            }
+            ErrorKind::WouldBlock => {
+                anyhow!(
+                    "{}\n\n{}\n{}",
+                    format!("🔄 Resource temporarily unavailable while {}", context).red().bold(),
+                    "The socket buffer might be full or timing issue occurred.".yellow(),
+                    "This usually resolves itself. Try again.".dimmed()
                 )
             }
             _ => anyhow!("IO error while {}: {}", context, err),

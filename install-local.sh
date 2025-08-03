@@ -135,6 +135,12 @@ install_binaries() {
         exit 1
     fi
     
+    # Check if agents.json exists
+    if [ ! -f "$SCRIPT_DIR/daemon/agents.json" ]; then
+        print_error "agents.json not found in daemon directory"
+        exit 1
+    fi
+    
     # Check if we need sudo
     if [ -w "$INSTALL_DIR" ]; then
         cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/"
@@ -144,6 +150,11 @@ install_binaries() {
         sudo cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/"
         sudo cp "$SCRIPT_DIR/bin/port42" "$INSTALL_DIR/"
     fi
+    
+    # Copy agents.json to user config directory
+    mkdir -p "$PORT42_HOME"
+    cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
+    print_success "Configuration copied to $PORT42_HOME/agents.json"
     
     print_success "Binaries installed"
 }

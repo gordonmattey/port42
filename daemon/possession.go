@@ -121,16 +121,19 @@ type AnthropicMessage struct {
 
 // Send a message to Claude with retry logic
 func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentName string) (*AnthropicResponse, error) {
-	// Get model configuration
-	modelConfig := GetModelConfig()
+	// Get model configuration for this agent
+	modelDef, err := GetModelForAgent(agentName)
+	if err != nil {
+		log.Printf("⚠️ Failed to get model for agent %s: %v", agentName, err)
+		return nil, err
+	}
 	responseConfig := GetResponseConfig()
 	
 	// Rate limiting: ensure minimum time between requests
 	c.requestMutex.Lock()
 	timeSinceLastRequest := time.Since(c.lastRequest)
 	
-	// Default to Sonnet rate limit
-	minDelay := time.Duration(modelConfig.RateLimits["sonnet"].MinDelaySeconds) * time.Second
+	minDelay := time.Duration(modelDef.RateLimit.MinDelaySeconds) * time.Second
 	if minDelay == 0 {
 		minDelay = 1 * time.Second // fallback
 	}
@@ -188,17 +191,26 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 		log.Printf("⚠️ Agent config is nil!")
 	}
 	
+	// Debug log the model
+	log.Printf("🔍 Using model for agent %s: ID=%s, Name=%s, Temp=%.2f", 
+		agentName, modelDef.ID, modelDef.Name, modelDef.Temperature)
+	
 	req := AnthropicRequest{
-		Model:       modelConfig.Default,
+		Model:       modelDef.ID,
 		System:      systemPrompt,
 		Messages:    anthropicMessages,
 		MaxTokens:   responseConfig.MaxTokens,
 		Stream:      responseConfig.Stream,
-		Temperature: modelConfig.Temperature,
+		Temperature: modelDef.Temperature,
 		Tools:       tools,
 	}
 	
 	log.Printf("🔧 Sending request with %d tools to API", len(tools))
+	
+	// Log the actual tools being sent
+	for i, tool := range tools {
+		log.Printf("  Tool %d: %s - %s", i+1, tool.Name, tool.Description)
+	}
 	
 	jsonData, err := json.Marshal(req)
 	if err != nil {
@@ -211,11 +223,16 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 	
 	// Log system prompt
 	if req.System != "" {
+		// Log if prompt contains XML tags
+		hasXMLTags := strings.Contains(req.System, "<tool_instructions>")
+		log.Printf("  System prompt contains XML tags: %v", hasXMLTags)
+		
+		// Show more of the prompt for debugging
 		systemPreview := req.System
-		if len(systemPreview) > 200 {
-			systemPreview = systemPreview[:200] + "..."
+		if len(systemPreview) > 500 {
+			systemPreview = systemPreview[:500] + "..."
 		}
-		log.Printf("  System prompt: %s", systemPreview)
+		log.Printf("  System prompt preview: %s", systemPreview)
 	}
 	
 	// Log full payload for debugging
@@ -427,8 +444,12 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		// For now, just log it
 		log.Printf("🎨 Artifact generated in session %s: %s", session.ID, artifactSpec.Name)
 		
-		// Generate the artifact!
-		go d.generateArtifact(artifactSpec)
+		// Generate the artifact asynchronously (like commands)
+		go func() {
+			if err := d.generateArtifact(artifactSpec); err != nil {
+				log.Printf("❌ Failed to generate artifact: %v", err)
+			}
+		}()
 	}
 	
 	session.mu.Unlock()
@@ -449,8 +470,31 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	}
 	
 	if commandSpec != nil {
-		data["command_spec"] = commandSpec
+		// Only send essential info, not full implementation
+		data["command_spec"] = map[string]interface{}{
+			"name":        commandSpec.Name,
+			"description": commandSpec.Description,
+			"language":    commandSpec.Language,
+		}
 		data["command_generated"] = true
+	}
+	
+	if artifactSpec != nil {
+		// Build the full path with extension
+		artifactPath := fmt.Sprintf("/artifacts/%s/%s", artifactSpec.Type, artifactSpec.Name)
+		if artifactSpec.Format != "" && !strings.Contains(artifactSpec.Name, ".") {
+			artifactPath = fmt.Sprintf("%s.%s", artifactPath, artifactSpec.Format)
+		}
+		
+		// Only send essential info, not full content
+		data["artifact_spec"] = map[string]interface{}{
+			"name":        artifactSpec.Name,
+			"type":        artifactSpec.Type,
+			"description": artifactSpec.Description,
+			"format":      artifactSpec.Format,
+			"path":        artifactPath,  // Include the full path with extension
+		}
+		data["artifact_generated"] = true
 	}
 	
 	// Debug: Log response size
