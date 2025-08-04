@@ -13,6 +13,7 @@ mod help_handler;
 mod protocol;
 mod possess;
 mod common;
+mod display;
 
 use commands::*;
 
