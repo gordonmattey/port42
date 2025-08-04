@@ -8,6 +8,10 @@ use crate::common::{generate_id, errors::Port42Error};
 use crate::help_text;
 
 pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
+    handle_memory_with_format(port, action, OutputFormat::Plain)
+}
+
+pub fn handle_memory_with_format(port: u16, action: Option<MemoryAction>, format: OutputFormat) -> Result<()> {
     let mut client = DaemonClient::new(port);
     
     match action {
@@ -33,11 +37,13 @@ pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
             let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
             let memory_list = MemoryListResponse::parse_response(&data)?;
             
-            memory_list.display(OutputFormat::Plain)?;
+            memory_list.display(format)?;
         }
         
         Some(MemoryAction::Search { query, limit: _ }) => {
-            println!("{}", help_text::format_searching(&query).blue().bold());
+            if format != OutputFormat::Json {
+                println!("{}", help_text::format_searching(&query).blue().bold());
+            }
             println!("{}", help_text::ERR_EVOLVE_NOT_READY.yellow());
             println!("{}", "Try: memory  (to list all threads)".dimmed());
             // Could implement by fetching all sessions and filtering
@@ -72,7 +78,7 @@ pub fn handle_memory(port: u16, action: Option<MemoryAction>) -> Result<()> {
             let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
             let memory_detail = MemoryDetailResponse::parse_response(&data)?;
             
-            memory_detail.display(OutputFormat::Plain)?;
+            memory_detail.display(format)?;
         }
     }
     

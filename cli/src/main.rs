@@ -36,6 +36,10 @@ struct Cli {
     /// Verbose output for deeper introspection
     #[arg(short, long, global = true)]
     verbose: bool,
+    
+    /// Output in JSON format for machine processing
+    #[arg(short, long, global = true)]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -95,15 +99,6 @@ pub enum Commands {
     Memory {
         /// Session ID to show, or 'search' followed by query
         args: Vec<String>,
-    },
-    
-    /// Evolve an existing command
-    Evolve {
-        /// Name of the command to evolve
-        command: String,
-        
-        /// Description of desired changes
-        message: Option<String>,
     },
     
     #[command(about = crate::help_text::LS_DESC)]
@@ -238,6 +233,13 @@ fn main() -> Result<()> {
         }
     });
     
+    // Determine output format
+    let output_format = if cli.json {
+        display::OutputFormat::Json
+    } else {
+        display::OutputFormat::Plain
+    };
+    
     // Route to command handlers
     match cli.command {
         Some(Commands::Init { no_start, force }) => {
@@ -249,11 +251,20 @@ fn main() -> Result<()> {
         }
         
         Some(Commands::Status { detailed }) => {
-            status::handle_status(port, detailed)?;
+            let mut client = client::DaemonClient::new(port);
+            if cli.json {
+                status::handle_status_with_format(&mut client, detailed, display::OutputFormat::Json)?;
+            } else {
+                status::handle_status(port, detailed)?;
+            }
         }
         
         Some(Commands::Reality { verbose, agent }) => {
-            reality::handle_reality(port, verbose, agent)?;
+            if cli.json {
+                reality::handle_reality_with_format(port, verbose, agent, display::OutputFormat::Json)?;
+            } else {
+                reality::handle_reality(port, verbose, agent)?;
+            }
         }
         
         Some(Commands::Possess { agent, args }) => {
@@ -323,31 +334,48 @@ fn main() -> Result<()> {
                 })
             };
             
-            memory::handle_memory(port, action)?;
+            if cli.json {
+                memory::handle_memory_with_format(port, action, display::OutputFormat::Json)?;
+            } else {
+                memory::handle_memory(port, action)?;
+            }
         }
         
-        Some(Commands::Evolve { command, message }) => {
-            evolve::handle_evolve(port, command, message)?;
-        }
         
         Some(Commands::Ls { path }) => {
             let mut client = client::DaemonClient::new(port);
-            ls::handle_ls(&mut client, path)?;
+            if cli.json {
+                ls::handle_ls_with_format(&mut client, path, display::OutputFormat::Json)?;
+            } else {
+                ls::handle_ls(&mut client, path)?;
+            }
         }
         
         Some(Commands::Cat { path }) => {
             let mut client = client::DaemonClient::new(port);
-            cat::handle_cat(&mut client, path)?;
+            if cli.json {
+                cat::handle_cat_with_format(&mut client, path, display::OutputFormat::Json)?;
+            } else {
+                cat::handle_cat(&mut client, path)?;
+            }
         }
         
         Some(Commands::Info { path }) => {
             let mut client = client::DaemonClient::new(port);
-            info::handle_info(&mut client, path)?;
+            if cli.json {
+                info::handle_info_with_format(&mut client, path, display::OutputFormat::Json)?;
+            } else {
+                info::handle_info(&mut client, path)?;
+            }
         }
         
         Some(Commands::Search { query, path, type_filter, after, before, agent, tags, limit }) => {
             let mut client = client::DaemonClient::new(port);
-            search::handle_search(&mut client, query, path, type_filter, after, before, agent, tags, limit)?;
+            if cli.json {
+                search::handle_search_with_format(&mut client, query, path, type_filter, after, before, agent, tags, limit, display::OutputFormat::Json)?;
+            } else {
+                search::handle_search(&mut client, query, path, type_filter, after, before, agent, tags, limit)?;
+            }
         }
         
         None => {

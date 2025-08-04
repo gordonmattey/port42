@@ -8,10 +8,14 @@ use crate::common::{generate_id, errors::Port42Error};
 use crate::help_text;
 
 pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
-    println!("{}", help_text::MSG_CHECKING_STATUS.blue().bold());
-    
-    // Create client
     let mut client = DaemonClient::new(port);
+    handle_status_with_format(&mut client, detailed, OutputFormat::Plain)
+}
+
+pub fn handle_status_with_format(client: &mut DaemonClient, detailed: bool, format: OutputFormat) -> Result<()> {
+    if format != OutputFormat::Json {
+        println!("{}", help_text::MSG_CHECKING_STATUS.blue().bold());
+    }
     
     // Build request using protocol types
     let request = StatusRequest.build_request(generate_id())?;
@@ -36,19 +40,16 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
             let status_response = StatusResponse::parse_response(&data)?;
             
             // Display using framework
-            let format = if detailed {
-                // For now, detailed mode uses plain format with more info
-                // In the future, we could add a DetailedStatusResponse type
-                OutputFormat::Plain
-            } else {
-                OutputFormat::Plain
-            };
-            
             status_response.display(format)?;
         }
-        Err(e) => {
-            // Connection failed - show offline message
-            println!("{}", help_text::format_daemon_connection_error(port));
+        Err(_) => {
+            if format == OutputFormat::Json {
+                // For JSON, output an offline status
+                println!(r#"{{"status":"offline","port":{},"error":"Connection failed"}}"#, client.port());
+            } else {
+                // Connection failed - show offline message
+                println!("{}", help_text::format_daemon_connection_error(client.port()));
+            }
             return Ok(());
         }
     }

@@ -6,9 +6,15 @@ use crate::protocol::{RealityData, CommandInfo};
 use crate::display::{Displayable, OutputFormat};
 use crate::help_text;
 
-pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
-    println!("{}", help_text::MSG_COMMANDS_HEADER.blue().bold());
-    println!();
+pub fn handle_reality(port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
+    handle_reality_with_format(port, verbose, agent, OutputFormat::Plain)
+}
+
+pub fn handle_reality_with_format(_port: u16, verbose: bool, agent: Option<String>, format: OutputFormat) -> Result<()> {
+    if format != OutputFormat::Json {
+        println!("{}", help_text::MSG_COMMANDS_HEADER.blue().bold());
+        println!();
+    }
     
     let commands_dir = dirs::home_dir()
         .context("Could not find home directory")?  
@@ -23,7 +29,7 @@ pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Resul
             commands_dir,
         };
         
-        return reality_data.display(OutputFormat::Plain);
+        return reality_data.display(format);
     }
     
     let mut commands = Vec::new();
@@ -89,13 +95,15 @@ pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Resul
     };
     
     // Display using the framework
-    let format = if verbose {
+    let display_format = if format == OutputFormat::Json {
+        OutputFormat::Json
+    } else if verbose {
         OutputFormat::Table
     } else {
         OutputFormat::Plain
     };
     
-    reality_data.display(format)?;
+    reality_data.display(display_format)?;
     
     Ok(())
 }

@@ -42,6 +42,10 @@ impl DaemonClient {
         }
     }
     
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+    
     /// Ensure we have a valid connection to the daemon
     pub fn ensure_connected(&mut self) -> Result<()> {
         // Guard against recursion
