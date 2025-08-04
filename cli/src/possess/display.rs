@@ -1,5 +1,6 @@
 use crate::help_text;
 use crate::protocol::{CommandSpec, ArtifactSpec};
+use crate::display::{StatusIndicator, ProgressIndicator};
 use colored::*;
 use std::io::{self, Write};
 use std::thread;
@@ -29,14 +30,14 @@ impl PossessDisplay for SimpleDisplay {
     }
     
     fn show_command_created(&self, spec: &CommandSpec) {
-        println!("{}", help_text::format_command_born(&spec.name).bright_green().bold());
+        println!("{} {}", StatusIndicator::success(), help_text::format_command_born(&spec.name).bright_green().bold());
         println!("{}", "Add to PATH to use:".yellow());
         println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
         println!();
     }
     
     fn show_artifact_created(&self, spec: &ArtifactSpec) {
-        println!("{}", format!("✨ Artifact created: {} ({})", spec.name, spec.artifact_type).bright_cyan().bold());
+        println!("{} {}", StatusIndicator::success(), format!("Artifact created: {} ({})", spec.name, spec.artifact_type).bright_cyan().bold());
         println!("{}", "View with:".yellow());
         println!("  {}", format!("port42 cat {}", spec.path).bright_white());
         println!();
@@ -51,7 +52,7 @@ impl PossessDisplay for SimpleDisplay {
     }
     
     fn show_error(&self, error: &str) {
-        eprintln!("{}", error.red());
+        eprintln!("{} {}", StatusIndicator::error(), error.red());
     }
 }
 
@@ -78,16 +79,14 @@ impl AnimatedDisplay {
     }
     
     fn show_thinking(&self) {
-        print!("{}", "🤔 Thinking".dimmed());
-        io::stdout().flush().unwrap();
+        let mut progress = ProgressIndicator::new("Thinking");
         
-        for _ in 0..3 {
-            thread::sleep(Duration::from_millis(500));
-            print!("{}", ".".dimmed());
-            io::stdout().flush().unwrap();
+        for _ in 0..6 {
+            progress.tick();
+            thread::sleep(Duration::from_millis(200));
         }
         
-        print!("\r{}\r", " ".repeat(20));
+        print!("\r{}\r", " ".repeat(30));
         io::stdout().flush().unwrap();
     }
 }
@@ -115,11 +114,14 @@ impl PossessDisplay for AnimatedDisplay {
         // Dramatic pause
         thread::sleep(Duration::from_millis(500));
         
-        // Animated reveal
-        println!("{}", "✨ Crystallizing thought into reality...".yellow().italic());
-        thread::sleep(Duration::from_millis(1000));
+        // Progress animation
+        let mut progress = ProgressIndicator::new("Crystallizing thought into reality");
+        for _ in 0..8 {
+            progress.tick();
+            thread::sleep(Duration::from_millis(150));
+        }
+        progress.finish(&help_text::format_command_born(&spec.name));
         
-        println!("{}", help_text::format_command_born(&spec.name).bright_green().bold());
         println!("{}", format!("   {}", spec.description).dimmed());
         println!();
         
@@ -133,11 +135,14 @@ impl PossessDisplay for AnimatedDisplay {
         // Dramatic pause
         thread::sleep(Duration::from_millis(500));
         
-        // Animated reveal
-        println!("{}", "🎨 Manifesting artifact in reality...".cyan().italic());
-        thread::sleep(Duration::from_millis(1000));
+        // Progress animation
+        let mut progress = ProgressIndicator::new("Manifesting artifact in reality");
+        for _ in 0..8 {
+            progress.tick();
+            thread::sleep(Duration::from_millis(150));
+        }
+        progress.finish(&format!("Artifact created: {} ({})", spec.name, spec.artifact_type));
         
-        println!("{}", format!("✨ Artifact created: {} ({})", spec.name, spec.artifact_type).bright_cyan().bold());
         println!("{}", format!("   {}", spec.description).dimmed());
         println!();
         
@@ -157,6 +162,6 @@ impl PossessDisplay for AnimatedDisplay {
     }
     
     fn show_error(&self, error: &str) {
-        eprintln!("{}", format!("⚡ {}", error).red());
+        eprintln!("{} {}", StatusIndicator::error(), error.red());
     }
 }

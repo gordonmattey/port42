@@ -5,6 +5,7 @@ use std::time::Instant;
 use crate::client::DaemonClient;
 use crate::possess::{SessionHandler, AnimatedDisplay};
 use crate::protocol::possess::PossessResponse;
+use crate::display::{StatusIndicator, format_timestamp_relative};
 
 pub struct InteractiveSession {
     handler: SessionHandler,
@@ -162,7 +163,13 @@ impl InteractiveSession {
         println!("{}", "═".repeat(40).dimmed());
         
         let duration = self.start_time.elapsed();
+        let started_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64 - (duration.as_millis() as u64);
+        
         println!("{}", format!("Session: {}", self.session_id).dimmed());
+        println!("{}", format!("Started: {}", format_timestamp_relative(started_ms)).dimmed());
         println!("{}", format!("Duration: {}m {}s", duration.as_secs() / 60, duration.as_secs() % 60).dimmed());
         println!("{}", format!("Depth reached: {}", self.depth).dimmed());
         
@@ -232,10 +239,13 @@ impl InteractiveSession {
         // Generated items
         if !self.commands_generated.is_empty() {
             println!();
-            println!("{}", format!("✨ {} command{} crystallized", 
-                self.commands_generated.len(),
-                if self.commands_generated.len() == 1 { "" } else { "s" }
-            ).bright_green());
+            println!("{} {}", 
+                StatusIndicator::success(),
+                format!("{} command{} crystallized", 
+                    self.commands_generated.len(),
+                    if self.commands_generated.len() == 1 { "" } else { "s" }
+                ).bright_green()
+            );
             
             for cmd in &self.commands_generated {
                 println!("   • {}", cmd.bright_white());
@@ -244,10 +254,13 @@ impl InteractiveSession {
         
         if !self.artifacts_generated.is_empty() {
             println!();
-            println!("{}", format!("🎨 {} artifact{} manifested", 
-                self.artifacts_generated.len(),
-                if self.artifacts_generated.len() == 1 { "" } else { "s" }
-            ).bright_cyan());
+            println!("{} {}", 
+                StatusIndicator::success(),
+                format!("{} artifact{} manifested", 
+                    self.artifacts_generated.len(),
+                    if self.artifacts_generated.len() == 1 { "" } else { "s" }
+                ).bright_cyan()
+            );
             
             for (name, atype, _) in &self.artifacts_generated {
                 println!("   • {} ({})", name.bright_white(), atype.dimmed());
