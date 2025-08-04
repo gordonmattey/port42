@@ -112,8 +112,16 @@ source ~/.zshrc
 
 Port 42 consists of:
 - **Go Daemon** (`daemon/`): TCP server handling AI sessions and command generation
-- **Rust CLI** (`cli/`): Fast, user-friendly command-line interface
+- **Rust CLI** (`cli/`): Fast, user-friendly command-line interface with protocol abstraction
 - **Generated Commands** (`~/.port42/commands/`): Your personalized command library
+
+The CLI uses a **protocol abstraction pattern** that provides:
+- Type-safe request/response handling via `RequestBuilder` and `ResponseParser` traits
+- Consistent output formatting through the `Displayable` trait
+- Built-in JSON support for all commands via the global `--json` flag
+- Centralized error handling and help text in Reality Compiler language
+
+See [protocol pattern documentation](docs/architecture/protocol-pattern.md) for details.
 
 ### Building from Source
 
@@ -165,10 +173,12 @@ export PORT42_DEV=1  # Enables debug logging
 
 #### CLI (`cli/src/`)
 - `main.rs`: CLI argument parsing with clap
-- `commands/`: Command implementations
-- `client.rs`: TCP client for daemon communication
-- `interactive.rs`: Interactive shell mode
-- `boot.rs`: Boot sequence animations
+- `protocol/`: Protocol abstraction layer (request/response types)
+- `commands/`: Command handlers using protocol pattern
+- `client.rs`: TCP client accepting `DaemonRequest` types
+- `display/`: Output formatting components
+- `shell.rs`: Interactive shell mode
+- `help_text.rs`: Reality Compiler language constants
 
 ### Extending Port 42
 
@@ -187,26 +197,30 @@ func getAgentPrompt(agent string) string {
 
 #### Adding a New CLI Command
 
+Using the protocol pattern, new commands follow a consistent structure:
+
 ```rust
-// In cli/src/main.rs
-#[derive(Subcommand)]
-enum Commands {
-    /// Your new command description
-    YourCommand {
-        #[arg(short, long)]
-        your_arg: String,
-    },
-    // ...
+// 1. Define protocol types (cli/src/protocol/yourcommand.rs)
+pub struct YourCommandRequest { ... }
+impl RequestBuilder for YourCommandRequest { ... }
+impl ResponseParser for YourCommandResponse { ... }
+impl Displayable for YourCommandResponse { ... }
+
+// 2. Create handler (cli/src/commands/yourcommand.rs)
+pub fn handle_yourcommand(client: &mut DaemonClient, args...) -> Result<()> {
+    let request = YourCommandRequest { ... }.build_request(id)?;
+    let response = client.request(request)?;
+    YourCommandResponse::parse_response(&response.data)?.display(format)?;
+    Ok(())
 }
 
-// In cli/src/commands/mod.rs
-pub mod your_command;
-
-// Create cli/src/commands/your_command.rs
-pub fn handle_your_command(port: u16, your_arg: String) -> Result<()> {
-    // Implementation
+// 3. Add to CLI (main.rs)
+Commands::YourCommand { args } => {
+    commands::yourcommand::handle_yourcommand(&mut client, args)?;
 }
 ```
+
+See the [developer guide](docs/developer/adding-commands.md) for detailed instructions.
 
 #### Protocol Extension
 
