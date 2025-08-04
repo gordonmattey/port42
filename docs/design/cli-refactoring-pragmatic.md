@@ -32,13 +32,31 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 2. No separation between data parsing and presentation
 3. Direct client usage without protocol layer
 
+## Plan Tracker
+
+| Step | Name | Status |
+|------|------|--------|
+| 1 | Create Protocol Types and Traits | Pending |
+| 2 | Create Display Trait with Help Text Integration | Pending |
+| 3 | Create Common Libraries | Pending |
+| 4 | Create Shared Session Handler | Pending |
+| 5 | Refactor Possess Command | Pending |
+| 6 | Refactor Interactive Mode | Pending |
+| 7 | Create General Display Framework | Pending |
+| 8 | Apply Pattern to Status Command | Pending |
+| 9 | Apply Pattern to List Command | Pending |
+| 10 | Apply Pattern to Memory Command | Pending |
+| 11 | Apply Pattern to Cat Command | Pending |
+| 12 | Apply Pattern to Ls Command | Pending |
+| 13 | Apply Pattern to Search Command | Pending |
+| 14 | Update Main Entry Point | Pending |
+| 15 | Create Integration Tests | Pending |
+| 16 | Remove Old Duplicate Code | Pending |
+| 17 | Update Documentation | Pending |
+
 ## Implementation Plan
 
-### Phase 1: Possess Command Refactoring
-
-This phase includes extracting protocol types and shared libraries as part of the possess refactoring, not as separate future steps.
-
-#### Step 1: Create Protocol Types and Traits
+### Step 1: Create Protocol Types and Traits
 
 **File: `cli/src/protocol/mod.rs`**
 
@@ -137,7 +155,7 @@ impl ResponseParser for PossessResponse {
 }
 ```
 
-#### Step 2: Create Display Trait with Help Text Integration
+### Step 2: Create Display Trait with Help Text Integration
 
 **File: `cli/src/possess/display.rs`**
 
@@ -183,7 +201,7 @@ impl PossessDisplay for AnimatedDisplay {
 }
 ```
 
-#### Step 3: Create Common Libraries
+### Step 3: Create Common Libraries
 
 **File: `cli/src/common/mod.rs`**
 
@@ -234,7 +252,7 @@ impl Port42Error {
 }
 ```
 
-#### Step 4: Create Shared Session Handler
+### Step 4: Create Shared Session Handler
 
 **File: `cli/src/possess/session.rs`**
 
@@ -293,7 +311,7 @@ impl SessionHandler {
 }
 ```
 
-#### Step 5: Refactor Possess Command
+### Step 5: Refactor Possess Command
 
 **File: `cli/src/commands/possess.rs`**
 
@@ -325,7 +343,7 @@ pub fn handle_possess(
 }
 ```
 
-#### Step 6: Refactor Interactive Mode
+### Step 6: Refactor Interactive Mode
 
 **File: `cli/src/interactive.rs`**
 
@@ -368,228 +386,7 @@ impl InteractiveSession {
 }
 ```
 
-### Phase 2: Architecture Diagram
-
-After completing the possess refactoring, the architecture will look like:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   CLI Entry Point                        │
-│                    (main.rs)                            │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│              Command Implementations                     │
-│  - Use protocol traits and types                        │
-│  - Use common error handling                            │
-│  - All messages via help_text.rs                        │
-├─────────────────────────┴───────────────────────────────┤
-│ possess │ list │ memory │ status │ cat │ ls │ etc.   │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│              Protocol Abstraction Layer                  │
-│  - DaemonRequest/DaemonResponse types                   │
-│  - RequestBuilder and ResponseParser traits             │
-│  - Type-safe command-specific types                     │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                 Display Framework                        │
-│  - Command-specific display traits                      │
-│  - Consistent formatting using help_text.rs             │
-│  - Interactive vs non-interactive modes                 │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Common Libraries                        │
-│  - Error types with help_text integration               │
-│  - Utility functions (generate_id, etc.)                │
-│  - All user messages via help_text.rs                   │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                Transport Layer (Client)                  │
-│  - Low-level TCP communication                          │
-│  - Connection handling                                   │
-│  - Retry logic                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Testing Strategy
-
-### Unit Tests
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_possess_response_parsing() {
-        let json = json!({
-            "message": "Hello",
-            "session_id": "test-123",
-            "agent": "@ai-muse",
-            "command_generated": true,
-            "command_spec": {
-                "name": "test-cmd",
-                "description": "Test",
-                "language": "bash"
-            }
-        });
-        
-        let response = PossessResponse::from_daemon_response(&json).unwrap();
-        assert_eq!(response.message, "Hello");
-        assert!(response.command_spec.is_some());
-    }
-    
-    #[test]
-    fn test_display_formatting() {
-        // Test that display implementations produce expected output
-    }
-}
-```
-
-### Integration Tests
-
-```rust
-#[test]
-fn test_possess_full_flow() {
-    // Start real daemon
-    // Send possess request
-    // Verify response
-    // Check command creation
-}
-```
-
-## Migration Steps
-
-1. **Create protocol module** with base types and traits
-2. **Create common module** with error types and utilities
-3. **Implement possess protocol types** with RequestBuilder and ResponseParser
-4. **Create display framework** using help_text.rs for all messages
-5. **Refactor non-interactive possess** to use new abstractions
-6. **Refactor interactive mode** to share session handler
-7. **Remove old duplicate code** once tests pass
-8. **Document patterns** for other commands to follow
-
-## Success Metrics
-
-- **Code reduction**: ~40% less code in possess functionality
-- **Single source of truth**: One place for response parsing
-- **Consistent display**: Same formatting in both modes
-- **Testable components**: Unit tests for parsing and display
-- **Clean separation**: Business logic separate from presentation
-
-## Next Steps
-
-After possess refactoring proves successful, apply the same patterns to other commands:
-
-### Phase 3: Apply Pattern to All Commands
-
-**File: `cli/src/protocol/requests.rs`**
-
-```rust
-// Status request/response
-#[derive(Debug, Serialize)]
-pub struct StatusRequest;
-
-#[derive(Debug, Deserialize)]
-pub struct StatusResponse {
-    pub status: String,
-    pub port: String,
-    pub sessions: usize,
-    pub uptime: String,
-    pub dolphins: String,
-}
-
-impl RequestBuilder for StatusRequest {
-    fn build_request(&self, id: String) -> Result<DaemonRequest> {
-        Ok(DaemonRequest {
-            request_type: "status".to_string(),
-            id,
-            payload: serde_json::Value::Null,
-        })
-    }
-}
-
-// List request/response
-#[derive(Debug, Serialize)]
-pub struct ListRequest {
-    pub filter: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListResponse {
-    pub commands: Vec<String>,
-}
-
-// Memory request/response
-#[derive(Debug, Serialize)]
-pub struct MemoryRequest {
-    pub session_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MemoryListResponse {
-    pub active_sessions: Vec<SessionInfo>,
-    pub recent_sessions: Vec<SessionInfo>,
-    pub stats: SessionStats,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SessionInfo {
-    pub id: String,
-    pub agent: String,
-    pub created_at: String,
-    pub last_activity: String,
-    pub message_count: usize,
-    pub state: String,
-}
-
-// Virtual filesystem requests
-#[derive(Debug, Serialize)]
-pub struct ReadPathRequest {
-    pub path: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ReadPathResponse {
-    pub content: String, // base64
-    pub size: usize,
-    pub path: String,
-    pub metadata: Option<FileMetadata>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ListPathRequest {
-    pub path: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListPathResponse {
-    pub path: String,
-    pub entries: Vec<PathEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PathEntry {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub entry_type: String,
-    pub size: Option<usize>,
-    pub created: Option<String>,
-    pub executable: Option<bool>,
-}
-```
-
-#### Step 1: Create General Display Framework
+### Step 7: Create General Display Framework
 
 **File: `cli/src/display/mod.rs`**
 
@@ -806,7 +603,148 @@ impl Displayable for ListPathResponse {
 }
 ```
 
-#### Step 2: Apply Pattern to Other Commands
+### Unit Tests
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_possess_response_parsing() {
+        let json = json!({
+            "message": "Hello",
+            "session_id": "test-123",
+            "agent": "@ai-muse",
+            "command_generated": true,
+            "command_spec": {
+                "name": "test-cmd",
+                "description": "Test",
+                "language": "bash"
+            }
+        });
+        
+        let response = PossessResponse::from_daemon_response(&json).unwrap();
+        assert_eq!(response.message, "Hello");
+        assert!(response.command_spec.is_some());
+    }
+    
+    #[test]
+    fn test_display_formatting() {
+        // Test that display implementations produce expected output
+    }
+}
+```
+
+### Integration Tests
+
+```rust
+#[test]
+fn test_possess_full_flow() {
+    // Start real daemon
+    // Send possess request
+    // Verify response
+    // Check command creation
+}
+```
+
+### Step 8: Apply Pattern to Status Command
+
+**File: `cli/src/protocol/requests.rs`**
+
+```rust
+// Status request/response
+#[derive(Debug, Serialize)]
+pub struct StatusRequest;
+
+#[derive(Debug, Deserialize)]
+pub struct StatusResponse {
+    pub status: String,
+    pub port: String,
+    pub sessions: usize,
+    pub uptime: String,
+    pub dolphins: String,
+}
+
+impl RequestBuilder for StatusRequest {
+    fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        Ok(DaemonRequest {
+            request_type: "status".to_string(),
+            id,
+            payload: serde_json::Value::Null,
+        })
+    }
+}
+
+// List request/response
+#[derive(Debug, Serialize)]
+pub struct ListRequest {
+    pub filter: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListResponse {
+    pub commands: Vec<String>,
+}
+
+// Memory request/response
+#[derive(Debug, Serialize)]
+pub struct MemoryRequest {
+    pub session_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MemoryListResponse {
+    pub active_sessions: Vec<SessionInfo>,
+    pub recent_sessions: Vec<SessionInfo>,
+    pub stats: SessionStats,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SessionInfo {
+    pub id: String,
+    pub agent: String,
+    pub created_at: String,
+    pub last_activity: String,
+    pub message_count: usize,
+    pub state: String,
+}
+
+// Virtual filesystem requests
+#[derive(Debug, Serialize)]
+pub struct ReadPathRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReadPathResponse {
+    pub content: String, // base64
+    pub size: usize,
+    pub path: String,
+    pub metadata: Option<FileMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ListPathRequest {
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListPathResponse {
+    pub path: String,
+    pub entries: Vec<PathEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PathEntry {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub entry_type: String,
+    pub size: Option<usize>,
+    pub created: Option<String>,
+    pub executable: Option<bool>,
+}
+```
 
 **File: `cli/src/commands/status.rs`**
 
@@ -838,6 +776,8 @@ pub fn handle_status(client: &mut DaemonClient, format: OutputFormat) -> Result<
 }
 ```
 
+### Step 9: Apply Pattern to List Command
+
 **File: `cli/src/commands/list.rs`**
 
 ```rust
@@ -865,6 +805,8 @@ pub fn handle_list(client: &mut DaemonClient, filter: Option<String>, format: Ou
     Ok(())
 }
 ```
+
+### Step 10: Apply Pattern to Memory Command
 
 **File: `cli/src/commands/memory.rs`**
 
@@ -900,6 +842,8 @@ pub fn handle_memory(
     Ok(())
 }
 ```
+
+### Step 11: Apply Pattern to Cat Command
 
 **File: `cli/src/commands/cat.rs`**
 
@@ -945,7 +889,85 @@ pub fn handle_cat(client: &mut DaemonClient, path: String, format: OutputFormat)
 }
 ```
 
-#### Step 3: Update Main Entry Point
+### Step 12: Apply Pattern to Ls Command
+
+**File: `cli/src/commands/ls.rs`**
+
+```rust
+use crate::protocol::{ListPathRequest, ListPathResponse, RequestBuilder, ResponseParser};
+use crate::display::Displayable;
+use crate::common::{generate_id, Port42Error};
+use crate::help_text;
+
+pub fn handle_ls(client: &mut DaemonClient, path: String, format: OutputFormat) -> Result<()> {
+    let request = ListPathRequest { path: Some(path.clone()) }
+        .build_request(generate_id())?;
+    
+    let response = client.request(request)?;
+    
+    if !response.success {
+        if response.error.as_deref() == Some("Path not found") {
+            return Err(Port42Error::PathNotFound(path).into());
+        }
+        return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
+    let list_response = ListPathResponse::parse_response(&data)?;
+    
+    list_response.display(format)?;
+    
+    Ok(())
+}
+```
+
+### Step 13: Apply Pattern to Search Command
+
+**File: `cli/src/commands/search.rs`**
+
+```rust
+use crate::protocol::{SearchRequest, SearchResponse, RequestBuilder, ResponseParser};
+use crate::display::Displayable;
+use crate::common::{generate_id, Port42Error};
+use crate::help_text;
+
+pub fn handle_search(
+    client: &mut DaemonClient,
+    query: String,
+    filters: Option<SearchFilters>,
+    format: OutputFormat,
+) -> Result<()> {
+    println!("{}", help_text::format_searching(&query));
+    
+    let request = SearchRequest { query, filters }
+        .build_request(generate_id())?;
+    
+    let response = client.request(request)?;
+    
+    if !response.success {
+        return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
+    let search_response = SearchResponse::parse_response(&data)?;
+    
+    if search_response.results.is_empty() {
+        println!("{}", help_text::MSG_NO_RESULTS);
+    } else {
+        let plural = if search_response.results.len() == 1 { "" } else { "es" };
+        println!("{}", help_text::format_found_results(
+            search_response.results.len() as u64,
+            plural,
+            &search_response.query
+        ));
+        search_response.display(format)?;
+    }
+    
+    Ok(())
+}
+```
+
+### Step 14: Update Main Entry Point
 
 **File: `cli/src/main.rs`** (updated)
 
@@ -1065,21 +1087,135 @@ fn main() -> Result<()> {
 }
 ```
 
-This expanded plan ensures:
-1. **Protocol types and shared libraries** are part of the initial possess refactoring
-2. **All user messages** use help_text.rs constants
-3. **Architecture diagram** shows the clean separation after refactoring
-4. **Each phase** has the same level of detail
+### Step 15: Create Integration Tests
 
-The key insight is that protocol abstractions and shared libraries are fundamental to eliminating duplication, so they must be built as part of the possess refactoring, not as separate future steps.
+```rust
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    
+    #[test]
+    fn test_possess_full_flow() {
+        // Start real daemon
+        let mut daemon = start_test_daemon();
+        let mut client = DaemonClient::new(daemon.port());
+        
+        // Send possess request
+        let result = handle_possess(
+            &mut client,
+            "@ai-engineer".to_string(),
+            "test message".to_string(),
+            None,
+            false,
+        );
+        
+        assert!(result.is_ok());
+        // Verify response
+        // Check command creation if applicable
+    }
+    
+    #[test]
+    fn test_all_commands_use_protocol() {
+        // Verify each command uses the new protocol types
+        // This ensures we didn't miss any during refactoring
+    }
+}
+```
+
+### Step 16: Remove Old Duplicate Code
+
+Once all tests pass:
+1. Remove old response parsing code from individual commands
+2. Remove duplicate display logic
+3. Remove manual JSON construction
+4. Clean up imports and dependencies
+
+### Step 17: Update Documentation
+
+1. Update README with new architecture
+2. Create developer guide for adding new commands
+3. Document the protocol types and traits
+4. Add examples of using the new patterns
+
+## Architecture Diagram
+
+After completing all steps, the architecture will look like:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   CLI Entry Point                        │
+│                    (main.rs)                            │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│              Command Implementations                     │
+│  - Use protocol traits and types                        │
+│  - Use common error handling                            │
+│  - All messages via help_text.rs                        │
+├─────────────────────────┴───────────────────────────────┤
+│ possess │ list │ memory │ status │ cat │ ls │ etc.   │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│              Protocol Abstraction Layer                  │
+│  - DaemonRequest/DaemonResponse types                   │
+│  - RequestBuilder and ResponseParser traits             │
+│  - Type-safe command-specific types                     │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                 Display Framework                        │
+│  - Command-specific display traits                      │
+│  - Consistent formatting using help_text.rs             │
+│  - Interactive vs non-interactive modes                 │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Common Libraries                        │
+│  - Error types with help_text integration               │
+│  - Utility functions (generate_id, etc.)                │
+│  - All user messages via help_text.rs                   │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                Transport Layer (Client)                  │
+│  - Low-level TCP communication                          │
+│  - Connection handling                                   │
+│  - Retry logic                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Migration Strategy
+
+1. **Implement Steps 1-6** for possess command as proof of concept
+2. **Test thoroughly** to ensure no regressions
+3. **Apply Steps 7-14** to remaining commands one by one
+4. **Run integration tests** after each command migration
+5. **Clean up** with Steps 15-17
+
+## Success Metrics
+
+- **Code reduction**: ~60% less code overall
+- **Single source of truth**: One place for each concern
+- **Consistent display**: All commands use same formatting
+- **Testable components**: Unit tests for all layers
+- **Clean separation**: Each layer has single responsibility
+- **Developer velocity**: Adding new commands is trivial
+
+## Key Patterns
 
 Each command follows the same pattern:
-- Build typed request using RequestBuilder trait
-- Send to daemon with proper error handling
-- Parse typed response using ResponseParser trait  
-- Display using framework with help_text.rs messages
+1. Build typed request using RequestBuilder trait
+2. Send to daemon with proper error handling
+3. Parse typed response using ResponseParser trait  
+4. Display using framework with help_text.rs messages
 
-This eliminates all the duplicate request building, response parsing, error handling, and display logic across commands while ensuring consistent user messaging.
+This eliminates all duplicate request building, response parsing, error handling, and display logic across commands while ensuring consistent user messaging.
 
 ## Key Differences from Comprehensive Plan
 
