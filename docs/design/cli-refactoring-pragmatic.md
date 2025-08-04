@@ -48,8 +48,8 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 | 10 | Apply Pattern to Status Command | ✅ Complete |
 | 11 | Apply Pattern to Reality Command | ✅ Complete |
 | 12 | Apply Pattern to Daemon and Init Commands | ⏸️ Paused (no daemon interaction) |
-| 13 | Apply Pattern to Memory Command | 🔄 In Progress |
-| 14 | Apply Pattern to Cat and Info Commands | Pending |
+| 13 | Apply Pattern to Memory Command | ✅ Complete |
+| 14 | Apply Pattern to Cat and Info Commands | 🔄 In Progress |
 | 15 | Apply Pattern to Ls Command | Pending |
 | 16 | Apply Pattern to Search Command | Pending |
 | 17 | Update Main Entry Point | Pending |

@@ -45,7 +45,7 @@ impl PossessDisplay for SimpleDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", help_text::format_new_session(session_id).bright_cyan());
+            println!("{}", "✨ Consciousness thread weaving...".bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
@@ -154,7 +154,7 @@ impl PossessDisplay for AnimatedDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", help_text::format_new_session(session_id).bright_cyan());
+            println!("{}", "✨ Consciousness thread weaving...".bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }

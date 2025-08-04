@@ -58,7 +58,11 @@ fn handle_possess_with_boot(
         println!();
         
         // Send message
-        handler.send_message(&session_id, &agent, &msg)?;
+        let response = handler.send_message(&session_id, &agent, &msg)?;
+        
+        // Show actual session ID from daemon
+        println!("\n{}", help_text::format_new_session(&response.session_id).dimmed());
+        println!("{}", "Use 'memory' to review this thread".dimmed());
     } else {
         // Interactive mode
         println!("{}", help_text::format_possessing(&agent).blue().bold());

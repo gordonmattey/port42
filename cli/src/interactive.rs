@@ -6,11 +6,13 @@ use crate::client::DaemonClient;
 use crate::possess::{SessionHandler, AnimatedDisplay};
 use crate::protocol::possess::PossessResponse;
 use crate::display::{StatusIndicator, format_timestamp_relative};
+use crate::help_text;
 
 pub struct InteractiveSession {
     handler: SessionHandler,
     agent: String,
     session_id: String,
+    actual_session_id: Option<String>, // Track daemon's actual session ID
     depth: u32,
     start_time: Instant,
     commands_generated: Vec<String>,
@@ -27,6 +29,7 @@ impl InteractiveSession {
             handler,
             agent,
             session_id,
+            actual_session_id: None,
             depth: 0,
             start_time: Instant::now(),
             commands_generated: Vec::new(),
@@ -95,6 +98,11 @@ impl InteractiveSession {
             
             // Send message using handler
             let response = self.send_message(input)?;
+            
+            // Store actual session ID from first response
+            if self.actual_session_id.is_none() {
+                self.actual_session_id = Some(response.session_id.clone());
+            }
             
             // Track generated items
             if let Some(ref spec) = response.command_spec {
@@ -271,6 +279,13 @@ impl InteractiveSession {
             for (name, atype, _) in &self.artifacts_generated {
                 println!("   • {} ({})", name.bright_white(), atype.dimmed());
             }
+        }
+        
+        // Show session ID for reference
+        if let Some(ref sid) = self.actual_session_id {
+            println!();
+            println!("{}", help_text::format_new_session(sid).dimmed());
+            println!("{}", "Use 'memory' to review this thread".dimmed());
         }
         
         // Exit message
