@@ -35,8 +35,10 @@ pub mod possess;
 pub mod status;
 pub mod reality;
 pub mod memory;
+pub mod filesystem;
 
 pub use possess::*;
 pub use status::*;
 pub use reality::*;
 pub use memory::*;
+pub use filesystem::*;
