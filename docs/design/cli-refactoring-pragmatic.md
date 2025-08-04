@@ -1079,31 +1079,7 @@ fn detect_language(path: &PathBuf) -> String {
 - Business logic (filesystem reading) separated from display logic
 - Remove `evolve.rs` from the commands directory as it's not implemented
 
-```rust
-use crate::protocol::{ListRequest, ListResponse, RequestBuilder};
-use crate::display::Displayable;
-
-pub fn handle_list(client: &mut DaemonClient, filter: Option<String>, format: OutputFormat) -> Result<()> {
-    // Build request
-    let request = ListRequest { filter }.build_request(generate_id())?;
-    
-    // Send to daemon
-    let response = client.request(request)?;
-    
-    if !response.success {
-        return Err(anyhow!("List failed: {}", response.error.unwrap_or_default()));
-    }
-    
-    // Parse response
-    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
-    let list: ListResponse = serde_json::from_value(data)?;
-    
-    // Display using framework
-    list.display(format)?;
-    
-    Ok(())
-}
-```
+// Note: There is no separate 'list' command - 'reality' handles listing commands
 
 ### Step 10: Apply Pattern to Memory Command
 
