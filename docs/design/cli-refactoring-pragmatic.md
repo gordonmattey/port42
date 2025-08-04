@@ -44,7 +44,7 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 | 6 | Refactor Interactive Mode | Pending |
 | 7 | Create General Display Framework | Pending |
 | 8 | Apply Pattern to Status, Daemon, and Init Commands | Pending |
-| 9 | Apply Pattern to List and Reality Commands | Pending |
+| 9 | Apply Pattern to Reality Command and Remove Evolve | Pending |
 | 10 | Apply Pattern to Memory Command | Pending |
 | 11 | Apply Pattern to Cat and Info Commands | Pending |
 | 12 | Apply Pattern to Ls Command | Pending |
@@ -678,17 +678,6 @@ impl RequestBuilder for StatusRequest {
     }
 }
 
-// List request/response
-#[derive(Debug, Serialize)]
-pub struct ListRequest {
-    pub filter: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListResponse {
-    pub commands: Vec<String>,
-}
-
 // Memory request/response
 #[derive(Debug, Serialize)]
 pub struct MemoryRequest {
@@ -919,73 +908,131 @@ pub fn handle_init(force: bool) -> Result<()> {
 }
 ```
 
-### Step 9: Apply Pattern to List and Reality Commands
+### Step 9: Apply Pattern to Reality Command and Remove Evolve
 
-These commands both list crystallized commands, so they share similar functionality.
+The reality command lists crystallized commands from the filesystem. The evolve command is not implemented and should be removed.
 
 **File: `cli/src/protocol/requests.rs`**
 
 ```rust
-// Reality request (alias for list with filter)
-#[derive(Debug, Serialize)]
-pub struct RealityRequest {
-    pub verbose: bool,
-    pub agent_filter: Option<String>,
+// Reality doesn't need a request - it reads filesystem directly
+// But we'll create a response type for consistency
+#[derive(Debug, Deserialize)]
+pub struct RealityResponse {
+    pub commands: Vec<CommandInfo>,
+    pub total: usize,
 }
 
-impl RequestBuilder for RealityRequest {
-    fn build_request(&self, id: String) -> Result<DaemonRequest> {
-        // Reality is essentially list with special formatting
-        let list_req = ListRequest { 
-            filter: self.agent_filter.clone() 
-        };
-        list_req.build_request(id)
-    }
+#[derive(Debug, Deserialize)]
+pub struct CommandInfo {
+    pub name: String,
+    pub path: PathBuf,
+    pub language: String,
+    pub created: Option<String>,
+    pub agent: Option<String>,
 }
 ```
 
 **File: `cli/src/commands/reality.rs`**
 
 ```rust
-use crate::protocol::{ListRequest, ListResponse, RequestBuilder, ResponseParser};
 use crate::display::Displayable;
-use crate::common::{generate_id, Port42Error};
 use crate::help_text;
+use std::fs;
+use std::path::PathBuf;
 
 pub fn handle_reality(
-    client: &mut DaemonClient,
     verbose: bool,
     agent_filter: Option<String>,
 ) -> Result<()> {
     println!("{}", help_text::MSG_COMMANDS_HEADER);
+    println!();
     
-    let request = ListRequest { filter: agent_filter }
-        .build_request(generate_id())?;
+    let commands_dir = dirs::home_dir()
+        .context("Could not find home directory")?  
+        .join(".port42")
+        .join("commands");
     
-    let response = client.request(request)?;
-    
-    if !response.success {
-        return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+    if !commands_dir.exists() {
+        println!("{}", "No commands directory found".dimmed());
+        println!("\n{}", "Generate your first command:".yellow());
+        println!("  {}", "port42 possess @ai-muse".bright_white());
+        return Ok(());
     }
     
-    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
-    let list: ListResponse = serde_json::from_value(data)?;
+    let mut commands = Vec::new();
     
-    if verbose {
-        // Show detailed view with metadata
-        list.display(OutputFormat::Table)?;
-    } else {
-        // Show simple list
-        list.display(OutputFormat::Plain)?;
+    // Read all files in commands directory
+    for entry in fs::read_dir(&commands_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_file() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                // Skip hidden files and backup files
+                if !name.starts_with('.') && !name.ends_with('~') {
+                    // Check if executable
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let metadata = fs::metadata(&path)?;
+                        if metadata.permissions().mode() & 0o111 != 0 {
+                            commands.push(CommandInfo {
+                                name: name.to_string(),
+                                path: path.clone(),
+                                language: detect_language(&path),
+                                created: None, // Could read from metadata
+                                agent: None, // Could parse from file header
+                            });
+                        }
+                    }
+                    
+                    #[cfg(not(unix))]
+                    {
+                        commands.push(CommandInfo {
+                            name: name.to_string(),
+                            path: path.clone(),
+                            language: detect_language(&path),
+                            created: None,
+                            agent: None,
+                        });
+                    }
+                }
+            }
+        }
     }
     
-    println!("\n{}", help_text::format_total_commands(list.commands.len()));
+    // Apply agent filter if provided
+    if let Some(agent) = agent_filter {
+        commands.retain(|cmd| cmd.agent.as_deref() == Some(&agent));
+    }
+    
+    // Sort by name
+    commands.sort_by(|a, b| a.name.cmp(&b.name));
+    
+    let reality_response = RealityResponse {
+        total: commands.len(),
+        commands,
+    };
+    
+    // Display using the framework
+    reality_response.display(if verbose { OutputFormat::Table } else { OutputFormat::Plain })?;
     
     Ok(())
 }
+
+fn detect_language(path: &PathBuf) -> String {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("sh") => "bash".to_string(),
+        Some("py") => "python".to_string(),
+        Some("js") => "javascript".to_string(),
+        Some("rb") => "ruby".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
 ```
 
-**File: `cli/src/commands/list.rs`**
+**Note**: Remove `evolve.rs` from the commands directory as it's not implemented and won't be part of the refactored codebase.
 
 ```rust
 use crate::protocol::{ListRequest, ListResponse, RequestBuilder};
