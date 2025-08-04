@@ -8,6 +8,13 @@ use crate::protocol::possess::PossessResponse;
 use crate::display::{StatusIndicator, format_timestamp_relative};
 use crate::help_text;
 
+// Type of crystallization to request
+enum CrystallizeType {
+    Auto,     // Let AI decide
+    Command,  // Force command creation
+    Artifact, // Force artifact creation
+}
+
 pub struct InteractiveSession {
     handler: SessionHandler,
     agent: String,
@@ -61,7 +68,8 @@ impl InteractiveSession {
         println!("{}", format!("You are now in communion with {}.", self.agent).bright_blue());
         println!();
         println!("{}", "Type your thoughts. They will crystallize into reality.".italic());
-        println!("{}", "Use /crystallize to manifest a command from your conversation.".italic());
+        println!("{}", "Use /crystallize to manifest a command or artifact from your conversation.".italic());
+        println!("{}", "Use /crystallize command for executable tools, /crystallize artifact for documents.".italic());
         println!("{}", "Use /surface to return to your world.".italic());
         println!();
         Ok(())
@@ -150,12 +158,20 @@ impl InteractiveSession {
                 Ok(true)
             }
             "/crystallize" => {
-                self.request_crystallization()?;
+                self.request_crystallization(CrystallizeType::Auto)?;
+                Ok(true)
+            }
+            "/crystallize command" => {
+                self.request_crystallization(CrystallizeType::Command)?;
+                Ok(true)
+            }
+            "/crystallize artifact" => {
+                self.request_crystallization(CrystallizeType::Artifact)?;
                 Ok(true)
             }
             _ if input.starts_with('/') => {
                 println!("\n{}", format!("Unknown command: {}", input).dimmed());
-                println!("{}", "Available: /surface, /deeper, /memory, /reality, /crystallize".dimmed());
+                println!("{}", "Available: /surface, /deeper, /memory, /reality, /crystallize [command|artifact]".dimmed());
                 Ok(true)
             }
             _ => Ok(false)
@@ -222,15 +238,25 @@ impl InteractiveSession {
         Ok(())
     }
     
-    fn request_crystallization(&mut self) -> Result<()> {
+    fn request_crystallization(&mut self, crystallize_type: CrystallizeType) -> Result<()> {
         println!("\n{}", "🔮 Requesting crystallization of our conversation...".bright_cyan().italic());
         
-        let message = "Please create a command that encapsulates our conversation so far.";
+        let message = match crystallize_type {
+            CrystallizeType::Auto => 
+                "Based on our conversation, please create the most appropriate output - either a command (executable tool) or an artifact (document, code, design, or other file).",
+            CrystallizeType::Command => 
+                "Please create a command that encapsulates our conversation so far. This should be an executable CLI tool.",
+            CrystallizeType::Artifact => 
+                "Please create an artifact based on our conversation. This could be a document, code project, design, diagram, or any other type of file that captures our discussion.",
+        };
+        
         let response = self.send_message(message)?;
         
-        // The handler will have already displayed the response and any generated command
+        // The handler will have already displayed the response and any generated command/artifact
         if response.command_spec.is_some() {
-            println!("\n{}", "✨ Thought successfully crystallized!".bright_green());
+            println!("\n{}", "✨ Command successfully crystallized!".bright_green());
+        } else if response.artifact_spec.is_some() {
+            println!("\n{}", "📄 Artifact successfully created!".bright_cyan());
         }
         
         Ok(())
