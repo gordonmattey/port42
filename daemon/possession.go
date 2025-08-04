@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -398,6 +401,19 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 				} else {
 					log.Printf("❌ Failed to extract artifact spec from tool call: %v", err)
 				}
+			} else if content.Type == "tool_use" && content.Name == "run_command" {
+				hasToolCall = true
+				// Execute command and capture output
+				log.Printf("🏃 AI is executing a Port 42 command")
+				if output, err := executeCommand(content.Input); err != nil {
+					// Include error in response
+					responseText += fmt.Sprintf("\n\n❌ Command error: %v", err)
+					log.Printf("❌ Command execution failed: %v", err)
+				} else {
+					// Include successful output in response
+					responseText += fmt.Sprintf("\n\n📟 Command output:\n%s", output)
+					log.Printf("✅ Command executed successfully")
+				}
 			} else if content.Type == "text" {
 				responseText = content.Text
 			}
@@ -772,6 +788,54 @@ func extractArtifactSpecFromToolCall(toolInput json.RawMessage) (*ArtifactSpec, 
 	return &spec, nil
 }
 
+// executeCommand safely executes a Port 42 command
+func executeCommand(input json.RawMessage) (string, error) {
+	var params struct {
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
+		Stdin   string   `json:"stdin"`
+	}
+	
+	if err := json.Unmarshal(input, &params); err != nil {
+		return "", fmt.Errorf("invalid parameters: %v", err)
+	}
+	
+	// Security: verify command exists in Port 42 commands directory
+	cmdPath := filepath.Join(os.Getenv("HOME"), ".port42/commands", params.Command)
+	if _, err := os.Stat(cmdPath); err != nil {
+		return "", fmt.Errorf("command not found: %s", params.Command)
+	}
+	
+	// Create command with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, cmdPath, params.Args...)
+	
+	// Set up stdin if provided
+	if params.Stdin != "" {
+		cmd.Stdin = strings.NewReader(params.Stdin)
+	}
+	
+	// Capture both stdout and stderr
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Include output even on error
+		if len(output) > 0 {
+			return string(output), fmt.Errorf("command failed: %v", err)
+		}
+		return "", fmt.Errorf("command failed: %v", err)
+	}
+	
+	// Limit output size to prevent huge responses
+	const maxOutputSize = 50000 // 50KB
+	if len(output) > maxOutputSize {
+		output = output[:maxOutputSize]
+		output = append(output, []byte("\n... (output truncated)")...)
+	}
+	
+	return string(output), nil
+}
 
 // Update the handlePossess in server.go to use the AI version
 func init() {
