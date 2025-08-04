@@ -43,10 +43,10 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 | 5 | Refactor Possess Command | Pending |
 | 6 | Refactor Interactive Mode | Pending |
 | 7 | Create General Display Framework | Pending |
-| 8 | Apply Pattern to Status Command | Pending |
-| 9 | Apply Pattern to List Command | Pending |
+| 8 | Apply Pattern to Status, Daemon, and Init Commands | Pending |
+| 9 | Apply Pattern to List and Reality Commands | Pending |
 | 10 | Apply Pattern to Memory Command | Pending |
-| 11 | Apply Pattern to Cat Command | Pending |
+| 11 | Apply Pattern to Cat and Info Commands | Pending |
 | 12 | Apply Pattern to Ls Command | Pending |
 | 13 | Apply Pattern to Search Command | Pending |
 | 14 | Update Main Entry Point | Pending |
@@ -648,7 +648,9 @@ fn test_possess_full_flow() {
 }
 ```
 
-### Step 8: Apply Pattern to Status Command
+### Step 8: Apply Pattern to Status, Daemon, and Init Commands
+
+These commands are related as they all deal with daemon state and initialization.
 
 **File: `cli/src/protocol/requests.rs`**
 
@@ -776,7 +778,212 @@ pub fn handle_status(client: &mut DaemonClient, format: OutputFormat) -> Result<
 }
 ```
 
-### Step 9: Apply Pattern to List Command
+// Daemon control requests/responses
+#[derive(Debug, Serialize)]
+pub struct DaemonRequest {
+    pub action: DaemonAction,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DaemonAction {
+    Start,
+    Stop,
+    Restart,
+    Status,
+    Logs { lines: Option<usize> },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DaemonResponse {
+    pub success: bool,
+    pub message: String,
+    pub pid: Option<u32>,
+    pub logs: Option<Vec<String>>,
+}
+
+// Init request/response
+#[derive(Debug, Serialize)]
+pub struct InitRequest {
+    pub force: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InitResponse {
+    pub created_dirs: Vec<String>,
+    pub already_initialized: bool,
+}
+
+impl RequestBuilder for DaemonRequest {
+    fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        Ok(DaemonRequest {
+            request_type: "daemon".to_string(),
+            id,
+            payload: serde_json::to_value(self)?,
+        })
+    }
+}
+
+impl ResponseParser for DaemonResponse {
+    type Output = Self;
+    fn parse_response(data: &serde_json::Value) -> Result<Self> {
+        serde_json::from_value(data.clone())
+            .map_err(|e| anyhow!("Failed to parse daemon response: {}", e))
+    }
+}
+```
+
+**File: `cli/src/commands/daemon.rs`**
+
+```rust
+use crate::protocol::{DaemonRequest, DaemonResponse, DaemonAction, RequestBuilder, ResponseParser};
+use crate::common::{generate_id, Port42Error};
+use crate::help_text;
+
+pub fn handle_daemon(action: DaemonAction, format: OutputFormat) -> Result<()> {
+    match action {
+        DaemonAction::Start => {
+            println!("{}", help_text::MSG_DAEMON_STARTING);
+            // Special handling for daemon start (spawn process)
+            start_daemon()?;
+            println!("{}", help_text::MSG_DAEMON_SUCCESS);
+        }
+        DaemonAction::Stop => {
+            let mut client = DaemonClient::new(detect_port());
+            println!("{}", help_text::MSG_DAEMON_STOPPING);
+            
+            let request = DaemonRequest { action }.build_request(generate_id())?;
+            let response = client.request(request)?;
+            
+            if response.success {
+                println!("{}", help_text::MSG_DAEMON_STOPPED);
+            } else {
+                return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+            }
+        }
+        DaemonAction::Status => {
+            println!("{}", help_text::MSG_CHECKING_STATUS);
+            // Reuse status command handler
+            handle_status(&mut DaemonClient::new(detect_port()), format)?;
+        }
+        DaemonAction::Logs { lines } => {
+            let mut client = DaemonClient::new(detect_port());
+            let request = DaemonRequest { action }.build_request(generate_id())?;
+            let response = client.request(request)?;
+            
+            if let Some(logs) = response.data.and_then(|d| d.get("logs")) {
+                println!("{}", help_text::MSG_DAEMON_LOGS);
+                // Display logs
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+```
+
+**File: `cli/src/commands/init.rs`**
+
+```rust
+use crate::help_text;
+use std::fs;
+use std::path::PathBuf;
+
+pub fn handle_init(force: bool) -> Result<()> {
+    let port42_dir = dirs::home_dir()
+        .ok_or_else(|| anyhow!("Could not find home directory"))?
+        .join(".port42");
+    
+    if port42_dir.exists() && !force {
+        println!("{}", help_text::MSG_ALREADY_INIT);
+        return Ok(());
+    }
+    
+    println!("{}", help_text::MSG_INIT_BEGIN);
+    println!("{}", help_text::MSG_CREATING_DIRS);
+    
+    // Create directories
+    let dirs = vec!["commands", "memory", "templates", "artifacts"];
+    for dir in &dirs {
+        let path = port42_dir.join(dir);
+        fs::create_dir_all(&path)?;
+    }
+    
+    println!("\n{}", help_text::MSG_CREATED_LABEL);
+    println!("{}", help_text::MSG_DIR_COMMANDS);
+    println!("{}", help_text::MSG_DIR_MEMORY);
+    println!("{}", help_text::MSG_DIR_TEMPLATES);
+    println!("\n{}", help_text::MSG_INIT_SUCCESS);
+    
+    Ok(())
+}
+```
+
+### Step 9: Apply Pattern to List and Reality Commands
+
+These commands both list crystallized commands, so they share similar functionality.
+
+**File: `cli/src/protocol/requests.rs`**
+
+```rust
+// Reality request (alias for list with filter)
+#[derive(Debug, Serialize)]
+pub struct RealityRequest {
+    pub verbose: bool,
+    pub agent_filter: Option<String>,
+}
+
+impl RequestBuilder for RealityRequest {
+    fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        // Reality is essentially list with special formatting
+        let list_req = ListRequest { 
+            filter: self.agent_filter.clone() 
+        };
+        list_req.build_request(id)
+    }
+}
+```
+
+**File: `cli/src/commands/reality.rs`**
+
+```rust
+use crate::protocol::{ListRequest, ListResponse, RequestBuilder, ResponseParser};
+use crate::display::Displayable;
+use crate::common::{generate_id, Port42Error};
+use crate::help_text;
+
+pub fn handle_reality(
+    client: &mut DaemonClient,
+    verbose: bool,
+    agent_filter: Option<String>,
+) -> Result<()> {
+    println!("{}", help_text::MSG_COMMANDS_HEADER);
+    
+    let request = ListRequest { filter: agent_filter }
+        .build_request(generate_id())?;
+    
+    let response = client.request(request)?;
+    
+    if !response.success {
+        return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
+    let list: ListResponse = serde_json::from_value(data)?;
+    
+    if verbose {
+        // Show detailed view with metadata
+        list.display(OutputFormat::Table)?;
+    } else {
+        // Show simple list
+        list.display(OutputFormat::Plain)?;
+    }
+    
+    println!("\n{}", help_text::format_total_commands(list.commands.len()));
+    
+    Ok(())
+}
+```
 
 **File: `cli/src/commands/list.rs`**
 
@@ -843,7 +1050,110 @@ pub fn handle_memory(
 }
 ```
 
-### Step 11: Apply Pattern to Cat Command
+### Step 11: Apply Pattern to Cat and Info Commands
+
+These commands both read from the virtual filesystem but display different aspects.
+
+**File: `cli/src/protocol/requests.rs`**
+
+```rust
+// Info request/response
+#[derive(Debug, Serialize)]
+pub struct InfoRequest {
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InfoResponse {
+    pub path: String,
+    pub object_type: String,
+    pub created: String,
+    pub modified: Option<String>,
+    pub size: usize,
+    pub hash: String,
+    pub metadata: HashMap<String, serde_json::Value>,
+    pub virtual_paths: Vec<String>,
+}
+
+impl RequestBuilder for InfoRequest {
+    fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        Ok(DaemonRequest {
+            request_type: "info".to_string(),
+            id,
+            payload: serde_json::to_value(self)?,
+        })
+    }
+}
+
+impl ResponseParser for InfoResponse {
+    type Output = Self;
+    fn parse_response(data: &serde_json::Value) -> Result<Self> {
+        serde_json::from_value(data.clone())
+            .map_err(|e| anyhow!("Failed to parse info response: {}", e))
+    }
+}
+```
+
+**File: `cli/src/commands/info.rs`**
+
+```rust
+use crate::protocol::{InfoRequest, InfoResponse, RequestBuilder, ResponseParser};
+use crate::display::Displayable;
+use crate::common::{generate_id, Port42Error};
+use crate::help_text;
+
+pub fn handle_info(client: &mut DaemonClient, path: String, format: OutputFormat) -> Result<()> {
+    let request = InfoRequest { path: path.clone() }
+        .build_request(generate_id())?;
+    
+    let response = client.request(request)?;
+    
+    if !response.success {
+        if response.error.as_deref() == Some("Path not found") {
+            return Err(Port42Error::PathNotFound(path).into());
+        }
+        return Err(Port42Error::Daemon(response.error.unwrap_or_default()).into());
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
+    let info = InfoResponse::parse_response(&data)?;
+    
+    match format {
+        OutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&info)?);
+        }
+        _ => {
+            // Display metadata in human-readable format
+            println!("📊 Object Metadata");
+            println!("═══════════════════");
+            println!("Path:     {}", info.path);
+            println!("Type:     {}", info.object_type);
+            println!("Size:     {}", components::format_size(info.size));
+            println!("Created:  {}", info.created);
+            if let Some(modified) = &info.modified {
+                println!("Modified: {}", modified);
+            }
+            println!("Hash:     {}", info.hash);
+            
+            if !info.virtual_paths.is_empty() {
+                println!("\nVirtual Paths:");
+                for vpath in &info.virtual_paths {
+                    println!("  • {}", vpath);
+                }
+            }
+            
+            if !info.metadata.is_empty() {
+                println!("\nMetadata:");
+                for (key, value) in &info.metadata {
+                    println!("  {}: {}", key, value);
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+```
 
 **File: `cli/src/commands/cat.rs`**
 
