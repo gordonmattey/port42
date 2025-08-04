@@ -11,6 +11,7 @@ mod shell;
 mod help_text;
 mod help_handler;
 mod protocol;
+mod possess;
 
 use commands::*;
 
@@ -297,7 +298,7 @@ fn main() -> Result<()> {
             if std::env::var("PORT42_DEBUG").is_ok() {
                 eprintln!("DEBUG possess: agent={}, session={:?}, message={:?}", agent, session, message);
             }
-            possess::handle_possess(port, agent, message, session)?;
+            commands::possess::handle_possess(port, agent, message, session)?;
         }
         
         Some(Commands::Memory { args }) => {
