@@ -171,18 +171,20 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 		if agentInfo, exists := agentConfig.Agents[cleanName]; exists {
 			log.Printf("🔍 Agent %s found, NoImplementation: %v", cleanName, agentInfo.NoImplementation)
 			if agentInfo.NoImplementation {
-				// Agent marked as no implementation - only gets artifact tool
+				// Agent marked as no implementation - gets command runner and artifact tool
 				tools = []AnthropicTool{
+					getCommandRunnerTool(),
 					getArtifactGenerationTool(),
 				}
-				log.Printf("🎨 Agent %s will use artifact generation only", agentName)
+				log.Printf("🎨 Agent %s will use command runner and artifact generation", agentName)
 			} else {
-				// Full implementation agent - gets both tools
+				// Full implementation agent - gets all tools
 				tools = []AnthropicTool{
+					getCommandRunnerTool(),
 					getCommandGenerationTool(),
 					getArtifactGenerationTool(),
 				}
-				log.Printf("🔧 Agent %s will use tool-based generation (commands and artifacts)", agentName)
+				log.Printf("🔧 Agent %s will use all tools (command runner, generation, and artifacts)", agentName)
 			}
 		} else {
 			log.Printf("⚠️ Agent %s not found in config", cleanName)
@@ -661,6 +663,33 @@ func getArtifactGenerationTool() AnthropicTool {
 				},
 			},
 			"required": []string{"name", "type", "description", "format"},
+		},
+	}
+}
+
+// getCommandRunnerTool returns the tool definition for running Port 42 commands
+func getCommandRunnerTool() AnthropicTool {
+	return AnthropicTool{
+		Name:        "run_command",
+		Description: "Run a previously generated Port 42 command",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"command": map[string]interface{}{
+					"type":        "string",
+					"description": "Command name (e.g., rainbow-art, git-haiku)",
+				},
+				"args": map[string]interface{}{
+					"type":        "array",
+					"items":       map[string]interface{}{"type": "string"},
+					"description": "Command arguments",
+				},
+				"stdin": map[string]interface{}{
+					"type":        "string",
+					"description": "Optional input to pipe to the command",
+				},
+			},
+			"required": []string{"command"},
 		},
 	}
 }
