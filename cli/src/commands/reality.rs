@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use colored::*;
 use std::fs;
-use crate::help_text::*;
+use std::path::PathBuf;
+use crate::protocol::{RealityData, CommandInfo};
+use crate::display::{Displayable, OutputFormat};
+use crate::help_text;
 
 pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Result<()> {
-    println!("{}", MSG_COMMANDS_HEADER.blue().bold());
+    println!("{}", help_text::MSG_COMMANDS_HEADER.blue().bold());
     println!();
     
     let commands_dir = dirs::home_dir()
@@ -13,10 +16,14 @@ pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Resul
         .join("commands");
     
     if !commands_dir.exists() {
-        println!("{}", "No commands directory found".dimmed());
-        println!("\n{}", "Generate your first command:".yellow());
-        println!("  {}", "port42 possess @ai-muse".bright_white());
-        return Ok(());
+        // No commands directory - display empty state
+        let reality_data = RealityData {
+            commands: vec![],
+            total: 0,
+            commands_dir,
+        };
+        
+        return reality_data.display(OutputFormat::Plain);
     }
     
     let mut commands = Vec::new();
@@ -49,114 +56,83 @@ pub fn handle_reality(_port: u16, verbose: bool, agent: Option<String>) -> Resul
         }
     }
     
-    if commands.is_empty() {
-        println!("{}", "No commands found".dimmed());
-        println!("\n{}", "Generate your first command:".yellow());
-        println!("  {}", "port42 possess @ai-muse".bright_white());
-    } else {
-        // Sort by name
-        commands.sort_by(|a, b| a.0.cmp(&b.0));
+    // Sort by name
+    commands.sort_by(|a, b| a.0.cmp(&b.0));
+    
+    // Convert to CommandInfo structures
+    let mut command_infos = Vec::new();
+    
+    for (name, path) in commands {
+        let (language, description, agent_name) = extract_metadata(&path)?;
         
         // Filter by agent if specified
-        let filtered_commands: Vec<_> = if let Some(ref agent_filter) = agent {
-            commands.iter()
-                .filter(|(_, path)| {
-                    // Check if command was created by this agent
-                    if let Ok(content) = fs::read_to_string(path) {
-                        content.lines().any(|line| 
-                            line.contains(&format!("Agent: {}", agent_filter)) ||
-                            line.contains(&format!("agent: {}", agent_filter)) ||
-                            line.contains(&format!("@{}", agent_filter))
-                        )
-                    } else {
-                        false
-                    }
-                })
-                .cloned()
-                .collect()
-        } else {
-            commands.iter().cloned().collect()
-        };
-        
-        if filtered_commands.is_empty() {
-            if agent.is_some() {
-                println!("{}", format!("No commands found for agent: {}", agent.unwrap()).dimmed());
-            }
-        } else {
-            // Display commands
-            for (name, path) in &filtered_commands {
-                print!("{:<20}", name.bright_cyan());
-                
-                if verbose {
-                    // Extract metadata from file
-                    if let Ok(content) = fs::read_to_string(path) {
-                        let mut description = None;
-                        let mut created_by = None;
-                        let mut language = "unknown";
-                        
-                        // Detect language from shebang
-                        if let Some(first_line) = content.lines().next() {
-                            if first_line.starts_with("#!/") {
-                                if first_line.contains("python") {
-                                    language = "python";
-                                } else if first_line.contains("node") {
-                                    language = "node";
-                                } else if first_line.contains("bash") || first_line.contains("sh") {
-                                    language = "bash";
-                                }
-                            }
-                        }
-                        
-                        // Look for metadata in comments
-                        for line in content.lines().take(20) {
-                            if line.contains("Description:") || line.contains("description:") {
-                                if let Some(desc) = line.split(':').nth(1) {
-                                    description = Some(desc.trim().to_string());
-                                }
-                            }
-                            if line.contains("Agent:") || line.contains("Created by:") {
-                                if let Some(agent) = line.split(':').nth(1) {
-                                    created_by = Some(agent.trim().to_string());
-                                }
-                            }
-                        }
-                        
-                        // Display metadata
-                        print!(" [{:<6}]", language.yellow());
-                        if let Some(desc) = description {
-                            print!(" {}", desc.dimmed());
-                        }
-                        if let Some(agent) = created_by {
-                            print!(" (by {})", agent.bright_blue());
-                        }
-                    }
-                } else {
-                    // Simple view - just try to get description
-                    if let Ok(content) = fs::read_to_string(path) {
-                        for line in content.lines().take(10) {
-                            if line.contains("Description:") || line.contains("description:") {
-                                if let Some(desc) = line.split(':').nth(1) {
-                                    print!(" - {}", desc.trim().dimmed());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                println!();
-            }
-            
-            println!("\n{}", format_total_commands(filtered_commands.len()).dimmed());
-            
-            if verbose {
-                println!("\n{}", "Command Location:".yellow());
-                println!("  {}", commands_dir.display().to_string().bright_white());
+        if let Some(ref agent_filter) = agent {
+            if agent_name.as_deref() != Some(agent_filter) {
+                continue;
             }
         }
         
-        println!("\n{}", "Add to PATH:".yellow());
-        println!("  {}", format!("export PATH=\"$PATH:{}\":", commands_dir.display()).bright_white());
+        command_infos.push(CommandInfo {
+            name,
+            path,
+            language,
+            description,
+            agent: agent_name,
+        });
     }
     
+    // Create structured data for display
+    let reality_data = RealityData {
+        total: command_infos.len(),
+        commands: command_infos,
+        commands_dir,
+    };
+    
+    // Display using the framework
+    let format = if verbose {
+        OutputFormat::Table
+    } else {
+        OutputFormat::Plain
+    };
+    
+    reality_data.display(format)?;
+    
     Ok(())
+}
+
+fn extract_metadata(path: &PathBuf) -> Result<(String, Option<String>, Option<String>)> {
+    let mut language = "unknown".to_string();
+    let mut description = None;
+    let mut agent = None;
+    
+    if let Ok(content) = fs::read_to_string(path) {
+        // Detect language from shebang
+        if let Some(first_line) = content.lines().next() {
+            if first_line.starts_with("#!/") {
+                if first_line.contains("python") {
+                    language = "python".to_string();
+                } else if first_line.contains("node") {
+                    language = "node".to_string();
+                } else if first_line.contains("bash") || first_line.contains("sh") {
+                    language = "bash".to_string();
+                }
+            }
+        }
+        
+        // Look for metadata in comments
+        for line in content.lines().take(20) {
+            if line.contains("Description:") || line.contains("description:") {
+                if let Some(desc) = line.split(':').nth(1) {
+                    description = Some(desc.trim().to_string());
+                }
+            }
+            if line.contains("Agent:") || line.contains("Created by:") {
+                if let Some(agent_name) = line.split(':').nth(1) {
+                    agent = Some(agent_name.trim().to_string());
+                }
+            }
+        }
+    }
+    
+    Ok((language, description, agent))
 }

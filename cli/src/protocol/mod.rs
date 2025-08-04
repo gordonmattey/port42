@@ -33,6 +33,8 @@ pub trait ResponseParser {
 // Re-export submodules
 pub mod possess;
 pub mod status;
+pub mod reality;
 
 pub use possess::*;
 pub use status::*;
+pub use reality::*;
