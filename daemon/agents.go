@@ -26,6 +26,12 @@ type BaseGuidance struct {
 	ArtifactGuidance string `json:"artifact_guidance"`
 }
 
+// CommandMetadata represents basic info about a Port 42 command
+type CommandMetadata struct {
+	Name        string
+	Description string
+}
+
 // Agent represents a single AI agent configuration
 type Agent struct {
 	Name                string       `json:"name"`
@@ -121,6 +127,33 @@ func LoadAgentConfig() error {
 	return nil
 }
 
+// listAvailableCommands returns metadata for all Port 42 commands
+func listAvailableCommands() []CommandMetadata {
+	commandsDir := filepath.Join(os.Getenv("HOME"), ".port42/commands")
+	var commands []CommandMetadata
+	
+	files, err := ioutil.ReadDir(commandsDir)
+	if err != nil {
+		// Directory might not exist yet, that's okay
+		return commands
+	}
+	
+	for _, file := range files {
+		if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
+			continue
+		}
+		
+		// For MVP, just use filename as name
+		// TODO: Later we can read metadata from file header comments
+		commands = append(commands, CommandMetadata{
+			Name:        file.Name(),
+			Description: "User-generated command",
+		})
+	}
+	
+	return commands
+}
+
 // GetAgentPrompt returns the formatted prompt for a specific agent
 func GetAgentPrompt(agentName string) string {
 	if agentConfig == nil {
@@ -141,6 +174,18 @@ func GetAgentPrompt(agentName string) string {
 	// Build the full prompt
 	var prompt strings.Builder
 	prompt.WriteString(agent.Prompt)
+	
+	// Add available commands
+	commands := listAvailableCommands()
+	if len(commands) > 0 {
+		prompt.WriteString("\n\n<available_commands>")
+		prompt.WriteString("\nYou have access to these Port 42 commands via the run_command tool:")
+		for _, cmd := range commands {
+			prompt.WriteString(fmt.Sprintf("\n- %s: %s", cmd.Name, cmd.Description))
+		}
+		prompt.WriteString("\n</available_commands>")
+		prompt.WriteString("\nUse run_command to execute any of these when they would be helpful.")
+	}
 	
 	// Add artifact guidance for all agents
 	prompt.WriteString("\n\n")
