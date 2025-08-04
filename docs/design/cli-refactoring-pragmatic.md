@@ -37,9 +37,9 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 | Step | Name | Status |
 |------|------|--------|
 | 1 | Create Integration Tests for Possess | ✅ Complete |
-| 2 | Create Protocol Types and Traits | 🔄 In Progress |
-| 3 | Create Display Trait with Help Text Integration | Pending |
-| 4 | Create Common Libraries | Pending |
+| 2 | Create Protocol Types and Traits | ✅ Complete |
+| 3 | Create Display Trait with Help Text Integration | ✅ Complete |
+| 4 | Create Common Libraries | 🔄 In Progress |
 | 5 | Create Shared Session Handler | Pending |
 | 6 | Refactor Possess Command | Pending |
 | 7 | Refactor Interactive Mode | Pending |
