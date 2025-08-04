@@ -37,6 +37,7 @@ pub mod reality;
 pub mod memory;
 pub mod filesystem;
 pub mod file_ops;
+pub mod search;
 
 pub use possess::*;
 pub use status::*;
@@ -44,3 +45,4 @@ pub use reality::*;
 pub use memory::*;
 pub use filesystem::*;
 pub use file_ops::*;
+pub use search::*;
