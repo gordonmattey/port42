@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct SessionHandler {
-    client: DaemonClient,
+    pub(crate) client: DaemonClient,
     display: Box<dyn PossessDisplay>,
 }
 
