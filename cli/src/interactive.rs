@@ -34,6 +34,12 @@ impl InteractiveSession {
         }
     }
     
+    pub fn with_output_format(mut self, format: crate::display::OutputFormat) -> Self {
+        self.handler = SessionHandler::new(self.handler.client, true)
+            .with_output_format(format);
+        self
+    }
+    
     pub fn run(&mut self) -> Result<()> {
         // Boot sequence already shown in handle_possess
         self.show_welcome()?;

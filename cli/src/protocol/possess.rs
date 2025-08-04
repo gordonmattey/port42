@@ -1,7 +1,10 @@
 use super::{DaemonRequest, RequestBuilder, ResponseParser};
+use crate::display::{Displayable, OutputFormat, StatusIndicator};
+use crate::help_text;
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use colored::*;
 
 #[derive(Debug, Serialize)]
 pub struct PossessRequest {
@@ -22,7 +25,7 @@ impl RequestBuilder for PossessRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PossessResponse {
     pub message: String,
     pub session_id: String,
@@ -35,14 +38,14 @@ pub struct PossessResponse {
     pub artifact_spec: Option<ArtifactSpec>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CommandSpec {
     pub name: String,
     pub description: String,
     pub language: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ArtifactSpec {
     pub name: String,
     #[serde(rename = "type")]
@@ -103,5 +106,38 @@ impl ResponseParser for PossessResponse {
             artifact_generated,
             artifact_spec,
         })
+    }
+}
+
+impl Displayable for PossessResponse {
+    fn display(&self, format: OutputFormat) -> Result<()> {
+        match format {
+            OutputFormat::Json => {
+                println!("{}", serde_json::to_string_pretty(self)?);
+            }
+            OutputFormat::Plain | OutputFormat::Table => {
+                // Display AI message
+                println!("\n{}", self.agent.bright_blue());
+                println!("{}", self.message);
+                println!();
+                
+                // Display command if created
+                if let Some(ref spec) = self.command_spec {
+                    println!("{} {}", StatusIndicator::success(), help_text::format_command_born(&spec.name).bright_green().bold());
+                    println!("{}", "Add to PATH to use:".yellow());
+                    println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
+                    println!();
+                }
+                
+                // Display artifact if created
+                if let Some(ref spec) = self.artifact_spec {
+                    println!("{} {}", StatusIndicator::success(), format!("Artifact created: {} ({})", spec.name, spec.artifact_type).bright_cyan().bold());
+                    println!("{}", "View with:".yellow());
+                    println!("  {}", format!("port42 cat {}", spec.path).bright_white());
+                    println!();
+                }
+            }
+        }
+        Ok(())
     }
 }

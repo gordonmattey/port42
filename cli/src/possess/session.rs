@@ -3,12 +3,14 @@ use crate::possess::display::PossessDisplay;
 use crate::possess::{SimpleDisplay, AnimatedDisplay};
 use crate::protocol::{RequestBuilder, ResponseParser, possess::{PossessRequest, PossessResponse}};
 use crate::common::{generate_id, errors::Port42Error};
+use crate::display::{OutputFormat, Displayable};
 use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct SessionHandler {
     pub(crate) client: DaemonClient,
     display: Box<dyn PossessDisplay>,
+    output_format: OutputFormat,
 }
 
 impl SessionHandler {
@@ -19,11 +21,24 @@ impl SessionHandler {
             Box::new(SimpleDisplay::new())
         };
         
-        Self { client, display }
+        Self { 
+            client, 
+            display,
+            output_format: OutputFormat::Plain,
+        }
     }
     
     pub fn with_display(client: DaemonClient, display: Box<dyn PossessDisplay>) -> Self {
-        Self { client, display }
+        Self { 
+            client, 
+            display,
+            output_format: OutputFormat::Plain,
+        }
+    }
+    
+    pub fn with_output_format(mut self, format: OutputFormat) -> Self {
+        self.output_format = format;
+        self
     }
     
     pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<PossessResponse> {
@@ -61,15 +76,24 @@ impl SessionHandler {
         let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
         let possess_response = PossessResponse::parse_response(&data)?;
         
-        // Display results
-        self.display.show_ai_message(agent, &possess_response.message);
-        
-        if let Some(ref spec) = possess_response.command_spec {
-            self.display.show_command_created(spec);
-        }
-        
-        if let Some(ref spec) = possess_response.artifact_spec {
-            self.display.show_artifact_created(spec);
+        // Display results based on output format
+        match self.output_format {
+            OutputFormat::Json => {
+                // For JSON, use the Displayable trait
+                possess_response.display(OutputFormat::Json)?;
+            }
+            OutputFormat::Plain | OutputFormat::Table => {
+                // For Plain and Table, use the custom display trait for animations in interactive mode
+                self.display.show_ai_message(agent, &possess_response.message);
+                
+                if let Some(ref spec) = possess_response.command_spec {
+                    self.display.show_command_created(spec);
+                }
+                
+                if let Some(ref spec) = possess_response.artifact_spec {
+                    self.display.show_artifact_created(spec);
+                }
+            }
         }
         
         Ok(possess_response)
