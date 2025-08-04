@@ -34,7 +34,9 @@ pub trait ResponseParser {
 pub mod possess;
 pub mod status;
 pub mod reality;
+pub mod memory;
 
 pub use possess::*;
 pub use status::*;
 pub use reality::*;
+pub use memory::*;
