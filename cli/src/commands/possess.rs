@@ -2,11 +2,10 @@ use anyhow::{Result, bail};
 use colored::*;
 use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
-use crate::types::Request;
 use crate::boot::{show_boot_sequence, show_connection_progress};
-use crate::help_text::*;
-use std::io::{self, Write};
-use chrono::{DateTime, Utc};
+use crate::help_text;
+use crate::possess::{SessionHandler, determine_session_id};
+use crate::common::errors::Port42Error;
 
 pub fn handle_possess(
     port: u16, 
@@ -45,41 +44,24 @@ fn handle_possess_with_boot(
         show_connection_progress(&agent)?;
     }
     
-    let mut client = DaemonClient::new(port);
-    
-    // Determine session ID: use provided or generate new
-    let (session_id, user_provided) = if let Some(id) = session {
-        // User explicitly provided a session ID
-        (id, true)
-    } else {
-        // Always create a new session when no ID specified
-        (format!("cli-{}", chrono::Utc::now().timestamp()), false)
-    };
+    // Create client and determine session
+    let client = DaemonClient::new(port);
+    let (session_id, is_new) = determine_session_id(session);
     
     if let Some(msg) = message {
-        // Single message mode
-        println!("{}", format_possessing(&agent).blue().bold());
+        // Single message mode - use shared handler
+        let mut handler = SessionHandler::new(client, false);
         
-        if !user_provided {
-            println!("{}", format_new_session(&session_id).dimmed());
-        } else {
-            // User provided the ID, so they intend to continue (even if it doesn't exist yet)
-            println!("{}", format_session_continuing(&session_id).dimmed());
-        }
+        // Show session info
+        println!("{}", help_text::format_possessing(&agent).blue().bold());
+        handler.display_session_info(&session_id, is_new);
         println!();
         
-        send_message(&mut client, &session_id, &agent, &msg)?;
+        // Send message
+        handler.send_message(&session_id, &agent, &msg)?;
     } else {
-        // Interactive mode - show session status first
-        println!("{}", format_possessing(&agent).blue().bold());
-        
-        if !user_provided {
-            println!("{}", format_new_session(&session_id).dimmed());
-        } else {
-            // User provided the ID, so they intend to continue (even if it doesn't exist yet)
-            println!("{}", format_session_continuing(&session_id).dimmed());
-        }
-        println!();
+        // Interactive mode
+        println!("{}", help_text::format_possessing(&agent).blue().bold());
         
         // Check if terminal supports interactive features
         let is_tty = atty::is(atty::Stream::Stdout);
@@ -90,38 +72,32 @@ fn handle_possess_with_boot(
             let mut session = InteractiveSession::new(client, agent, session_id.clone());
             session.run()?;
         } else {
-            // Fallback to simple interactive mode (for pipes, non-TTY, etc)
+            // Fallback to simple interactive mode
             if !is_tty {
                 eprintln!("{}", "Note: Not a TTY, using simple mode".dimmed());
             }
             if !has_term {
                 eprintln!("{}", "Note: TERM not set, using simple mode".dimmed());
             }
-            simple_interactive_mode(&mut client, &session_id, &agent)?;
+            
+            // Use shared handler for simple mode
+            let mut handler = SessionHandler::new(client, false);
+            handler.display_session_info(&session_id, is_new);
+            println!();
+            
+            simple_interactive_mode(&mut handler, &session_id, &agent)?;
         }
         
-        // End session with a new client (ownership was moved to interactive session)
-        let mut end_client = DaemonClient::new(port);
-        let end_request = Request {
-            request_type: "end".to_string(),
-            id: session_id.clone(),
-            payload: serde_json::json!({
-                "session_id": session_id
-            }),
-        };
-        
-        if let Err(e) = end_client.request(end_request) {
-            eprintln!("{}", format_error_with_suggestion(
-                "🌊 Session drift detected",
-                &format!("Thread continues in the quantum foam: {}", e)
-            ));
-        }
+        // End session
+        end_session(port, &session_id)?;
     }
     
     Ok(())
 }
 
-fn simple_interactive_mode(client: &mut DaemonClient, session_id: &str, agent: &str) -> Result<()> {
+fn simple_interactive_mode(handler: &mut SessionHandler, session_id: &str, agent: &str) -> Result<()> {
+    use std::io::{self, Write};
+    
     println!("{}", "Entering interactive mode. Type '/end' to finish.".dimmed());
     println!();
     
@@ -140,118 +116,54 @@ fn simple_interactive_mode(client: &mut DaemonClient, session_id: &str, agent: &
             break;
         }
         
-        // Send message
-        send_message(client, session_id, agent, input)?;
+        // Send message using handler
+        handler.send_message(session_id, agent, input)?;
     }
     
     Ok(())
 }
 
-fn send_message(client: &mut DaemonClient, session_id: &str, agent: &str, message: &str) -> Result<()> {
-    if std::env::var("PORT42_DEBUG").is_ok() {
-        eprintln!("DEBUG: Sending message to session: {}", session_id);
-        eprintln!("DEBUG: Message length: {} chars", message.len());
-    }
+fn end_session(port: u16, session_id: &str) -> Result<()> {
+    use crate::types::Request;
     
-    let payload = serde_json::json!({
-        "agent": agent,
-        "message": message
-    });
-    
-    if std::env::var("PORT42_DEBUG").is_ok() {
-        eprintln!("DEBUG: Payload size: {} bytes", serde_json::to_string(&payload).unwrap_or_default().len());
-    }
-    
+    let mut client = DaemonClient::new(port);
     let request = Request {
-        request_type: "possess".to_string(),
+        request_type: "end".to_string(),
         id: session_id.to_string(),
-        payload,
+        payload: serde_json::json!({
+            "session_id": session_id
+        }),
     };
     
-    if std::env::var("PORT42_DEBUG").is_ok() {
-        eprintln!("DEBUG: Request size: {} bytes", serde_json::to_string(&request).unwrap_or_default().len());
-        eprintln!("DEBUG: About to send request to daemon");
-    }
-    
-    match client.request(request) {
-        Ok(response) => {
-            if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG: Got response from daemon, success={}", response.success);
-                if let Some(data) = &response.data {
-                    // Check size without serializing
-                    if let Some(obj) = data.as_object() {
-                        eprintln!("DEBUG: Response data has {} keys", obj.len());
-                        for key in obj.keys() {
-                            eprintln!("DEBUG:   Key: {}", key);
-                        }
-                    }
-                }
-            }
-            
-            if response.success {
-                if let Some(data) = response.data {
-                    if let Some(ai_message) = data.get("message").and_then(|v| v.as_str()) {
-                        println!("\n{}", agent.bright_blue());
-                        println!("{}", ai_message);
-                        println!();
-                        
-                        // Check if command was generated
-                        // The daemon sends command_generated=true and command_spec with the details
-                        if data.get("command_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
-                            if let Some(spec) = data.get("command_spec") {
-                                if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
-                                    println!("{}", format_command_born(&name).bright_green().bold());
-                                    println!("{}", "Add to PATH to use:".yellow());
-                                    println!("  {}", "export PATH=\"$PATH:$HOME/.port42/commands\"".bright_white());
-                                    println!();
-                                }
-                            }
-                        }
-                        
-                        // Check if artifact was generated
-                        if data.get("artifact_generated").and_then(|v| v.as_bool()).unwrap_or(false) {
-                            if let Some(spec) = data.get("artifact_spec") {
-                                if let Some(name) = spec.get("name").and_then(|v| v.as_str()) {
-                                    if let Some(artifact_type) = spec.get("type").and_then(|v| v.as_str()) {
-                                        // Use the full path if provided, otherwise construct it
-                                        let artifact_path = if let Some(path) = spec.get("path").and_then(|v| v.as_str()) {
-                                            path.to_string()
-                                        } else {
-                                            format!("/artifacts/{}/{}", artifact_type, name)
-                                        };
-                                        
-                                        println!("{}", format!("✨ Artifact created: {} ({})", name, artifact_type).bright_cyan().bold());
-                                        println!("{}", "View with:".yellow());
-                                        println!("  {}", format!("port42 cat {}", artifact_path).bright_white());
-                                        println!();
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        println!("{}", "No message in response".dimmed());
-                    }
-                } else {
-                    println!("{}", "No data in response".dimmed());
-                }
-            } else {
-                println!("{}", ERR_CONNECTION_LOST.red());
-                if let Some(error) = response.error {
-                    println!("  {}", error.dimmed());
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("{}", e);
-            return Err(e);
-        }
+    if let Err(e) = client.request(request) {
+        eprintln!("{}", help_text::format_error_with_suggestion(
+            "🌊 Session drift detected",
+            &format!("Thread continues in the quantum foam: {}", e)
+        ));
     }
     
     Ok(())
 }
 
+fn validate_agent(agent: &str) -> Result<()> {
+    const VALID_AGENTS: &[&str] = &["@ai-engineer", "@ai-muse", "@ai-growth", "@ai-founder"];
+    
+    if !VALID_AGENTS.contains(&agent) {
+        let error_msg = format!("👻 Unknown consciousness '{}'. Choose from: {}", 
+            agent, 
+            VALID_AGENTS.join(", ")
+        );
+        bail!(Port42Error::Daemon(error_msg));
+    }
+    
+    Ok(())
+}
 
+// Keep the find_recent_session function for potential future use
 fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<String>> {
+    use crate::types::Request;
+    use chrono::{DateTime, Utc};
+    
     // Query daemon for recent sessions
     let request = Request {
         request_type: "memory".to_string(),
@@ -271,86 +183,51 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
             
             if response.success {
                 if let Some(data) = response.data {
-                    // Debug: Check response without serializing
-                    if std::env::var("PORT42_DEBUG").is_ok() {
-                        if let Some(obj) = data.as_object() {
-                            eprintln!("DEBUG: Memory response has {} keys", obj.len());
-                        }
-                        if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
-                            eprintln!("DEBUG: Found {} recent sessions", recent.len());
-                        }
-                    }
-                    
-                    // Check recent_sessions array
-                    if let Some(recent) = data.get("recent_sessions").and_then(|v| v.as_array()) {
+                    if let Some(sessions) = data.as_array() {
                         if std::env::var("PORT42_DEBUG").is_ok() {
-                            eprintln!("DEBUG: Processing {} sessions, looking for agent: {}", recent.len(), agent);
+                            eprintln!("DEBUG: find_recent_session: Found {} sessions", sessions.len());
                         }
                         
-                        // Find the most recent session with this agent
-                        let mut best_session: Option<(String, DateTime<Utc>)> = None;
-                        
-                        for (idx, session) in recent.iter().enumerate() {
-                            if std::env::var("PORT42_DEBUG").is_ok() && idx < 3 {
-                                // Only log first few to avoid spam
-                                if let Some(obj) = session.as_object() {
-                                    eprintln!("DEBUG: Session {}: {} keys", idx, obj.len());
+                        // Find most recent session with matching agent
+                        let recent = sessions.iter()
+                            .filter_map(|s| {
+                                let session_agent = s.get("agent").and_then(|v| v.as_str())?;
+                                if session_agent != agent {
+                                    return None;
                                 }
-                            }
-                            if let (Some(session_agent), Some(id), Some(last_activity)) = (
-                                session.get("agent").and_then(|v| v.as_str()),
-                                session.get("id").and_then(|v| v.as_str()),
-                                session.get("last_activity").and_then(|v| v.as_str())
-                            ) {
-                                // Match agent (with @ prefix handling)
-                                let session_agent_normalized = if session_agent.starts_with('@') {
-                                    session_agent.to_string()
-                                } else {
-                                    format!("@{}", session_agent)
-                                };
                                 
-                                if session_agent_normalized == agent {
-                                    // Parse timestamp
-                                    if let Ok(activity_time) = last_activity.parse::<DateTime<Utc>>() {
-                                        // Only consider sessions less than 24 hours old
-                                        let age = Utc::now() - activity_time;
-                                        if age.num_hours() < 24 {
-                                            match &best_session {
-                                                None => best_session = Some((id.to_string(), activity_time)),
-                                                Some((_, best_time)) => {
-                                                    if activity_time > *best_time {
-                                                        best_session = Some((id.to_string(), activity_time));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                let session_id = s.get("session_id").and_then(|v| v.as_str())?;
+                                let timestamp_str = s.get("timestamp").and_then(|v| v.as_str())?;
+                                let timestamp = DateTime::parse_from_rfc3339(timestamp_str).ok()?;
+                                Some((session_id.to_string(), timestamp))
+                            })
+                            .max_by_key(|(_, ts)| *ts);
+                        
+                        if let Some((session_id, ts)) = recent {
+                            if std::env::var("PORT42_DEBUG").is_ok() {
+                                eprintln!("DEBUG: find_recent_session: Found recent session {} from {}", session_id, ts);
+                            }
+                            
+                            // Check if session is recent (within last 24 hours)
+                            let now = Utc::now();
+                            let age = now.signed_duration_since(ts.with_timezone(&Utc));
+                            
+                            if age.num_hours() < 24 {
+                                return Ok(Some(session_id));
+                            } else if std::env::var("PORT42_DEBUG").is_ok() {
+                                eprintln!("DEBUG: find_recent_session: Session is too old ({} hours)", age.num_hours());
                             }
                         }
-                        
-                        Ok(best_session.map(|(id, _)| id))
-                    } else {
-                        Ok(None)
                     }
-                } else {
-                    Ok(None)
                 }
-            } else {
-                // If memory query fails, just create new session
-                Ok(None)
             }
-        }
-        Err(_) => {
-            // If we can't query memory, just create new session
             Ok(None)
         }
-    }
-}
-
-fn validate_agent(agent: &str) -> Result<()> {
-    match agent {
-        "@ai-engineer" | "@ai-muse" | "@ai-growth" | "@ai-founder" => Ok(()),
-        _ => bail!(format_unknown_agent_error(agent))
+        Err(e) => {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: find_recent_session: Error getting memories: {}", e);
+            }
+            Ok(None)
+        }
     }
 }
