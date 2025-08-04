@@ -36,27 +36,138 @@ This document outlines a focused, incremental refactoring plan for the Port 42 C
 
 | Step | Name | Status |
 |------|------|--------|
-| 1 | Create Protocol Types and Traits | Pending |
-| 2 | Create Display Trait with Help Text Integration | Pending |
-| 3 | Create Common Libraries | Pending |
-| 4 | Create Shared Session Handler | Pending |
-| 5 | Refactor Possess Command | Pending |
-| 6 | Refactor Interactive Mode | Pending |
-| 7 | Create General Display Framework | Pending |
-| 8 | Apply Pattern to Status, Daemon, and Init Commands | Pending |
-| 9 | Apply Pattern to Reality Command and Remove Evolve | Pending |
-| 10 | Apply Pattern to Memory Command | Pending |
-| 11 | Apply Pattern to Cat and Info Commands | Pending |
-| 12 | Apply Pattern to Ls Command | Pending |
-| 13 | Apply Pattern to Search Command | Pending |
-| 14 | Update Main Entry Point | Pending |
-| 15 | Create Integration Tests | Pending |
+| 1 | Create Integration Tests for Possess | Pending |
+| 2 | Create Protocol Types and Traits | Pending |
+| 3 | Create Display Trait with Help Text Integration | Pending |
+| 4 | Create Common Libraries | Pending |
+| 5 | Create Shared Session Handler | Pending |
+| 6 | Refactor Possess Command | Pending |
+| 7 | Refactor Interactive Mode | Pending |
+| 8 | Create General Display Framework | Pending |
+| 9 | Apply Pattern to Status, Daemon, and Init Commands | Pending |
+| 10 | Apply Pattern to Reality Command and Remove Evolve | Pending |
+| 11 | Apply Pattern to Memory Command | Pending |
+| 12 | Apply Pattern to Cat and Info Commands | Pending |
+| 13 | Apply Pattern to Ls Command | Pending |
+| 14 | Apply Pattern to Search Command | Pending |
+| 15 | Update Main Entry Point | Pending |
 | 16 | Remove Old Duplicate Code | Pending |
 | 17 | Update Documentation | Pending |
 
 ## Implementation Plan
 
-### Step 1: Create Protocol Types and Traits
+### Step 1: Create Integration Tests for Possess
+
+Start with tests to ensure we don't break existing functionality during refactoring.
+
+**File: `cli/tests/possess_integration.rs`**
+
+```rust
+use port42_cli::client::DaemonClient;
+use port42_cli::commands::possess;
+use std::process::Command;
+use std::time::Duration;
+use std::thread;
+
+#[test]
+fn test_possess_non_interactive() {
+    // Start test daemon
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500)); // Let daemon start
+    
+    let mut client = DaemonClient::new(daemon.port());
+    
+    // Test basic possess
+    let result = possess::handle_possess(
+        &mut client,
+        "@ai-engineer".to_string(),
+        "test message".to_string(),
+        None,
+        false,
+    );
+    
+    assert!(result.is_ok());
+    // Could check for specific response patterns
+}
+
+#[test]
+fn test_possess_with_session_id() {
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    let mut client = DaemonClient::new(daemon.port());
+    
+    // First message creates session
+    let result1 = possess::handle_possess(
+        &mut client,
+        "@ai-muse".to_string(),
+        "first message".to_string(),
+        Some("test-session-123".to_string()),
+        false,
+    );
+    assert!(result1.is_ok());
+    
+    // Second message continues session
+    let result2 = possess::handle_possess(
+        &mut client,
+        "@ai-muse".to_string(),
+        "second message".to_string(),
+        Some("test-session-123".to_string()),
+        false,
+    );
+    assert!(result2.is_ok());
+}
+
+#[test]
+fn test_possess_invalid_agent() {
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    let mut client = DaemonClient::new(daemon.port());
+    
+    let result = possess::handle_possess(
+        &mut client,
+        "@invalid-agent".to_string(),
+        "test message".to_string(),
+        None,
+        false,
+    );
+    
+    assert!(result.is_err());
+    // Should contain appropriate error message
+}
+
+// Helper to start daemon for tests
+fn start_test_daemon() -> TestDaemon {
+    let port = find_free_port();
+    let child = Command::new("./bin/port42d")
+        .env("PORT42_PORT", port.to_string())
+        .env("PORT42_TEST_MODE", "1")
+        .spawn()
+        .expect("Failed to start test daemon");
+    
+    TestDaemon { child, port }
+}
+
+struct TestDaemon {
+    child: std::process::Child,
+    port: u16,
+}
+
+impl TestDaemon {
+    fn port(&self) -> u16 {
+        self.port
+    }
+}
+
+impl Drop for TestDaemon {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+    }
+}
+```
+
+### Step 2: Create Protocol Types and Traits
 
 **File: `cli/src/protocol/mod.rs`**
 
@@ -386,7 +497,75 @@ impl InteractiveSession {
 }
 ```
 
-### Step 7: Create General Display Framework
+**Integration Test for Interactive Mode**:
+
+```rust
+#[test]
+fn test_possess_interactive_mode() {
+    // This is harder to test due to terminal interaction
+    // Could use a pty or mock the terminal input/output
+    // For now, ensure the interactive flag is handled correctly
+    
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    // Test that interactive mode is properly detected
+    // Real interactive testing would require terminal emulation
+}
+```
+
+### Step 7: Run Possess Integration Tests
+
+Before moving to other commands, ensure all possess tests pass:
+
+```bash
+cargo test --test possess_integration
+```
+
+This validates that the refactoring maintains backward compatibility.
+
+**File: `cli/src/interactive.rs`**
+
+```rust
+use crate::possess::{SessionHandler, AnimatedDisplay};
+
+pub struct InteractiveSession {
+    handler: SessionHandler,
+    agent: String,
+    session_id: String,
+    depth: u32,
+}
+
+impl InteractiveSession {
+    pub fn run(&mut self) -> Result<()> {
+        self.show_welcome()?;
+        
+        loop {
+            // Get input
+            let input = self.read_input()?;
+            if input == "/surface" {
+                break;
+            }
+            
+            // Use shared handler for sending messages
+            let response = self.handler.send_message(&self.session_id, &self.agent, &input)?;
+            
+            // Track any generated commands/artifacts
+            if let Some(spec) = response.command_spec {
+                self.commands_generated.push(spec.name);
+            }
+            if let Some(spec) = response.artifact_spec {
+                self.artifacts_generated.push((spec.name, spec.artifact_type, spec.path));
+            }
+        }
+        
+        self.show_exit_summary()?;
+        Ok(())
+    }
+}
+```
+
+### Step 8: Create General Display Framework
 
 **File: `cli/src/display/mod.rs`**
 
@@ -648,7 +827,54 @@ fn test_possess_full_flow() {
 }
 ```
 
-### Step 8: Apply Pattern to Status, Daemon, and Init Commands
+### Step 9: Apply Pattern to Status, Daemon, and Init Commands
+
+**First, create integration tests**:
+
+**File: `cli/tests/status_daemon_integration.rs`**
+
+```rust
+#[test]
+fn test_status_command() {
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    let mut client = DaemonClient::new(daemon.port());
+    let result = status::handle_status(&mut client, OutputFormat::Plain);
+    
+    assert!(result.is_ok());
+    // Could capture stdout and verify output format
+}
+
+#[test]
+fn test_daemon_lifecycle() {
+    // Test start (already running in test)
+    // Test status
+    // Test restart
+    // Test stop
+    // Each step should verify expected behavior
+}
+
+#[test]
+fn test_init_command() {
+    let test_dir = tempdir::TempDir::new("port42_test").unwrap();
+    std::env::set_var("HOME", test_dir.path());
+    
+    // First init should succeed
+    let result1 = init::handle_init(false);
+    assert!(result1.is_ok());
+    
+    // Check directories were created
+    assert!(test_dir.path().join(".port42/commands").exists());
+    assert!(test_dir.path().join(".port42/memory").exists());
+    
+    // Second init without force should indicate already initialized
+    let result2 = init::handle_init(false);
+    assert!(result2.is_ok()); // Should succeed but with different message
+}
+```
+
+**Then implement the refactored commands**:
 
 These commands are related as they all deal with daemon state and initialization.
 
@@ -908,7 +1134,7 @@ pub fn handle_init(force: bool) -> Result<()> {
 }
 ```
 
-### Step 9: Apply Pattern to Reality Command and Remove Evolve
+### Step 10: Apply Pattern to Reality Command and Remove Evolve
 
 The reality command lists crystallized commands from the filesystem. Even though it doesn't use the daemon, we apply the same display patterns for consistency. The evolve command is not implemented and should be removed.
 
@@ -1078,10 +1304,47 @@ fn detect_language(path: &PathBuf) -> String {
 - Still uses the same display framework for consistency
 - Business logic (filesystem reading) separated from display logic
 - Remove `evolve.rs` from the commands directory as it's not implemented
+- There is no separate 'list' command - 'reality' handles listing commands
 
-// Note: There is no separate 'list' command - 'reality' handles listing commands
+### Step 11: Apply Pattern to Memory Command
 
-### Step 10: Apply Pattern to Memory Command
+**Integration tests first**:
+
+```rust
+#[test]
+fn test_memory_list() {
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    // Create some sessions first
+    create_test_sessions(&daemon);
+    
+    let mut client = DaemonClient::new(daemon.port());
+    let result = memory::handle_memory(&mut client, None, OutputFormat::Plain);
+    
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_memory_detail() {
+    let daemon = start_test_daemon();
+    thread::sleep(Duration::from_millis(500));
+    
+    let session_id = "test-session-123";
+    create_test_session(&daemon, session_id);
+    
+    let mut client = DaemonClient::new(daemon.port());
+    let result = memory::handle_memory(
+        &mut client, 
+        Some(session_id.to_string()), 
+        OutputFormat::Plain
+    );
+    
+    assert!(result.is_ok());
+}
+```
+
+**Then the implementation**:
 
 **File: `cli/src/commands/memory.rs`**
 
@@ -1118,7 +1381,7 @@ pub fn handle_memory(
 }
 ```
 
-### Step 11: Apply Pattern to Cat and Info Commands
+### Step 12: Apply Pattern to Cat and Info Commands
 
 These commands both read from the virtual filesystem but display different aspects.
 
@@ -1267,7 +1530,7 @@ pub fn handle_cat(client: &mut DaemonClient, path: String, format: OutputFormat)
 }
 ```
 
-### Step 12: Apply Pattern to Ls Command
+### Step 13: Apply Pattern to Ls Command
 
 **File: `cli/src/commands/ls.rs`**
 
@@ -1299,7 +1562,7 @@ pub fn handle_ls(client: &mut DaemonClient, path: String, format: OutputFormat) 
 }
 ```
 
-### Step 13: Apply Pattern to Search Command
+### Step 14: Apply Pattern to Search Command
 
 **File: `cli/src/commands/search.rs`**
 
@@ -1345,7 +1608,7 @@ pub fn handle_search(
 }
 ```
 
-### Step 14: Update Main Entry Point
+### Step 15: Update Main Entry Point
 
 **File: `cli/src/main.rs`** (updated)
 
@@ -1462,41 +1725,6 @@ fn main() -> Result<()> {
     }
     
     Ok(())
-}
-```
-
-### Step 15: Create Integration Tests
-
-```rust
-#[cfg(test)]
-mod integration_tests {
-    use super::*;
-    
-    #[test]
-    fn test_possess_full_flow() {
-        // Start real daemon
-        let mut daemon = start_test_daemon();
-        let mut client = DaemonClient::new(daemon.port());
-        
-        // Send possess request
-        let result = handle_possess(
-            &mut client,
-            "@ai-engineer".to_string(),
-            "test message".to_string(),
-            None,
-            false,
-        );
-        
-        assert!(result.is_ok());
-        // Verify response
-        // Check command creation if applicable
-    }
-    
-    #[test]
-    fn test_all_commands_use_protocol() {
-        // Verify each command uses the new protocol types
-        // This ensures we didn't miss any during refactoring
-    }
 }
 ```
 
