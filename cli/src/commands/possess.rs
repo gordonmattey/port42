@@ -52,8 +52,10 @@ fn handle_possess_with_boot(
         // Single message mode - use shared handler
         let mut handler = SessionHandler::new(client, false);
         
-        // Show session info
-        println!("{}", help_text::format_possessing(&agent).blue().bold());
+        // Show session info (no need to repeat "Channeling" message if boot was shown)
+        if !show_boot {
+            println!("{}", help_text::format_possessing(&agent).blue().bold());
+        }
         handler.display_session_info(&session_id, is_new);
         println!();
         
@@ -64,8 +66,10 @@ fn handle_possess_with_boot(
         println!("\n{}", help_text::format_new_session(&response.session_id).dimmed());
         println!("{}", "Use 'memory' to review this thread".dimmed());
     } else {
-        // Interactive mode
-        println!("{}", help_text::format_possessing(&agent).blue().bold());
+        // Interactive mode (no need to repeat "Channeling" message if boot was shown)
+        if !show_boot {
+            println!("{}", help_text::format_possessing(&agent).blue().bold());
+        }
         
         // Check if terminal supports interactive features
         let is_tty = atty::is(atty::Stream::Stdout);
