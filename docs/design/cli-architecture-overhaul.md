@@ -156,22 +156,87 @@ pub const PROTOCOL_VERSION: &str = "1.0";
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProtocolRequest {
+    // Basic operations
     Status,
+    Ping,
+    
+    // AI Agent operations
     Possess {
         agent: String,
         message: String,
         session_id: Option<String>,
     },
+    
+    // Command management
     List {
         filter: Option<String>,
     },
+    
+    // Memory/Session operations
     Memory {
-        subcommand: MemorySubcommand,
+        session_id: Option<String>,
+    },
+    CreateMemory {
+        agent: String,
+        initial_message: Option<String>,
+    },
+    End {
+        session_id: String,
+    },
+    
+    // Virtual filesystem operations
+    StorePath {
+        path: String,
+        content: String, // base64 encoded
+        metadata: Option<StoreMetadata>,
+    },
+    UpdatePath {
+        path: String,
+        content: Option<String>, // base64 encoded
+        metadata_updates: Option<MetadataUpdates>,
+    },
+    DeletePath {
+        path: String,
+    },
+    ListPath {
+        path: Option<String>, // defaults to "/"
     },
     ReadPath {
         path: String,
     },
-    // ... all other request types
+    GetMetadata {
+        path: String,
+    },
+    Search {
+        query: String,
+        filters: Option<SearchFilters>,
+    },
+}
+
+// Request metadata types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StoreMetadata {
+    pub r#type: String,
+    pub description: Option<String>,
+    pub agent: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetadataUpdates {
+    pub description: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub importance: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchFilters {
+    pub path: Option<String>,
+    pub r#type: Option<String>,
+    pub after: Option<String>,
+    pub before: Option<String>,
+    pub agent: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub limit: Option<usize>,
 }
 
 // Strongly-typed responses
@@ -182,8 +247,110 @@ pub enum ProtocolResponse {
     Possess(PossessData),
     List(ListData),
     Memory(MemoryData),
-    Content(ContentData),
-    Error(ErrorData),
+    SessionList(SessionListData),
+    StorePath(StorePathData),
+    ListPath(ListPathData),
+    ReadPath(ReadPathData),
+    GetMetadata(MetadataData),
+    Search(SearchData),
+    Simple(SimpleData),
+    Empty,
+}
+
+// Response data structures
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusData {
+    pub status: String,
+    pub port: String,
+    pub sessions: usize,
+    pub uptime: String,
+    pub dolphins: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PossessData {
+    pub message: String,
+    pub session_id: String,
+    pub agent: String,
+    pub command_generated: bool,
+    pub command_spec: Option<CommandSpec>,
+    pub artifact_generated: bool,
+    pub artifact_spec: Option<ArtifactSpec>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommandSpec {
+    pub name: String,
+    pub description: String,
+    pub language: String,
+    pub implementation: String,
+    pub dependencies: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ArtifactSpec {
+    pub name: String,
+    pub r#type: String,
+    pub description: String,
+    pub format: String,
+    pub path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListData {
+    pub commands: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionListData {
+    pub active_sessions: Vec<SessionInfo>,
+    pub recent_sessions: Vec<SessionInfo>,
+    pub stats: SessionStats,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub id: String,
+    pub agent: String,
+    pub created_at: String,
+    pub last_activity: String,
+    pub message_count: usize,
+    pub state: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MemoryData {
+    pub id: String,
+    pub agent: String,
+    pub state: String,
+    pub created_at: String,
+    pub last_activity: String,
+    pub messages: Vec<Message>,
+    pub command_generated: Option<GeneratedCommand>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Message {
+    pub role: String,
+    pub content: String,
+    pub timestamp: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListPathData {
+    pub path: String,
+    pub entries: Vec<PathEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PathEntry {
+    pub name: String,
+    pub r#type: String,
+    pub size: Option<usize>,
+    pub created: Option<String>,
+    pub executable: Option<bool>,
+    pub state: Option<String>, // for memory entries
+    pub messages: Option<usize>, // for memory entries
 }
 
 // Request/Response wrapper for versioning
@@ -199,6 +366,13 @@ pub struct Response {
     pub version: String,
     pub id: String,
     pub body: Result<ProtocolResponse, ErrorData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorData {
+    pub code: String,
+    pub message: String,
+    pub details: Option<serde_json::Value>,
 }
 ```
 

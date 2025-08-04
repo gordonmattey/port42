@@ -10,6 +10,7 @@ mod interactive;
 mod shell;
 mod help_text;
 mod help_handler;
+mod protocol;
 
 use commands::*;
 
