@@ -116,8 +116,12 @@ impl Port42Shell {
                 status::handle_status(self.port, detailed)?;
             }
             "reality" => {
-                let verbose = parts.contains(&"--verbose");
-                let agent = None; // Could parse agent filter
+                let verbose = parts.contains(&"--verbose") || parts.contains(&"-v");
+                // Parse agent filter if provided
+                let agent = parts.iter()
+                    .position(|&p| p == "--agent" || p == "-a")
+                    .and_then(|i| parts.get(i + 1))
+                    .map(|&s| s.to_string());
                 reality::handle_reality(self.port, verbose, agent)?;
             }
             "possess" => {
