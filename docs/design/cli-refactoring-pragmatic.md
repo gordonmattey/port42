@@ -910,26 +910,66 @@ pub fn handle_init(force: bool) -> Result<()> {
 
 ### Step 9: Apply Pattern to Reality Command and Remove Evolve
 
-The reality command lists crystallized commands from the filesystem. The evolve command is not implemented and should be removed.
+The reality command lists crystallized commands from the filesystem. Even though it doesn't use the daemon, we apply the same display patterns for consistency. The evolve command is not implemented and should be removed.
 
-**File: `cli/src/protocol/requests.rs`**
+**File: `cli/src/commands/reality_types.rs`**
 
 ```rust
-// Reality doesn't need a request - it reads filesystem directly
-// But we'll create a response type for consistency
-#[derive(Debug, Deserialize)]
-pub struct RealityResponse {
+// Reality doesn't need request/response types since it reads filesystem directly
+// But we create structured types for business logic and display separation
+#[derive(Debug)]
+pub struct RealityData {
     pub commands: Vec<CommandInfo>,
     pub total: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct CommandInfo {
     pub name: String,
     pub path: PathBuf,
     pub language: String,
     pub created: Option<String>,
     pub agent: Option<String>,
+}
+
+// Implement Displayable for consistent output formatting
+impl Displayable for RealityData {
+    fn display(&self, format: OutputFormat) -> Result<()> {
+        match format {
+            OutputFormat::Json => {
+                println!("{}", serde_json::to_string_pretty(self)?);
+            }
+            OutputFormat::Table => {
+                let mut table = components::TableBuilder::new();
+                table.add_header(vec!["Command", "Language", "Agent", "Created"]);
+                
+                for cmd in &self.commands {
+                    table.add_row(vec![
+                        cmd.name.clone(),
+                        cmd.language.clone(),
+                        cmd.agent.as_deref().unwrap_or("-").to_string(),
+                        cmd.created.as_deref().unwrap_or("-").to_string(),
+                    ]);
+                }
+                
+                table.print();
+                println!("\n{}", help_text::format_total_commands(self.total));
+            }
+            OutputFormat::Plain => {
+                if self.commands.is_empty() {
+                    println!("{}", "No commands found in ~/.port42/commands".dimmed());
+                    println!("\n{}", "Generate your first command:".yellow());
+                    println!("  {}", "port42 possess @ai-muse".bright_white());
+                } else {
+                    for cmd in &self.commands {
+                        println!("  {}", cmd.name.bright_cyan());
+                    }
+                    println!("\n{}", help_text::format_total_commands(self.total));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 ```
 
@@ -1010,13 +1050,14 @@ pub fn handle_reality(
     // Sort by name
     commands.sort_by(|a, b| a.name.cmp(&b.name));
     
-    let reality_response = RealityResponse {
+    // Create structured data for display
+    let reality_data = RealityData {
         total: commands.len(),
         commands,
     };
     
-    // Display using the framework
-    reality_response.display(if verbose { OutputFormat::Table } else { OutputFormat::Plain })?;
+    // Display using the same framework as other commands
+    reality_data.display(if verbose { OutputFormat::Table } else { OutputFormat::Plain })?;
     
     Ok(())
 }
@@ -1032,7 +1073,11 @@ fn detect_language(path: &PathBuf) -> String {
 }
 ```
 
-**Note**: Remove `evolve.rs` from the commands directory as it's not implemented and won't be part of the refactored codebase.
+**Key Points**:
+- Reality reads filesystem directly, no daemon interaction needed
+- Still uses the same display framework for consistency
+- Business logic (filesystem reading) separated from display logic
+- Remove `evolve.rs` from the commands directory as it's not implemented
 
 ```rust
 use crate::protocol::{ListRequest, ListResponse, RequestBuilder};
