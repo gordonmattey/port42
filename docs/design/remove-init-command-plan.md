@@ -72,7 +72,7 @@ Change the Storage initialization to check if directories exist rather than alwa
 ## Testing
 1. Run installer as regular user - verify directories created with correct ownership
 2. Run installer with sudo - verify ownership warning works
-3. Start daemon and verify it creates metadata/ and objects/ directories
+3. Start daemon and verify it checks for metadata/ and objects/ directories (with warnings if missing)
 4. Verify daemon can write to all directories
 5. Test command generation still works
 6. Test memory persistence still works

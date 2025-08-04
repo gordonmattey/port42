@@ -44,12 +44,20 @@ func NewStorage(baseDir string) (*Storage, error) {
 	objectsDir := filepath.Join(baseDir, "objects")
 	metadataDir := filepath.Join(baseDir, "metadata")
 	
-	// Create directories
-	if err := os.MkdirAll(objectsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create objects directory: %w", err)
+	// Check if directories exist (they should be created by installer)
+	if _, err := os.Stat(objectsDir); os.IsNotExist(err) {
+		log.Printf("⚠️  Warning: objects directory missing at %s", objectsDir)
+		log.Printf("⚠️  Creating it now, but this indicates Port 42 wasn't installed properly")
+		if err := os.MkdirAll(objectsDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create objects directory: %w", err)
+		}
 	}
-	if err := os.MkdirAll(metadataDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create metadata directory: %w", err)
+	if _, err := os.Stat(metadataDir); os.IsNotExist(err) {
+		log.Printf("⚠️  Warning: metadata directory missing at %s", metadataDir)
+		log.Printf("⚠️  Creating it now, but this indicates Port 42 wasn't installed properly")
+		if err := os.MkdirAll(metadataDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create metadata directory: %w", err)
+		}
 	}
 	
 	s := &Storage{

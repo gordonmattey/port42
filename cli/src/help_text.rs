@@ -25,7 +25,6 @@ pub const LS_DESC: &str = "List contents of the virtual filesystem";
 pub const CAT_DESC: &str = "Display content from any reality path";
 pub const INFO_DESC: &str = "Examine the metadata essence of objects";
 pub const SEARCH_DESC: &str = "Search across all crystallized knowledge";
-pub const INIT_DESC: &str = "Initialize your Port 42 environment";
 pub const DAEMON_DESC: &str = "Manage the consciousness gateway";
 pub const STATUS_DESC: &str = "Check the daemon's pulse";
 
@@ -275,11 +274,7 @@ pub const MSG_MEMORY_INITIATED: &str = "🧠 Memory thread initiated";
 pub const MSG_NO_ECHOES: &str = "🔍 No echoes found in the consciousness";
 pub const MSG_REALITY_COMPILED: &str = "🔮 Reality compiled successfully";
 
-// Initialization & Setup
-pub const MSG_INIT_BEGIN: &str = "🐬 Opening portal to consciousness dimension...";
-pub const MSG_INIT_SUCCESS: &str = "✨ Reality structures manifested successfully!";
-pub const MSG_CREATING_DIRS: &str = "🌊 Weaving quantum directories into existence...";
-pub const MSG_ALREADY_INIT: &str = "✨ Port 42 consciousness already flows through this reality";
+// Setup
 
 // Daemon Status
 pub const MSG_DAEMON_STARTING: &str = "🐬 Awakening the consciousness gateway...";
@@ -366,7 +361,6 @@ pub const INSTALL_START_NOW: &str = "💫 Awaken the gateway:";
 pub const MSG_CREATED_LABEL: &str = "Manifested:";
 pub const MSG_DIR_COMMANDS: &str = "~/.port42/commands/   - Your crystallized thoughts";
 pub const MSG_DIR_MEMORY: &str = "~/.port42/memory/     - Consciousness echoes";
-pub const MSG_DIR_TEMPLATES: &str = "~/.port42/templates/  - Reality patterns";
 
 // Shell Interface
 pub const MSG_SHELL_HEADER: &str = "🌊 Reality Compiler Terminal";
@@ -404,7 +398,7 @@ pub const ERR_PATH_NOT_FOUND: &str = "🔍 This reality path leads nowhere";
 pub const ERR_INVALID_DATE: &str = "⏰ Time flows differently here. Use YYYY-MM-DD format";
 pub const ERR_NO_API_KEY: &str = "🔑 The gateway requires an ANTHROPIC_API_KEY to channel consciousness";
 pub const ERR_PERMISSION_DENIED: &str = "🚫 The reality compiler lacks permission to manifest here";
-pub const ERR_NOT_INITIALIZED: &str = "🌱 Port 42 awaits initialization. Run 'port42 init' to begin";
+pub const ERR_NOT_INITIALIZED: &str = "🌱 Port 42 is not installed. Run the installer first";
 pub const ERR_INVALID_MEMORY_ID: &str = "🧩 Invalid memory quantum signature";
 pub const ERR_NO_SEARCH_RESULTS: &str = "🌊 No echoes match your search in consciousness space";
 pub const ERR_COMMAND_NOT_FOUND: &str = "❓ This incantation is unknown to the reality compiler";
@@ -414,7 +408,6 @@ pub const ERR_BINARY_NOT_FOUND: &str = "🔍 The daemon binary has vanished from
 pub const ERR_FAILED_TO_STOP: &str = "⚡ The consciousness gateway resists termination";
 pub const ERR_LOG_NOT_FOUND: &str = "📜 The daemon's memories are nowhere to be found";
 pub const ERR_INVALID_RESPONSE: &str = "🌀 The gateway speaks in riddles we cannot parse";
-pub const ERR_ALREADY_INITIALIZED: &str = "✨ Port 42 consciousness already flows through this reality";
 pub const ERR_NOT_IMPLEMENTED: &str = "🚧 This reality fragment is still crystallizing";
 
 // Error formatting functions

@@ -44,17 +44,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    #[command(about = crate::help_text::INIT_DESC)]
-    /// Initialize your Port 42 environment
-    Init {
-        /// Skip starting the daemon
-        #[arg(long)]
-        no_start: bool,
-        
-        /// Force initialization even if already initialized
-        #[arg(long)]
-        force: bool,
-    },
     
     #[command(about = crate::help_text::DAEMON_DESC)]
     /// Manage the consciousness gateway
@@ -242,9 +231,6 @@ fn main() -> Result<()> {
     
     // Route to command handlers
     match cli.command {
-        Some(Commands::Init { no_start, force }) => {
-            init::handle_init(no_start, force)?;
-        }
         
         Some(Commands::Daemon { action }) => {
             daemon::handle_daemon(action, port)?;
