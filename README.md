@@ -43,22 +43,67 @@ port42
 
 # Or use commands directly
 port42 possess @ai-muse         # Start AI conversation
-port42 list                     # List your commands
+port42 reality                  # List your commands
 port42 memory                   # View past conversations
+port42 ls /                     # Browse virtual filesystem
+port42 cat /commands/hello      # Read any content
+port42 info /memory/cli-123     # View metadata
+port42 search "docker"          # Search everything
 ```
 
-### Creating Your First Command
+### Creating Commands and Artifacts
+
+Port 42 can create two types of outputs from your AI conversations:
+
+#### Commands - Executable Tools
+```bash
+# Create a command that becomes part of your system
+$ port42 possess @ai-engineer
+> Create a command that converts CSV files to beautiful markdown tables
+✨ Crystallizing thought into reality...
+[Created: csv-to-markdown]
+
+# Now use it anywhere
+$ csv-to-markdown data.csv > report.md
+```
+
+#### Artifacts - Documents, Configs, Scripts
+```bash
+# Generate complex documents or configurations
+$ port42 possess @ai-muse
+> Create a comprehensive README for my Python project with badges and examples
+📄 Generating artifact...
+[Created: /memory/cli-1234/artifacts/README.md]
+
+# Artifacts are version-controlled and linked to conversations
+$ port42 cat /memory/cli-1234/artifacts/README.md
+```
+
+### Navigating the Virtual Filesystem
+
+Port 42 presents a unified view of all your content:
 
 ```bash
-# Method 1: Interactive shell (recommended)
-$ port42
-Echo@port42:~$ possess @ai-muse
-> Help me create a command that shows disk usage beautifully
-[Conversation flows...]
-Echo@port42:~$ exit
+# List all content types
+$ port42 ls /
+/memory     - Conversation threads and artifacts
+/commands   - Your crystallized commands
+/by-date    - Temporal organization
+/by-agent   - Organized by AI consciousness
 
-# Method 2: Direct command
-$ port42 possess @ai-muse "Create a command that explains any function in my codebase"
+# Explore specific areas
+$ port42 ls /memory/cli-1234
+messages.json          - Conversation history
+artifacts/             - Generated documents
+  README.md
+  docker-compose.yml
+  
+# Read any content
+$ port42 cat /commands/csv-to-markdown
+$ port42 info /memory/cli-1234  # See metadata
+
+# Search across everything
+$ port42 search "docker" --type artifact
 ```
 
 ### Managing the Daemon
@@ -346,11 +391,34 @@ port42/
 └── install.sh               # Production installer
 
 ~/.port42/                   # User data directory
-├── commands/                # Your generated commands
+├── commands/                # Your generated executable commands
 ├── memory/                  # Conversation history
-│   └── sessions/           # Organized by date
-├── daemon.log              # Daemon logs
-└── activate.sh             # Shell activation helper
+│   ├── sessions/           # Session files organized by date
+│   │   └── 2025/01/04/    # Daily directories
+│   │       └── cli-*.json # Individual session files
+│   └── index.json         # Memory index and statistics
+├── artifacts/              # Generated documents and files
+│   └── [session-id]/      # Artifacts grouped by conversation
+├── metadata/              # Object metadata (git-like)
+│   └── [object-id].json  # Metadata for each object
+├── objects/               # Content-addressed storage
+│   └── [sha]/[object]    # Git-like object storage
+├── agents.json           # AI agent configurations
+├── daemon.log           # Daemon runtime logs
+└── activate.sh         # Shell activation helper
+
+Virtual Filesystem View:
+/                          # Root of reality
+├── memory/               # All conversation threads
+│   └── cli-*/           # Individual sessions with artifacts
+├── commands/            # All crystallized commands
+├── by-date/            # Temporal organization
+│   └── 2025-01-04/    # Daily views
+└── by-agent/          # Organized by AI consciousness
+    ├── @ai-engineer/  # Technical creations
+    ├── @ai-muse/     # Creative works
+    ├── @ai-growth/   # Growth strategies
+    └── @ai-founder/  # Visionary synthesis
 ```
 
 ## 🌟 Features
