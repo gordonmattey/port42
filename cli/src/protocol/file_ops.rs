@@ -262,12 +262,7 @@ impl InfoResponse {
         }
         
         if let Some(obj_id) = data["object_id"].as_str() {
-            let short_id = if obj_id.len() > 12 {
-                format!("{}...", &obj_id[..12])
-            } else {
-                obj_id.to_string()
-            };
-            println!("{} {}", "Object ID:".bright_blue().bold(), short_id.dimmed());
+            println!("{} {}", "Object ID:".bright_blue().bold(), obj_id.dimmed());
         }
         
         println!("{}", "╚══════════════════════════════════════════════════════════════════╝".dimmed());
