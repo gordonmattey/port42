@@ -68,7 +68,7 @@ pub fn handle_search_with_format(
     let daemon_request = request.build_request(format!("search-{}", chrono::Utc::now().timestamp_millis()))?;
     
     // Send request and get response
-    let response = client.request(daemon_request.into())
+    let response = client.request(daemon_request)
         .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {

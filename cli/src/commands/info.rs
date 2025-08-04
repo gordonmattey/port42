@@ -14,7 +14,7 @@ pub fn handle_info_with_format(client: &mut DaemonClient, path: String, format: 
     let daemon_request = request.build_request(format!("info-{}", chrono::Utc::now().timestamp()))?;
     
     // Send request and get response
-    let response = client.request(daemon_request.into())
+    let response = client.request(daemon_request)
         .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {

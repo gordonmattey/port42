@@ -5,7 +5,8 @@ use std::net::{TcpStream, SocketAddr};
 use std::time::{Duration, Instant};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::types::{Request, Response};
+use crate::protocol::DaemonRequest;
+use crate::types::Response; // Keep old Response for now
 
 // Track recursion depth to prevent stack overflow
 static RECURSION_DEPTH: AtomicU32 = AtomicU32::new(0);
@@ -103,7 +104,7 @@ impl DaemonClient {
     }
     
     /// Send a request and receive a response
-    pub fn request(&mut self, request: Request) -> Result<Response> {
+    pub fn request(&mut self, request: DaemonRequest) -> Result<Response> {
         self.ensure_connected()?;
         
         let start = Instant::now();
@@ -179,7 +180,7 @@ impl DaemonClient {
     }
     
     /// Send a request with a custom timeout
-    pub fn request_timeout(&mut self, request: Request, timeout: Duration) -> Result<Response> {
+    pub fn request_timeout(&mut self, request: DaemonRequest, timeout: Duration) -> Result<Response> {
         let old_timeout = self.request_timeout;
         self.request_timeout = timeout;
         
@@ -205,7 +206,7 @@ impl DaemonClient {
             eprintln!("DEBUG: ping() called");
         }
         
-        let req = Request {
+        let req = DaemonRequest {
             request_type: "ping".to_string(),
             id: "ping".to_string(),
             payload: serde_json::Value::Null,

@@ -1,5 +1,5 @@
 use super::{DaemonRequest, RequestBuilder, ResponseParser};
-use crate::display::{Displayable, OutputFormat, components};
+use crate::display::{Displayable, OutputFormat};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

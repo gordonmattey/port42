@@ -128,10 +128,10 @@ fn simple_interactive_mode(handler: &mut SessionHandler, session_id: &str, agent
 }
 
 fn end_session(port: u16, session_id: &str) -> Result<()> {
-    use crate::types::Request;
+    use crate::protocol::DaemonRequest;
     
     let mut client = DaemonClient::new(port);
-    let request = Request {
+    let request = DaemonRequest {
         request_type: "end".to_string(),
         id: session_id.to_string(),
         payload: serde_json::json!({
@@ -165,11 +165,11 @@ fn validate_agent(agent: &str) -> Result<()> {
 
 // Keep the find_recent_session function for potential future use
 fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<String>> {
-    use crate::types::Request;
+    use crate::protocol::DaemonRequest;
     use chrono::{DateTime, Utc};
     
     // Query daemon for recent sessions
-    let request = Request {
+    let request = DaemonRequest {
         request_type: "memory".to_string(),
         id: "cli-memory-query".to_string(),
         payload: serde_json::Value::Null,

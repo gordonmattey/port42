@@ -19,14 +19,7 @@ pub fn handle_memory_with_format(port: u16, action: Option<MemoryAction>, format
             // List all sessions
             let request = MemoryListRequest.build_request(generate_id())?;
             
-            // Convert to old-style request for daemon client
-            let daemon_request = crate::types::Request {
-                id: request.id,
-                request_type: request.request_type,
-                payload: request.payload,
-            };
-            
-            let response = client.request(daemon_request)?;
+            let response = client.request(request)?;
             
             if !response.success {
                 return Err(Port42Error::Daemon(
@@ -55,14 +48,7 @@ pub fn handle_memory_with_format(port: u16, action: Option<MemoryAction>, format
                 session_id: session_id.clone(),
             }.build_request(format!("cli-memory-show-{}", session_id))?;
             
-            // Convert to old-style request for daemon client
-            let daemon_request = crate::types::Request {
-                id: request.id,
-                request_type: request.request_type,
-                payload: request.payload,
-            };
-            
-            let response = client.request(daemon_request)?;
+            let response = client.request(request)?;
             
             if !response.success {
                 println!("{}", help_text::format_error_with_suggestion(

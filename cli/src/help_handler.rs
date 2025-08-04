@@ -72,7 +72,6 @@ fn show_main_help() {
     println!();
     
     println!("{}", "SYSTEM:".bright_cyan());
-    println!("  {} - {}", "init".bright_green(), help_text::INIT_DESC);
     println!("  {} - {}", "daemon".bright_green(), help_text::DAEMON_DESC);
     println!("  {} - {}", "status".bright_green(), help_text::STATUS_DESC);
     println!();

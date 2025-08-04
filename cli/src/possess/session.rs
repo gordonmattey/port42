@@ -56,15 +56,8 @@ impl SessionHandler {
             obj.insert("session_id".to_string(), serde_json::Value::String(session_id.to_string()));
         }
         
-        // Convert to old-style request for daemon client
-        let daemon_request = crate::types::Request {
-            id: request.id,
-            request_type: request.request_type,
-            payload: request.payload,
-        };
-        
         // Send to daemon
-        let response = self.client.request(daemon_request)?;
+        let response = self.client.request(request)?;
         
         if !response.success {
             let error = response.error.unwrap_or_else(|| "Unknown error".to_string());

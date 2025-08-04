@@ -1,13 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Request {
-    #[serde(rename = "type")]
-    pub request_type: String,
-    pub id: String,
-    pub payload: Value,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Response {

@@ -14,7 +14,7 @@ pub fn handle_cat_with_format(client: &mut DaemonClient, path: String, format: O
     let daemon_request = request.build_request(format!("cat-{}", chrono::Utc::now().timestamp()))?;
     
     // Send request and get response
-    let response = client.request(daemon_request.into())
+    let response = client.request(daemon_request)
         .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {

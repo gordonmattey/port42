@@ -1,7 +1,7 @@
 use crate::display::{Displayable, OutputFormat, components};
 use crate::help_text;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use colored::*;
 use std::path::PathBuf;
 

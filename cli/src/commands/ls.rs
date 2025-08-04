@@ -17,7 +17,7 @@ pub fn handle_ls_with_format(client: &mut DaemonClient, path: Option<String>, fo
     let daemon_request = request.build_request(format!("ls-{}", chrono::Utc::now().timestamp()))?;
     
     // Send request and get response
-    let response = client.request(daemon_request.into())
+    let response = client.request(daemon_request)
         .context(ERR_CONNECTION_LOST)?;
     
     if !response.success {
@@ -37,13 +37,3 @@ pub fn handle_ls_with_format(client: &mut DaemonClient, path: Option<String>, fo
     Ok(())
 }
 
-// Helper to convert DaemonRequest to old Request type
-impl From<crate::protocol::DaemonRequest> for crate::types::Request {
-    fn from(req: crate::protocol::DaemonRequest) -> Self {
-        Self {
-            request_type: req.request_type,
-            id: req.id,
-            payload: req.payload,
-        }
-    }
-}

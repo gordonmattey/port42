@@ -20,15 +20,8 @@ pub fn handle_status_with_format(client: &mut DaemonClient, detailed: bool, form
     // Build request using protocol types
     let request = StatusRequest.build_request(generate_id())?;
     
-    // Convert to old-style request for daemon client (temporary compatibility)
-    let daemon_request = crate::types::Request {
-        id: request.id,
-        request_type: request.request_type,
-        payload: request.payload,
-    };
-    
     // Send to daemon
-    match client.request(daemon_request) {
+    match client.request(request) {
         Ok(response) => {
             if !response.success {
                 let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
