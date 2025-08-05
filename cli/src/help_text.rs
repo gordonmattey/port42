@@ -246,6 +246,10 @@ pub fn shell_help_main() -> String {
   {}                   - See crystallized commands
   {}    - Explore the virtual filesystem
 
+{}
+  {}              - Run any Port 42 or system command
+  {}            - Force system command (e.g., !ls for system ls)
+
 {}: status | daemon | clear | exit | help
 
 Type '{}' for detailed usage and examples.
@@ -260,6 +264,9 @@ Type '{}' to begin crystallizing thoughts into reality."#,
         "memory".bright_green(),
         "reality".bright_green(),
         "ls, cat, info, search".bright_green(),
+        "EXECUTE COMMANDS:".bright_cyan(),
+        "<command>".bright_green(),
+        "!<command>".bright_green(),
         "SYSTEM".bright_cyan(),
         "help <command>".yellow(),
         "possess @ai-engineer".yellow()

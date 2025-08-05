@@ -292,12 +292,79 @@ impl Port42Shell {
                 )?;
             }
             _ => {
-                println!("{}", format_unknown_command(parts[0]).red());
-                println!("{}", MSG_SHELL_HELP_HINT.dimmed());
+                // Try to execute as Port 42 command or system command
+                if let Err(e) = self.execute_external_command(&parts) {
+                    eprintln!("{}: {}", MSG_SHELL_ERROR.red(), e);
+                }
             }
         }
         
         Ok(())
+    }
+    
+    fn execute_external_command(&self, parts: &[&str]) -> Result<()> {
+        use std::process::Command;
+        
+        if parts.is_empty() {
+            return Ok(());
+        }
+        
+        let command_name = parts[0];
+        let args = &parts[1..];
+        
+        // Check for escape prefix to force system command
+        let (force_system, actual_command) = if command_name.starts_with('!') {
+            (true, &command_name[1..])
+        } else {
+            (false, command_name)
+        };
+        
+        // If not forcing system command, check Port 42 commands first
+        if !force_system {
+            let port42_cmd_path = dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".port42")
+                .join("commands")
+                .join(actual_command);
+            
+            if port42_cmd_path.exists() && port42_cmd_path.is_file() {
+                // Execute Port 42 command
+                let mut cmd = Command::new(&port42_cmd_path);
+                cmd.args(args);
+                
+                let status = cmd.status()?;
+                
+                if !status.success() {
+                    if let Some(code) = status.code() {
+                        return Err(anyhow::anyhow!("Command exited with code {}", code));
+                    }
+                }
+                return Ok(());
+            }
+        }
+        
+        // Try system command
+        let mut cmd = Command::new(actual_command);
+        cmd.args(args);
+        
+        match cmd.status() {
+            Ok(status) => {
+                if !status.success() {
+                    if let Some(code) = status.code() {
+                        return Err(anyhow::anyhow!("Command exited with code {}", code));
+                    }
+                }
+                Ok(())
+            }
+            Err(e) => {
+                // Check if it's a "command not found" error
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    Err(anyhow::anyhow!("Command not found: {}", actual_command))
+                } else {
+                    Err(anyhow::anyhow!("Failed to execute command: {}", e))
+                }
+            }
+        }
     }
     
     fn show_help(&self) {
