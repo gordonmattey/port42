@@ -71,7 +71,10 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 		log.Printf("✅ Storage initialized successfully")
 	}
 	
-	return &Daemon{
+	// Debug logging
+	log.Printf("DEBUG: NewDaemon called with port = '%s'", port)
+	
+	daemon := &Daemon{
 		listener:   listener,
 		sessions:   make(map[string]*Session),
 		shutdownCh: make(chan struct{}),
@@ -86,6 +89,9 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 			CommandsPath: filepath.Join(homeDir, ".port42", "commands"),
 		},
 	}
+	
+	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
+	return daemon
 }
 
 // Start begins accepting connections
@@ -788,6 +794,9 @@ func (d *Daemon) cleanupSessions() {
 // Handler methods (moved from main.go, now with daemon context)
 func (d *Daemon) handleStatus(req Request) Response {
 	resp := NewResponse(req.ID, true)
+	
+	// Debug logging to see what port is stored
+	log.Printf("DEBUG: handleStatus called, d.config.Port = '%s'", d.config.Port)
 	
 	uptime := time.Since(startTime).Round(time.Second).String()
 	

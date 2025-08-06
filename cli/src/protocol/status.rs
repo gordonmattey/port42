@@ -44,9 +44,14 @@ impl ResponseParser for StatusResponse {
     type Output = Self;
     
     fn parse_response(data: &serde_json::Value) -> Result<Self> {
-        // Extract fields from the daemon response
+        // Extract fields from the daemon response - handle both string and number
         let port = data.get("port")
-            .and_then(|v| v.as_u64())
+            .and_then(|v| {
+                // Try as number first, then as string
+                v.as_u64().or_else(|| {
+                    v.as_str().and_then(|s| s.parse().ok())
+                })
+            })
             .unwrap_or(42);
             
         let uptime = data.get("uptime")
