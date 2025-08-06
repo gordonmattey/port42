@@ -84,6 +84,10 @@ impl DaemonClient {
         // Try to connect
         let addr: SocketAddr = format!("127.0.0.1:{}", self.port).parse()?;
         
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: ensure_connected: Creating NEW connection to {}", addr);
+        }
+        
         match TcpStream::connect_timeout(&addr, self.connection_timeout) {
             Ok(stream) => {
                 // Set timeouts on the stream
@@ -105,6 +109,9 @@ impl DaemonClient {
     
     /// Send a request and receive a response
     pub fn request(&mut self, request: DaemonRequest) -> Result<Response> {
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: request() called for type: {} (port {})", request.request_type, self.port);
+        }
         self.ensure_connected()?;
         
         let start = Instant::now();
@@ -201,7 +208,7 @@ impl DaemonClient {
     }
     
     /// Test if the connection is still alive
-    fn ping(&mut self) -> Result<()> {
+    pub fn ping(&mut self) -> Result<()> {
         if std::env::var("PORT42_DEBUG").is_ok() {
             eprintln!("DEBUG: ping() called");
         }
@@ -347,13 +354,41 @@ impl DaemonClient {
     }
 }
 
-/// Helper function to detect which port the daemon is on
+/// Helper function to detect which port the daemon is on using proper ping
 pub fn detect_daemon_port() -> Option<u16> {
-    if TcpStream::connect_timeout(&"127.0.0.1:42".parse().unwrap(), Duration::from_millis(100)).is_ok() {
-        Some(42)
-    } else if TcpStream::connect_timeout(&"127.0.0.1:4242".parse().unwrap(), Duration::from_millis(100)).is_ok() {
-        Some(4242)
-    } else {
-        None
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: detect_daemon_port() called - starting port discovery");
     }
+    
+    // Try port 42 first - must actually test with ping, not just connect
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: detect_daemon_port() - testing port 42");
+    }
+    let mut client_42 = DaemonClient::new(42);
+    if client_42.ensure_connected().is_ok() && client_42.ping().is_ok() {
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: detect_daemon_port() - port 42 SUCCESS");
+        }
+        return Some(42);
+    }
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: detect_daemon_port() - port 42 failed");
+    }
+    
+    // Try port 4242 - must actually test with ping, not just connect
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: detect_daemon_port() - testing port 4242");
+    }
+    let mut client_4242 = DaemonClient::new(4242);
+    if client_4242.ensure_connected().is_ok() && client_4242.ping().is_ok() {
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: detect_daemon_port() - port 4242 SUCCESS");
+        }
+        return Some(4242);
+    }
+    if std::env::var("PORT42_DEBUG").is_ok() {
+        eprintln!("DEBUG: detect_daemon_port() - port 4242 failed, returning None");
+    }
+    
+    None
 }

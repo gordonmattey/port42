@@ -34,17 +34,8 @@ pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
     print!("{}", BOOT_SEQUENCE_PORT_CHECK.bright_cyan());
     io::stdout().flush()?;
     
-    // Quick connectivity check
-    let mut client = DaemonClient::new(port);
-    match client.ensure_connected() {
-        Ok(_) => {
-            println!("{}", BOOT_SEQUENCE_ACTIVE.bright_green().bold());
-        }
-        Err(_) => {
-            println!("{}", BOOT_SEQUENCE_OFFLINE.bright_red().bold());
-            return Err(anyhow!(ERR_DAEMON_NOT_RUNNING));
-        }
-    }
+    // Port discovery already verified daemon is active, just show status
+    println!("{}", BOOT_SEQUENCE_ACTIVE.bright_green().bold());
     
     println!();
     

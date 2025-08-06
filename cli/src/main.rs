@@ -212,14 +212,15 @@ fn main() -> Result<()> {
     
     // Determine port
     let port = cli.port.unwrap_or_else(|| {
-        // Try port 42 first, fallback to 4242
-        if std::net::TcpStream::connect("127.0.0.1:42").is_ok() {
-            42
-        } else if std::net::TcpStream::connect("127.0.0.1:4242").is_ok() {
-            4242
-        } else {
-            42 // Default to 42 even if not connected
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: main() - no explicit port, calling detect_daemon_port()");
         }
+        // Use proper daemon ping to discover port
+        let discovered_port = client::detect_daemon_port().unwrap_or(42);
+        if std::env::var("PORT42_DEBUG").is_ok() {
+            eprintln!("DEBUG: main() - discovered port: {}", discovered_port);
+        }
+        discovered_port
     });
     
     // Determine output format
@@ -237,7 +238,13 @@ fn main() -> Result<()> {
         }
         
         Some(Commands::Status { detailed }) => {
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: main() - handling Status command with port {}", port);
+            }
             let mut client = client::DaemonClient::new(port);
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: main() - created new DaemonClient for Status command");
+            }
             if cli.json {
                 status::handle_status_with_format(&mut client, detailed, display::OutputFormat::Json)?;
             } else {
