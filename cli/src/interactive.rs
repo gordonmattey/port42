@@ -1,7 +1,13 @@
 use anyhow::Result;
 use colored::*;
-use std::io::{self, Write};
 use std::time::Instant;
+use std::io::{self, Write};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    terminal::{self, disable_raw_mode, enable_raw_mode},
+    cursor, execute, queue,
+};
+use crossterm::style::{Color, SetForegroundColor, ResetColor};
 use crate::client::DaemonClient;
 use crate::possess::{SessionHandler, AnimatedDisplay};
 use crate::protocol::possess::PossessResponse;
@@ -65,47 +71,64 @@ impl InteractiveSession {
     }
     
     fn show_welcome(&self) -> Result<()> {
-        println!("{}", format!("You are now in communion with {}.", self.agent).bright_blue());
+        println!("─────────────────────────────────────────────────────────");
+        println!("Communion Chamber :: {} :: Port 42", self.agent.bright_cyan());
+        println!("─────────────────────────────────────────────────────────");
         println!();
-        println!("{}", "Type your thoughts. They will crystallize into reality.".italic());
-        println!("{}", "Use /crystallize to manifest a command or artifact from your conversation.".italic());
-        println!("{}", "Use /crystallize command for executable tools, /crystallize artifact for documents.".italic());
-        println!("{}", "Use /surface to return to your world.".italic());
+        println!("{}", "You have entered a sacred space.".white());
+        println!("{}", "Here, ideas become reality.".white());
+        println!("{}", "Speak freely. I am listening...".white());
+        println!();
+        println!("{}", "Sacred Commands:".bright_yellow());
+        println!("{}", "  /crystallize        - Generate reality from conversation".white());
+        println!("{}", "  /crystallize command - Create executable tools".white());
+        println!("{}", "  /crystallize artifact - Create documents & assets".white());
+        println!("{}", "  /surface            - Return to your world".white());
+        println!();
+        println!("{}", "Input Options:".bright_yellow());
+        println!("{}", "  Enter               - New line (continue typing)".white());
+        println!("{}", "  Empty line + Enter  - Send message to AI".white());
+        println!("{}", "  Ctrl+C / D - Cancel input / Exit session".white());
         println!();
         Ok(())
     }
     
     fn conversation_loop(&mut self) -> Result<()> {
         loop {
-            // Show depth indicator
-            let prompt = self.get_depth_prompt();
-            print!("{} ", prompt);
-            io::stdout().flush()?;
+            // Create prompt with depth indicator
+            let prompt_symbol = self.get_depth_prompt();
             
-            // Read input
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let input = input.trim();
+            // Read input with natural multi-line behavior (Enter = newline, Shift+Enter = send)
+            let input = self.read_natural_multiline_input(&prompt_symbol)?;
             
             // Check for exit commands
-            if input == "/surface" || input == "/end" || input.is_empty() {
+            if input == "/surface" || input == "/end" {
                 break;
             }
             
-            // Check for special commands
-            if self.handle_special_command(input)? {
+            // Skip if input was cancelled
+            if input == "::CANCELLED::" {
                 continue;
             }
+            
+            // Skip empty input (but don't exit)
+            if input.trim().is_empty() {
+                continue;
+            }
+            
+            // Check for special commands
+            if self.handle_special_command(&input)? {
+                continue;
+            }
+            
+            // Show sending feedback
+            println!("{}", "◊ Transmitting to consciousness stream...".blue().italic());
             
             // Increase depth
             self.depth += 1;
             
-            // Note: In a future refactoring, we could add a method to SessionHandler
-            // to update just the display without recreating the entire handler.
-            // For now, we'll let the AnimatedDisplay handle depth internally.
-            
             // Send message using handler
-            let response = self.send_message(input)?;
+            let response = self.send_message(&input)?;
             
             // Store actual session ID from first response
             if self.actual_session_id.is_none() {
@@ -127,6 +150,118 @@ impl InteractiveSession {
         }
         
         Ok(())
+    }
+    
+    fn read_natural_multiline_input(&self, prompt_symbol: &ColoredString) -> Result<String> {
+        let mut lines = Vec::new();
+        let mut current_line = String::new();
+        let mut cursor_pos = 0;
+        
+        // Calculate prompt width for alignment (symbol + space)
+        let prompt_width = prompt_symbol.chars().count() + 1;
+        
+        // Show initial prompt
+        print!("{} ", prompt_symbol);
+        io::stdout().flush()?;
+        
+        enable_raw_mode()?;
+        
+        loop {
+            match event::read()? {
+                Event::Key(KeyEvent { code, modifiers, .. }) => {
+                    // Debug key detection
+                    if std::env::var("PORT42_DEBUG_KEYS").is_ok() {
+                        eprintln!("DEBUG: KeyEvent - Code: {:?}, Modifiers: {:?}", code, modifiers);
+                    }
+                    
+                    match code {
+                        KeyCode::Enter => {
+                            if modifiers.contains(KeyModifiers::CONTROL) || modifiers.contains(KeyModifiers::SHIFT) {
+                                // Ctrl+Enter or Shift+Enter: Send message
+                                if !current_line.is_empty() {
+                                    lines.push(current_line);
+                                }
+                                disable_raw_mode()?;
+                                println!();
+                                
+                                let result = if lines.is_empty() {
+                                    String::new()
+                                } else {
+                                    lines.join("\n")
+                                };
+                                return Ok(result);
+                            } else {
+                                // Regular Enter: Check if empty line should send, otherwise new line
+                                if current_line.is_empty() && !lines.is_empty() {
+                                    // Empty line + Enter: Send message
+                                    disable_raw_mode()?;
+                                    println!();
+                                    
+                                    let result = lines.join("\n");
+                                    return Ok(result);
+                                } else {
+                                    // Regular Enter: New line
+                                    lines.push(current_line.clone());
+                                    current_line.clear();
+                                    cursor_pos = 0;
+                                    
+                                    // Move to next line and align with first line text
+                                    println!();
+                                    execute!(io::stdout(), cursor::MoveToColumn(prompt_width as u16))?;
+                                    io::stdout().flush()?;
+                                }
+                            }
+                        }
+                        KeyCode::Char(c) => {
+                            if modifiers.contains(KeyModifiers::CONTROL) {
+                                match c {
+                                    'c' => {
+                                        // Ctrl+C: Cancel input
+                                        disable_raw_mode()?;
+                                        println!("\n{}", "Input cancelled".dimmed());
+                                        return Ok("::CANCELLED::".to_string());
+                                    }
+                                    'd' => {
+                                        // Ctrl+D: Exit completely
+                                        disable_raw_mode()?;
+                                        return Ok("/surface".to_string());
+                                    }
+                                    _ => {}
+                                }
+                            } else {
+                                // Regular character input
+                                current_line.insert(cursor_pos, c);
+                                cursor_pos += 1;
+                                print!("{}", c);
+                                io::stdout().flush()?;
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            if cursor_pos > 0 {
+                                current_line.remove(cursor_pos - 1);
+                                cursor_pos -= 1;
+                                print!("\x08 \x08"); // backspace, space, backspace
+                                io::stdout().flush()?;
+                            }
+                        }
+                        KeyCode::Left => {
+                            if cursor_pos > 0 {
+                                cursor_pos -= 1;
+                                execute!(io::stdout(), cursor::MoveLeft(1))?;
+                            }
+                        }
+                        KeyCode::Right => {
+                            if cursor_pos < current_line.len() {
+                                cursor_pos += 1;
+                                execute!(io::stdout(), cursor::MoveRight(1))?;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
     }
     
     fn get_depth_prompt(&self) -> ColoredString {
