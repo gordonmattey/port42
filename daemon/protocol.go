@@ -30,8 +30,9 @@ const (
 
 // PossessPayload for possession requests
 type PossessPayload struct {
-	Agent   string `json:"agent"`
-	Message string `json:"message"`
+	Agent     string `json:"agent"`
+	Message   string `json:"message"`
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // StatusData for status responses

@@ -325,8 +325,12 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		return resp
 	}
 	
-	// Get or create session
-	session := d.getOrCreateSession(req.ID, payload.Agent)
+	// Get or create session - use session_id from payload if provided, otherwise use request ID
+	sessionID := req.ID
+	if payload.SessionID != "" {
+		sessionID = payload.SessionID
+	}
+	session := d.getOrCreateSession(sessionID, payload.Agent)
 	log.Printf("🔍 Session loaded: ID=%s, MessageCount=%d", session.ID, len(session.Messages))
 	
 	// Add user message to session

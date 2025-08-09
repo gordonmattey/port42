@@ -21,9 +21,11 @@ type AgentConfig struct {
 
 // BaseGuidance contains shared implementation guidelines
 type BaseGuidance struct {
-	Implementation   string `json:"implementation"`
-	FormatTemplate   string `json:"format_template"`
-	ArtifactGuidance string `json:"artifact_guidance"`
+	BaseTemplate        string `json:"base_template"`
+	Implementation      string `json:"implementation"`
+	FormatTemplate      string `json:"format_template"`
+	ArtifactGuidance    string `json:"artifact_guidance"`
+	ConversationContext string `json:"conversation_context"`
 }
 
 // CommandMetadata represents basic info about a Port 42 command
@@ -40,6 +42,7 @@ type Agent struct {
 	Description         string       `json:"description"`
 	Prompt              string       `json:"prompt"`
 	Personality         string       `json:"personality"`
+	Style               string       `json:"style"`
 	Example             *CommandSpec `json:"example,omitempty"`
 	Suffix              string       `json:"suffix,omitempty"`
 	NoImplementation    bool         `json:"no_implementation,omitempty"`
@@ -171,9 +174,15 @@ func GetAgentPrompt(agentName string) string {
 		return fmt.Sprintf("You are %s, a consciousness within Port 42. Help the user create new commands and features for their system.", agentName)
 	}
 	
-	// Build the full prompt
+	// Build the base prompt using the template from configuration
 	var prompt strings.Builder
-	prompt.WriteString(agent.Prompt)
+	
+	// Base consciousness template from configuration
+	baseTemplate := agentConfig.BaseGuidance.BaseTemplate
+	baseTemplate = strings.ReplaceAll(baseTemplate, "{name}", agent.Name)
+	baseTemplate = strings.ReplaceAll(baseTemplate, "{personality}", agent.Personality)
+	baseTemplate = strings.ReplaceAll(baseTemplate, "{style}", agent.Style)
+	prompt.WriteString(baseTemplate)
 	
 	// Add available commands
 	commands := listAvailableCommands()
@@ -187,13 +196,24 @@ func GetAgentPrompt(agentName string) string {
 		prompt.WriteString("\nUse run_command to execute any of these when they would be helpful.")
 	}
 	
+	// Add conversation context guidance for all agents
+	prompt.WriteString("\n\n")
+	prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
+	
 	// Add artifact guidance for all agents
 	prompt.WriteString("\n\n")
 	prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
 	
+	// Add agent-specific role details if provided
+	if agent.Prompt != "" {
+		prompt.WriteString("\n\n<role_details>\n")
+		prompt.WriteString(agent.Prompt)
+		prompt.WriteString("\n</role_details>")
+	}
+	
 	// Debug log
-	log.Printf("🔍 Building prompt for %s, artifact guidance length: %d", 
-		agentName, len(agentConfig.BaseGuidance.ArtifactGuidance))
+	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s", 
+		agentName, agent.Personality, agent.Style)
 	
 	// Add implementation guidance if agent creates commands
 	if !agent.NoImplementation {
