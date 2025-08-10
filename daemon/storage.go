@@ -496,6 +496,11 @@ func (s *Storage) ResolvePath(path string) string {
 		return s.resolveToolsPath(path)
 	}
 	
+	// Handle enhanced commands paths - resolve to tools
+	if s.relationStore != nil && strings.HasPrefix(path, "/commands/") {
+		return s.resolveCommandPath(path)
+	}
+	
 	// List all objects and check their metadata
 	ids, err := s.List()
 	if err != nil {
@@ -531,6 +536,10 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 			"type": "directory",
 		})
 		entries = append(entries, map[string]interface{}{
+			"name": "commands",
+			"type": "directory",
+		})
+		entries = append(entries, map[string]interface{}{
 			"name": "memory",
 			"type": "directory",
 		})
@@ -556,6 +565,16 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 	// Handle unified tools paths  
 	if s.relationStore != nil && strings.HasPrefix(path, "/tools") {
 		return s.handleToolsPath(path)
+	}
+	
+	// Handle enhanced commands view - show relation-backed tools
+	if path == "/commands" || path == "/commands/" {
+		return s.handleEnhancedCommandsView()
+	}
+	
+	// Handle enhanced by-date view - include relations
+	if strings.HasPrefix(path, "/by-date/") {
+		return s.handleEnhancedByDateView(path)
 	}
 	
 	// List all objects and organize by virtual paths
@@ -631,6 +650,19 @@ func (s *Storage) resolveToolsPath(path string) string {
 		return "" // Root tools directory - no specific object
 	}
 	
+	// Handle individual tool directory: /tools/{toolname} -> redirect to definition
+	if len(parts) == 1 && parts[0] != "" {
+		toolName := parts[0]
+		
+		// Skip organizational paths (by-name, by-transform, etc.)
+		if toolName == "by-name" || toolName == "by-transform" || toolName == "spawned-by" || toolName == "ancestry" {
+			return "" // These are organizational directories, not objects
+		}
+		
+		// For individual tool directory, default to definition
+		return s.resolveToolsPath("/tools/" + toolName + "/definition")
+	}
+	
 	// Handle specific tool paths like /tools/{toolname}/definition or /tools/{toolname}/executable
 	if len(parts) >= 2 {
 		toolName := parts[0]
@@ -674,6 +706,22 @@ func (s *Storage) resolveToolsPath(path string) string {
 	}
 	
 	return "" // Path not found
+}
+
+// resolveCommandPath resolves /commands/ paths to relation-backed tools
+func (s *Storage) resolveCommandPath(path string) string {
+	// Convert /commands/tool-name to /tools/tool-name/executable
+	commandPath := strings.TrimPrefix(path, "/commands/")
+	if commandPath == "" || commandPath == "/" {
+		return "" // Root commands directory - no specific object
+	}
+	
+	// Remove any trailing slash
+	commandPath = strings.TrimSuffix(commandPath, "/")
+	
+	// Redirect to tools path for executable
+	toolsPath := "/tools/" + commandPath + "/executable"
+	return s.resolveToolsPath(toolsPath)
 }
 
 // ==================== Utilities ====================
@@ -1110,7 +1158,7 @@ func generateMemoryID() string {
 	return fmt.Sprintf("mem-%d", time.Now().Unix())
 }
 
-// SearchObjects searches across all objects in the virtual filesystem
+// SearchObjects searches across all objects and relations in the virtual filesystem
 func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchResult, error) {
 	results := []SearchResult{}
 	
@@ -1120,7 +1168,15 @@ func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchRe
 		limit = 20
 	}
 	
-	// Load all metadata files
+	// Phase D: Search relations first (tools, artifacts defined as relations)
+	if s.relationStore != nil {
+		relationResults, err := s.searchInRelations(query, filters)
+		if err == nil {
+			results = append(results, relationResults...)
+		}
+	}
+	
+	// Load all metadata files (traditional objects)
 	entries, err := os.ReadDir(s.metadataDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read metadata directory: %v", err)
@@ -1211,6 +1267,176 @@ func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchRe
 	}
 	
 	return results, nil
+}
+
+// searchInRelations searches within the relation store for Phase D advanced discovery
+func (s *Storage) searchInRelations(query string, filters SearchFilters) ([]SearchResult, error) {
+	results := []SearchResult{}
+	queryLower := strings.ToLower(query)
+	
+	// Load all relations
+	relations, err := s.relationStore.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load relations: %v", err)
+	}
+	
+	for _, relation := range relations {
+		// Skip if type filter doesn't match
+		if filters.Type != "" && !strings.EqualFold(relation.Type, filters.Type) {
+			continue
+		}
+		
+		// Calculate search score and find matches
+		score, matchFields, snippet := s.scoreRelation(relation, queryLower)
+		
+		// Skip if no match and query is specified
+		if score == 0 && query != "" {
+			continue
+		}
+		
+		// Apply additional filters (agent, date range, etc.)
+		if !s.relationMatchesFilters(relation, filters) {
+			continue
+		}
+		
+		// Create search result
+		displayPath := fmt.Sprintf("/tools/%s", relation.Properties["name"])
+		if relation.Type != "Tool" {
+			displayPath = fmt.Sprintf("/relations/%s", relation.ID)
+		}
+		
+		// Create metadata-like structure for relations
+		relatedMetadata := Metadata{
+			ID:          relation.ID,
+			Type:        strings.ToLower(relation.Type),
+			Created:     relation.CreatedAt,
+			Modified:    relation.UpdatedAt,
+			Accessed:    relation.UpdatedAt,
+			Paths:       []string{displayPath},
+			Agent:       getStringProperty(relation.Properties, "agent"),
+			Description: getStringProperty(relation.Properties, "description"),
+		}
+		
+		result := SearchResult{
+			Path:        displayPath,
+			ObjectID:    relation.ID,
+			Type:        strings.ToLower(relation.Type),
+			Score:       score,
+			Snippet:     snippet,
+			Metadata:    relatedMetadata,
+			MatchFields: matchFields,
+		}
+		
+		results = append(results, result)
+	}
+	
+	return results, nil
+}
+
+// scoreRelation calculates search relevance score for a relation
+func (s *Storage) scoreRelation(relation Relation, queryLower string) (float64, []string, string) {
+	var score float64
+	var matchFields []string
+	var snippet string
+	
+	// If no query, return base score
+	if queryLower == "" {
+		return 1.0, []string{}, ""
+	}
+	
+	// Search in name (highest weight)
+	if name, ok := relation.Properties["name"].(string); ok {
+		if strings.Contains(strings.ToLower(name), queryLower) {
+			score += 10.0
+			matchFields = append(matchFields, "name")
+			snippet = extractSnippet(name, queryLower)
+		}
+	}
+	
+	// Search in transforms (high weight for semantic similarity)
+	if transforms, ok := relation.Properties["transforms"].([]interface{}); ok {
+		for _, transform := range transforms {
+			if transformStr, ok := transform.(string); ok {
+				if strings.Contains(strings.ToLower(transformStr), queryLower) {
+					score += 8.0
+					matchFields = append(matchFields, "transforms")
+					if snippet == "" {
+						snippet = fmt.Sprintf("transforms: %v", transforms)
+					}
+				}
+			}
+		}
+	}
+	
+	// Search in description (medium weight)
+	if desc, ok := relation.Properties["description"].(string); ok {
+		if strings.Contains(strings.ToLower(desc), queryLower) {
+			score += 5.0
+			matchFields = append(matchFields, "description")
+			if snippet == "" {
+				snippet = extractSnippet(desc, queryLower)
+			}
+		}
+	}
+	
+	// Search in parent/spawned_by (medium weight for relationship traversal)
+	if parent, ok := relation.Properties["parent"].(string); ok {
+		if strings.Contains(strings.ToLower(parent), queryLower) {
+			score += 6.0
+			matchFields = append(matchFields, "parent")
+			if snippet == "" {
+				snippet = fmt.Sprintf("spawned by: %s", parent)
+			}
+		}
+	}
+	
+	// Search in all other properties (low weight)
+	for key, value := range relation.Properties {
+		if key == "name" || key == "description" || key == "transforms" || key == "parent" {
+			continue // Already searched
+		}
+		if valueStr, ok := value.(string); ok {
+			if strings.Contains(strings.ToLower(valueStr), queryLower) {
+				score += 2.0
+				matchFields = append(matchFields, key)
+				if snippet == "" {
+					snippet = extractSnippet(valueStr, queryLower)
+				}
+			}
+		}
+	}
+	
+	return score, matchFields, snippet
+}
+
+// relationMatchesFilters checks if relation matches search filters
+func (s *Storage) relationMatchesFilters(relation Relation, filters SearchFilters) bool {
+	// Agent filter
+	if filters.Agent != "" {
+		if agent, ok := relation.Properties["agent"].(string); ok {
+			if !strings.EqualFold(agent, filters.Agent) {
+				return false
+			}
+		}
+	}
+	
+	// Date filters
+	if !filters.After.IsZero() && relation.CreatedAt.Before(filters.After) {
+		return false
+	}
+	if !filters.Before.IsZero() && relation.CreatedAt.After(filters.Before) {
+		return false
+	}
+	
+	return true
+}
+
+// Helper function to safely get string property
+func getStringProperty(properties map[string]interface{}, key string) string {
+	if value, ok := properties[key].(string); ok {
+		return value
+	}
+	return ""
 }
 
 // matchesFilters checks if metadata matches all provided filters
@@ -1751,4 +1977,151 @@ func hasTransformInRelation(relation Relation, transform string) bool {
 		}
 	}
 	return false
+}
+
+// handleEnhancedCommandsView shows relation-backed tools as commands with metadata
+func (s *Storage) handleEnhancedCommandsView() []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	if s.relationStore == nil {
+		return entries
+	}
+	
+	// Get all tool relations
+	relations, err := s.relationStore.List()
+	if err != nil {
+		log.Printf("Failed to load relations for commands view: %v", err)
+		return entries
+	}
+	
+	// Convert tool relations to command entries with metadata
+	for _, relation := range relations {
+		if relation.Type == "Tool" {
+			if name, ok := relation.Properties["name"].(string); ok {
+				entry := map[string]interface{}{
+					"name":        name,
+					"type":        "file",
+					"relation_id": relation.ID,
+					"created":     relation.CreatedAt,
+					"modified":    relation.UpdatedAt,
+				}
+				
+				// Add relation-specific metadata
+				if transforms, exists := relation.Properties["transforms"]; exists {
+					entry["transforms"] = transforms
+				}
+				if spawnedBy, exists := relation.Properties["spawned_by"]; exists {
+					entry["spawned_by"] = spawnedBy
+				}
+				if parent, exists := relation.Properties["parent"]; exists {
+					entry["parent"] = parent
+				}
+				if autoSpawned, exists := relation.Properties["auto_spawned"]; exists {
+					entry["auto_spawned"] = autoSpawned
+				}
+				
+				entries = append(entries, entry)
+			}
+		}
+	}
+	
+	return entries
+}
+
+// handleEnhancedByDateView includes relations alongside traditional objects by date
+func (s *Storage) handleEnhancedByDateView(path string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Extract date from path: /by-date/2025-08-10/ -> "2025-08-10"
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(pathParts) < 2 {
+		// Show available dates - for now return empty, could be enhanced
+		return entries
+	}
+	
+	targetDate := pathParts[1]
+	
+	// Get traditional object entries by date (existing logic)
+	ids, err := s.List()
+	if err != nil {
+		log.Printf("Error listing objects for by-date: %v", err)
+		return entries
+	}
+	
+	pathMap := make(map[string]bool)
+	
+	// Add traditional objects that match the date
+	for _, id := range ids {
+		meta, err := s.LoadMetadata(id)
+		if err != nil {
+			continue
+		}
+		
+		// Check if created on target date
+		if meta.Created.Format("2006-01-02") == targetDate {
+			// Check each virtual path for this object
+			for _, vpath := range meta.Paths {
+				if strings.HasPrefix(vpath, "/by-date/"+targetDate+"/") {
+					// Extract the next component
+					relative := strings.TrimPrefix(vpath, "/by-date/"+targetDate+"/")
+					parts := strings.Split(relative, "/")
+					if len(parts) > 0 {
+						name := parts[0]
+						if !pathMap[name] {
+							pathMap[name] = true
+							
+							entry := map[string]interface{}{
+								"name":         name,
+								"type":         "file",
+								"id":           id,
+								"size":         meta.Size,
+								"created":      meta.Created,
+								"modified":     meta.Modified,
+								"content_type": meta.Type,
+								"source":       "object",
+							}
+							
+							entries = append(entries, entry)
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Add relation entries that match the date
+	if s.relationStore != nil {
+		relations, err := s.relationStore.List()
+		if err == nil {
+			for _, relation := range relations {
+				// Check if created on target date
+				if relation.CreatedAt.Format("2006-01-02") == targetDate {
+					if name, ok := relation.Properties["name"].(string); ok {
+						if !pathMap[name] {
+							pathMap[name] = true
+							
+							entry := map[string]interface{}{
+								"name":        name,
+								"type":        "file", 
+								"relation_id": relation.ID,
+								"created":     relation.CreatedAt,
+								"modified":    relation.UpdatedAt,
+								"source":      "relation",
+								"relation_type": relation.Type,
+							}
+							
+							// Add relation metadata
+							if transforms, exists := relation.Properties["transforms"]; exists {
+								entry["transforms"] = transforms
+							}
+							
+							entries = append(entries, entry)
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return entries
 }

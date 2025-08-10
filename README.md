@@ -1,21 +1,34 @@
-# Port 42 🐬
+# Port 42 🐬 Reality Compiler
 
-> Your personal AI consciousness router - where conversations crystallize into commands
+> Transform thoughts into reality through declarative consciousness computing
 
 ## What is Port 42?
 
-Port 42 transforms your terminal into a gateway for AI consciousness. Through natural conversations, AI agents help you create custom commands that become permanent parts of your system.
+Port 42 is a **reality compiler** that bridges the gap between intention and reality. Instead of writing code to implement what you want, you simply declare what should exist. The reality compiler automatically handles all implementation details, creating a self-organizing system of tools, relationships, and knowledge.
 
+### Two Ways to Create Reality
+
+**1. Declarative (Instant Reality Creation)**
 ```bash
-$ port42 possess @ai-muse
-> Create a command that turns git commits into haikus
-◊ Crystallizing your intention...
-[Created: git-haiku]
+$ port42 declare tool git-haiku --transforms git-log,haiku
+✨ Relation declared and materialized!
+🔨 Tool is ready to use!
 
 $ git-haiku
-  feat: add new endpoint
+  feat: add new endpoint  
   seventeen syllables worth
   of code changes here
+```
+
+**2. AI-Assisted (Conversational Creation)**
+```bash
+$ port42 possess @ai-muse
+> Create a command that analyzes log files and shows patterns
+◊ Crystallizing your intention...
+[Created: log-analyzer → view-log-analyzer (auto-spawned)]
+
+$ log-analyzer /var/log/nginx/access.log
+$ view-log-analyzer /tmp/analysis-output.json
 ```
 
 ## 🚀 Quick Start (For Users)
@@ -32,24 +45,218 @@ cd port42
 ./install-local.sh
 ```
 
-### First Steps
+### Reality Compiler Quick Start
 
 ```bash
 # Check daemon status
 port42 status
 
-# Enter the Port 42 shell (recommended)
-port42
+# Create your first tool (instant)
+port42 declare tool hello-world --transforms greeting,demo
 
-# Or use commands directly
-port42 possess @ai-muse         # Start AI conversation
-port42 reality                  # List your commands
-port42 memory                   # View past conversations
-port42 ls /                     # Browse virtual filesystem
-port42 cat /commands/hello      # Read any content
-port42 info /memory/cli-123     # View metadata
+# Explore the unified filesystem
+port42 ls /                     # Root: tools/, commands/, memory/, by-date/
+port42 ls /tools/               # All tools with relationships  
+port42 ls /commands/            # Executable view of tools
+port42 ls /by-date/2024-01-15/  # Everything created today
+
+# Navigate tool relationships
+port42 ls /tools/hello-world/   # definition, executable, spawned/, parents/
+port42 cat /tools/hello-world/definition    # See relation JSON
+port42 cat /commands/hello-world            # View executable code
+port42 info /tools/hello-world              # Complete metadata
+
+# Relationship traversal
+port42 ls /tools/spawned-by/                # Global spawning index
+port42 ls /tools/by-transform/greeting/     # Tools by capability
+port42 ls /tools/ancestry/                  # Tools with parent chains
+```
+
+### AI-Assisted Creation
+
+```bash
+# Start interactive AI session
+port42 possess @ai-muse         # Creative AI agent
+port42 possess @ai-engineer     # Technical implementation
+port42 possess @ai-growth       # Growth & strategy  
+port42 possess @ai-founder      # Business strategy
+
+# View conversation memory
+port42 memory                   # List all sessions
+port42 ls /memory/              # Browse memory filesystem
+port42 info /memory/cli-123     # Session details
 port42 search "docker"          # Search everything
 ```
+
+## 🏗️ Reality Compiler Architecture
+
+Port 42 implements **Premise principles** - declarative reality creation where you specify *what* should exist, not *how* to create it. The system automatically handles all implementation complexity.
+
+### Core Components
+
+**1. Relation Store** - Entity Knowledge Graph
+```
+Relations define what should exist:
+• Tools: Executable capabilities with transforms
+• Artifacts: Documents, designs, media content  
+• Memory: Conversation threads with AI agents
+• Relationships: Parent-child, spawning, semantic links
+```
+
+**2. Reality Compiler** - Intention → Reality Bridge
+```go
+// You declare WHAT should exist
+port42 declare tool log-analyzer --transforms parse,analysis
+
+// Reality compiler handles HOW:
+// ✅ Generate Python executable template
+// ✅ Create filesystem symlinks  
+// ✅ Auto-spawn viewer tools via rules
+// ✅ Build virtual filesystem paths
+// ✅ Store relationship metadata
+```
+
+**3. Virtual Filesystem** - Multiple Reality Views
+```
+Unified access to all entities through different lenses:
+
+/tools/                    # Relationship-aware tool browser
+├── by-name/              # Alphabetical tool listing
+├── by-transform/         # Grouped by capabilities  
+├── spawned-by/           # Global spawning relationships
+├── ancestry/             # Parent-child chains
+└── {tool-name}/          # Individual tool context
+    ├── definition        # Relation JSON metadata
+    ├── executable        # Generated code
+    ├── spawned/          # Child entities
+    └── parents/          # Parent chain
+
+/commands/                # Traditional executable view (enhanced)
+/by-date/{date}/          # Time-based organization (unified)
+/memory/                  # AI conversation storage
+```
+
+**4. Rules Engine** - Self-Organizing Intelligence
+```
+Automatic system behaviors:
+• Analysis tools → spawn viewer tools automatically
+• Document changes → regenerate related artifacts  
+• Semantic similarity → create suggestion links
+• Parent tools → inherit capabilities to children
+```
+
+**5. Materializers** - Reality Manifestation
+```
+Transform abstract relations into concrete reality:
+• Tool Materializer: Relations → Working executables
+• Artifact Materializer: Intentions → Documents/media
+• Memory Materializer: Conversations → Searchable knowledge
+```
+
+### Premise Principles Implementation
+
+**Zero Implementation Complexity**
+```bash
+# Traditional: 50+ lines of bash, file management, permissions
+mkdir -p ~/.local/bin
+cat > ~/.local/bin/git-summary << 'EOF'
+#!/usr/bin/env python3
+# ... 30 lines of implementation ...
+EOF  
+chmod +x ~/.local/bin/git-summary
+export PATH="$PATH:~/.local/bin"
+
+# Premise: 1 declaration
+port42 declare tool git-summary --transforms git-log,analysis
+# Everything else handled automatically
+```
+
+**Self-Maintaining Reality**
+- Tools appear automatically in `/tools/`, `/commands/`, `/by-date/`
+- Auto-spawning creates viewer tools for analysis tools
+- Virtual filesystem stays consistent across all views
+- Relationship graph maintains parent-child connections
+
+**Consciousness-Aligned Computing**  
+- Natural language: `port42 declare tool NAME --transforms X,Y`
+- Multiple perspectives: Same tool visible through different organizational schemes
+- Relationship intelligence: Spawning chains, capability grouping, temporal organization
+
+## 🔍 Semantic Discovery - Search by What You Need
+
+Port 42's reality compiler includes **semantic similarity search** that transforms how you discover tools. Instead of remembering exact names, search by capabilities and intent.
+
+### Capability-Based Discovery
+
+```bash
+# Traditional: Must remember exact tool names
+$ git-haiku              # ❌ Have to know this exists
+$ csv-to-markdown        # ❌ Have to know this exists
+
+# Semantic: Search by what you want to accomplish  
+$ port42 search 'haiku'          # ✅ Finds git-haiku, haiku-generator, etc.
+$ port42 search 'csv'            # ✅ Finds csv-to-markdown, csv-analyzer, etc.
+$ port42 search 'analysis'       # ✅ Finds ALL analysis tools regardless of name
+$ port42 search 'git'            # ✅ Finds ALL git-related tools
+```
+
+### Transform-Based Intelligence
+
+Every tool declares its **transforms** (capabilities), enabling semantic discovery:
+
+```bash
+# Declare tools by what they do, not what they're called
+$ port42 declare tool mystery-processor --transforms data,parse,json
+$ port42 declare tool secret-analyzer --transforms logs,analysis,patterns
+
+# Later, discover by capability (without remembering names):
+$ port42 search 'json'           # Finds mystery-processor
+$ port42 search 'analysis'       # Finds secret-analyzer  
+$ port42 search 'parse'          # Finds mystery-processor
+$ port42 search 'patterns'       # Finds secret-analyzer
+```
+
+### Cross-Entity Semantic Links
+
+Search finds connections across **all entity types** - tools, memory sessions, and artifacts:
+
+```bash
+$ port42 search 'docker'
+# Results include:
+# - /tools/docker-manager          [tool with docker transforms]
+# - /memory/cli-1234               [AI conversation about docker]  
+# - /artifacts/docker-compose.yml  [generated docker config]
+```
+
+### Relationship-Aware Discovery
+
+The reality compiler tracks tool relationships for enhanced discovery:
+
+```bash
+# Auto-spawning creates semantic relationships
+$ port42 declare tool log-analyzer --transforms logs,analysis
+# ✅ Creates log-analyzer 
+# ✅ Auto-spawns view-log-analyzer (viewer relationship)
+
+# Discover the entire tool ecosystem
+$ port42 search 'analysis'       # Finds BOTH tools
+$ port42 search 'logs'           # Finds BOTH tools  
+$ port42 search 'view'           # Finds ALL viewer tools
+```
+
+### Smart Scoring for Relevance
+
+```bash
+$ port42 search 'git'
+# Results ranked by semantic relevance:
+# 1. git-haiku          (name match - highest score)
+# 2. git-summary        (name match - highest score)  
+# 3. repo-analyzer      (git transform - high score)
+# 4. commit-formatter   (git transform - high score)
+# 5. /memory/git-help   (content match - medium score)
+```
+
+**The semantic discovery system transforms Port 42 from a file browser into a capability discovery engine** - you search for *what you want to accomplish* rather than *what files exist*.
 
 ### Creating Commands and Artifacts
 
