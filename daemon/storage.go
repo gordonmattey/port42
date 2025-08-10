@@ -577,6 +577,11 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 		return s.handleEnhancedByDateView(path)
 	}
 	
+	// Handle memory generated view - show tools from specific session
+	if strings.HasPrefix(path, "/memory/") && strings.Contains(path, "/generated") {
+		return s.handleMemoryGeneratedView(path)
+	}
+	
 	// List all objects and organize by virtual paths
 	ids, err := s.List()
 	if err != nil {
@@ -1138,7 +1143,7 @@ func generateVirtualPaths(pathType, subpath string, meta *Metadata) []string {
 	
 	// Add memory-based path
 	if meta.Session != "" && pathType != "memory" {
-		paths = append(paths, fmt.Sprintf("/memory/%s/crystallized/%s", meta.Session, filepath.Base(subpath)))
+		paths = append(paths, fmt.Sprintf("/memory/%s/generated/%s", meta.Session, filepath.Base(subpath)))
 	}
 	
 	return paths
@@ -2118,6 +2123,51 @@ func (s *Storage) handleEnhancedByDateView(path string) []map[string]interface{}
 							entries = append(entries, entry)
 						}
 					}
+				}
+			}
+		}
+	}
+	
+	return entries
+}
+
+// handleMemoryGeneratedView shows tools created from a specific memory session  
+func (s *Storage) handleMemoryGeneratedView(path string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Extract session ID from path: /memory/session-123/generated -> "session-123"
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(pathParts) < 2 {
+		return entries
+	}
+	
+	sessionID := pathParts[1]
+	
+	if s.relationStore == nil {
+		return entries
+	}
+	
+	// Get all relations and filter by memory_session
+	relations, err := s.relationStore.List()
+	if err != nil {
+		log.Printf("Failed to load relations for generated view: %v", err)
+		return entries
+	}
+	
+	// Filter relations that match the session ID
+	for _, relation := range relations {
+		if memorySession, ok := relation.Properties["memory_session"].(string); ok {
+			if memorySession == sessionID {
+				if name, ok := relation.Properties["name"].(string); ok {
+					entry := map[string]interface{}{
+						"name":        name,
+						"type":        "file",
+						"relation_id": relation.ID,
+						"created":     relation.CreatedAt,
+						"modified":    relation.UpdatedAt,
+						"session_id":  sessionID,
+					}
+					entries = append(entries, entry)
 				}
 			}
 		}

@@ -6,9 +6,16 @@ import (
 
 // Request represents an incoming request from the CLI
 type Request struct {
-	Type    string          `json:"type"`
-	ID      string          `json:"id"`
-	Payload json.RawMessage `json:"payload"`
+	Type           string          `json:"type"`
+	ID             string          `json:"id"`
+	Payload        json.RawMessage `json:"payload"`
+	SessionContext *SessionContext `json:"session_context,omitempty"` // Optional session info
+}
+
+// SessionContext provides memory session information for relation tracking
+type SessionContext struct {
+	SessionID string `json:"session_id,omitempty"` // Memory session ID
+	Agent     string `json:"agent,omitempty"`      // AI agent name if from conversation
 }
 
 // Response represents the daemon's response

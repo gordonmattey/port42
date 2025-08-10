@@ -1069,6 +1069,20 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 			fmt.Sprintf("%v", payload.Relation.Properties["name"]))
 	}
 	
+	// Step 5: Capture session context for memory-relation bridge
+	if req.SessionContext != nil && req.SessionContext.SessionID != "" {
+		// Add memory session properties to relation
+		if payload.Relation.Properties == nil {
+			payload.Relation.Properties = make(map[string]interface{})
+		}
+		payload.Relation.Properties["memory_session"] = req.SessionContext.SessionID
+		if req.SessionContext.Agent != "" {
+			payload.Relation.Properties["crystallized_agent"] = req.SessionContext.Agent
+		}
+		log.Printf("🔗 Linking relation %s to memory session %s", 
+			payload.Relation.ID, req.SessionContext.SessionID)
+	}
+	
 	// Declare and materialize the relation
 	entity, err := d.realityCompiler.DeclareRelation(payload.Relation)
 	if err != nil {
