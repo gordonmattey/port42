@@ -66,6 +66,23 @@ pub fn handle_memory_with_format(port: u16, action: Option<MemoryAction>, format
             
             memory_detail.display(format)?;
         }
+        
+        Some(MemoryAction::Rename { session_id, new_name }) => {
+            // Rename memory/session
+            if format != OutputFormat::Json {
+                println!("{}", format!("Renaming memory {} to '{}'...", session_id.bright_cyan(), new_name.bright_white()).blue());
+            }
+            
+            // For now, show that this feature is coming soon
+            println!("{}", "Memory renaming feature is crystallizing...".yellow());
+            println!("{}", "This sacred power will soon be manifested.".dimmed());
+            
+            // TODO: Implement actual renaming via daemon protocol
+            // This would require:
+            // 1. Adding a MemoryRenameRequest to protocol
+            // 2. Implementing rename endpoint in daemon
+            // 3. Updating storage layer to support metadata changes
+        }
     }
     
     Ok(())

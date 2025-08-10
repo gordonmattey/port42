@@ -83,6 +83,8 @@ impl InteractiveSession {
         println!("{}", "  /crystallize        - Generate reality from conversation".white());
         println!("{}", "  /crystallize command - Create executable tools".white());
         println!("{}", "  /crystallize artifact - Create documents & assets".white());
+        println!("{}", "  /search <query>     - Search through your memories".white());
+        println!("{}", "  /import <session>   - Import a memory into this session".white());
         println!("{}", "  /surface            - Return to your world".white());
         println!();
         println!("{}", "Input Options:".bright_yellow());
@@ -304,9 +306,30 @@ impl InteractiveSession {
                 self.request_crystallization(CrystallizeType::Artifact)?;
                 Ok(true)
             }
+            _ if input.starts_with("/import ") => {
+                let session_id = input[8..].trim();
+                if session_id.is_empty() {
+                    println!("\n{}", "Usage: /import <session_id>".red());
+                    println!("{}", "Import a specific memory into current session context".dimmed());
+                } else {
+                    self.import_memory(session_id)?;
+                }
+                Ok(true)
+            }
+            _ if input.starts_with("/search ") => {
+                let query = input[8..].trim();
+                if query.is_empty() {
+                    println!("\n{}", "Usage: /search <query>".red());
+                    println!("{}", "Search through memories and display results".dimmed());
+                } else {
+                    self.search_memories(query)?;
+                }
+                Ok(true)
+            }
             _ if input.starts_with('/') => {
                 println!("\n{}", format!("Unknown command: {}", input).dimmed());
                 println!("{}", "Available: /surface, /deeper, /memory, /reality, /crystallize [command|artifact]".dimmed());
+                println!("{}", "          /import <session_id>, /search <query>".dimmed());
                 Ok(true)
             }
             _ => Ok(false)
@@ -392,6 +415,51 @@ impl InteractiveSession {
             println!("\n{}", "✨ Command successfully crystallized!".bright_green());
         } else if response.artifact_spec.is_some() {
             println!("\n{}", "📄 Artifact successfully created!".bright_cyan());
+        }
+        
+        Ok(())
+    }
+    
+    fn import_memory(&self, session_id: &str) -> Result<()> {
+        println!("\n{}", format!("🔄 Importing memory {} into consciousness stream...", session_id.bright_cyan()).blue().italic());
+        
+        // For now, show that this feature is being developed
+        println!("{}", "Memory import feature is crystallizing...".yellow());
+        println!("{}", "This sacred power will soon allow memories to merge with current session.".dimmed());
+        
+        // TODO: Implement actual memory import
+        // This would require:
+        // 1. Fetching the memory content from daemon
+        // 2. Adding it to current session context
+        // 3. Possibly sending a message to AI with the imported context
+        
+        Ok(())
+    }
+    
+    fn search_memories(&self, query: &str) -> Result<()> {
+        println!("\n{}", format!("🔍 Searching memories for: '{}'...", query.bright_yellow()).blue().italic());
+        
+        // Use the existing search functionality
+        let mut client = crate::client::DaemonClient::new(self.handler.client.port());
+        
+        match crate::commands::search::handle_search_with_format(
+            &mut client,
+            query.to_string(),
+            None, // path
+            None, // type_filter  
+            None, // after
+            None, // before
+            Some(self.agent.clone()), // agent filter
+            vec![], // tags
+            Some(10), // limit
+            crate::display::OutputFormat::Plain,
+        ) {
+            Ok(()) => {
+                println!("\n{}", "💡 Use /import <session_id> to pull any of these memories into current session".dimmed());
+            }
+            Err(e) => {
+                println!("\n{}", format!("Search failed: {}", e).red());
+            }
         }
         
         Ok(())

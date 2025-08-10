@@ -562,3 +562,10 @@ Based on similar projects, here's what we WON'T build:
 6. Fix only what's broken
 
 The dolphins swim in shallow waters first. 🐬
+
+
+----
+Level 0 - finish... system prompts for agents
+agent messages.. - seed from oroborous
+loading artifacts based on a search or directly... to pull into context.. how is this passed through?  
+
