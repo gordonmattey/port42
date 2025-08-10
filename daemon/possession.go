@@ -345,6 +345,20 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	// Get agent prompt
 	agentPrompt := getAgentPrompt(payload.Agent)
 	
+	// Inject memory contexts into system prompt if provided
+	if len(payload.MemoryContext) > 0 {
+		log.Printf("🧠 Injecting %d memory contexts into system prompt", len(payload.MemoryContext))
+		memorySection := "\n\n--- RELEVANT MEMORY CONTEXTS ---\n"
+		memorySection += "The following are relevant memories from previous conversations. Reference them when helpful:\n\n"
+		
+		for i, context := range payload.MemoryContext {
+			memorySection += fmt.Sprintf("Memory Context %d:\n%s\n\n", i+1, context)
+		}
+		
+		memorySection += "--- END MEMORY CONTEXTS ---\n"
+		agentPrompt = agentPrompt + memorySection
+	}
+	
 	// Build conversation history (without system prompt)
 	messages := d.buildConversationContext(session, payload.Agent)
 	session.mu.Unlock()
