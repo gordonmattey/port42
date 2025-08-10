@@ -861,13 +861,20 @@ func (d *Daemon) handleMemory(req Request) Response {
 	
 	// Check if payload contains a session ID
 	var payload struct {
-		SessionID string `json:"session_id,omitempty"`
+		SessionID      string `json:"session_id,omitempty"`
+		IncludeContent bool   `json:"include_content,omitempty"`
 	}
+	
+	log.Printf("🔍 [DEBUG] Memory endpoint - request ID: %s", req.ID)
+	log.Printf("🔍 [DEBUG] Memory endpoint - payload: %s", string(req.Payload))
 	
 	if req.Payload != nil && len(req.Payload) > 0 {
 		if err := json.Unmarshal(req.Payload, &payload); err == nil && payload.SessionID != "" {
+			log.Printf("🔍 [DEBUG] Memory endpoint - parsed session_id: %s, include_content: %t", payload.SessionID, payload.IncludeContent)
 			// Handle specific session request
 			return d.handleMemoryShow(req, payload.SessionID)
+		} else if err != nil {
+			log.Printf("🔍 [DEBUG] Memory endpoint - payload unmarshal error: %v", err)
 		}
 	}
 	
@@ -952,10 +959,14 @@ func (d *Daemon) handleEnd(req Request) Response {
 func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 	resp := NewResponse(req.ID, true)
 	
+	log.Printf("🔍 [DEBUG] handleMemoryShow - looking for session: %s", sessionID)
+	
 	// First check in-memory sessions
 	d.mu.RLock()
 	if session, exists := d.sessions[sessionID]; exists {
 		d.mu.RUnlock()
+		
+		log.Printf("🔍 [DEBUG] handleMemoryShow - found session in memory, messages: %d", len(session.Messages))
 		
 		data := map[string]interface{}{
 			"id":           session.ID,
@@ -967,13 +978,19 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 			"command_generated": session.CommandGenerated,
 		}
 		resp.SetData(data)
+		
+		log.Printf("🔍 [DEBUG] handleMemoryShow - returning data with %d messages", len(session.Messages))
 		return resp
 	}
 	d.mu.RUnlock()
 	
+	log.Printf("🔍 [DEBUG] handleMemoryShow - session not in memory, checking storage")
+	
 	// Try to load from disk
 	if d.storage != nil {
 		if session, err := d.storage.LoadSession(sessionID); err == nil {
+			log.Printf("🔍 [DEBUG] handleMemoryShow - found session on disk, messages: %d", len(session.Messages))
+			
 			data := map[string]interface{}{
 				"id":           session.ID,
 				"agent":        session.Agent,
@@ -984,11 +1001,18 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 				"command_generated": session.CommandGenerated,
 			}
 			resp.SetData(data)
+			
+			log.Printf("🔍 [DEBUG] handleMemoryShow - returning data from disk with %d messages", len(session.Messages))
 			return resp
+		} else {
+			log.Printf("🔍 [DEBUG] handleMemoryShow - failed to load from storage: %v", err)
 		}
+	} else {
+		log.Printf("🔍 [DEBUG] handleMemoryShow - no storage available")
 	}
 	
 	// Session not found
+	log.Printf("🔍 [DEBUG] handleMemoryShow - session not found: %s", sessionID)
 	resp.SetError(fmt.Sprintf("Session '%s' not found", sessionID))
 	return resp
 }
