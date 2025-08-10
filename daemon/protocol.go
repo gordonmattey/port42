@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Request represents an incoming request from the CLI
@@ -10,12 +11,20 @@ type Request struct {
 	ID             string          `json:"id"`
 	Payload        json.RawMessage `json:"payload"`
 	SessionContext *SessionContext `json:"session_context,omitempty"` // Optional session info
+	References     []Reference     `json:"references,omitempty"`      // Universal references
 }
 
 // SessionContext provides memory session information for relation tracking
 type SessionContext struct {
 	SessionID string `json:"session_id,omitempty"` // Memory session ID
 	Agent     string `json:"agent,omitempty"`      // AI agent name if from conversation
+}
+
+// Reference represents a contextual reference to enhance tool generation
+type Reference struct {
+	Type    string `json:"type"`              // "search", "tool", "memory", "file", "url"
+	Target  string `json:"target"`            // The thing being referenced
+	Context string `json:"context,omitempty"` // Optional additional context
 }
 
 // Response represents the daemon's response
@@ -84,4 +93,35 @@ func NewErrorResponse(id string, errorMsg string) Response {
 	resp := NewResponse(id, false)
 	resp.SetError(errorMsg)
 	return resp
+}
+
+// ValidateReference validates a single reference
+func ValidateReference(ref Reference) error {
+	validTypes := map[string]bool{
+		"search": true,
+		"tool":   true,
+		"memory": true,
+		"file":   true,
+		"url":    true,
+	}
+	
+	if !validTypes[ref.Type] {
+		return fmt.Errorf("invalid reference type: %s", ref.Type)
+	}
+	
+	if ref.Target == "" {
+		return fmt.Errorf("reference target cannot be empty")
+	}
+	
+	return nil
+}
+
+// ValidateReferences validates an array of references
+func ValidateReferences(refs []Reference) error {
+	for i, ref := range refs {
+		if err := ValidateReference(ref); err != nil {
+			return fmt.Errorf("reference %d: %w", i, err)
+		}
+	}
+	return nil
 }

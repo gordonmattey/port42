@@ -21,6 +21,7 @@ impl RequestBuilder for CatRequest {
             payload: json!({
                 "path": &self.path
             }),
+            references: None,
         })
     }
 }
@@ -206,6 +207,7 @@ impl RequestBuilder for InfoRequest {
             payload: json!({
                 "path": &self.path
             }),
+            references: None,
         })
     }
 }

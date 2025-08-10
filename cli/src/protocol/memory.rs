@@ -23,6 +23,7 @@ impl RequestBuilder for MemoryListRequest {
             request_type: "memory".to_string(),
             id,
             payload: serde_json::Value::Null,
+            references: None,
         })
     }
 }
@@ -35,6 +36,7 @@ impl RequestBuilder for MemoryDetailRequest {
             payload: json!({
                 "session_id": self.session_id
             }),
+            references: None,
         })
     }
 }

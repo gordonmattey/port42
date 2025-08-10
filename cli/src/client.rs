@@ -217,6 +217,7 @@ impl DaemonClient {
             request_type: "ping".to_string(),
             id: "ping".to_string(),
             payload: serde_json::Value::Null,
+            references: None,
         };
         
         // Don't use request_timeout as it might cause recursion

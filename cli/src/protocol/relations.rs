@@ -19,10 +19,20 @@ pub struct Relation {
     pub updated_at: Option<SystemTime>,
 }
 
+// Reference represents a contextual reference to enhance tool generation
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Reference {
+    #[serde(rename = "type")]
+    pub ref_type: String,
+    pub target: String,
+    pub context: Option<String>,
+}
+
 // Request to declare a new relation
 #[derive(Debug, Serialize)]
 pub struct DeclareRelationRequest {
     pub relation: Relation,
+    pub references: Option<Vec<Reference>>,
 }
 
 // Response from declaring a relation
@@ -127,6 +137,25 @@ impl Relation {
     }
 }
 
+impl Reference {
+    // Parse from CLI string: "search:nginx errors" -> Reference
+    pub fn from_string(input: &str) -> Result<Self> {
+        if let Some((type_part, target_part)) = input.split_once(':') {
+            Ok(Reference {
+                ref_type: type_part.to_string(),
+                target: target_part.to_string(),
+                context: None,
+            })
+        } else {
+            Err(anyhow::anyhow!("Invalid reference format. Use: type:target (e.g., search:\"nginx errors\", tool:log-parser)"))
+        }
+    }
+    
+    pub fn new(ref_type: String, target: String, context: Option<String>) -> Self {
+        Self { ref_type, target, context }
+    }
+}
+
 // Protocol implementations
 impl RequestBuilder for DeclareRelationRequest {
     fn build_request(&self, id: String) -> Result<DaemonRequest> {
@@ -134,6 +163,7 @@ impl RequestBuilder for DeclareRelationRequest {
             request_type: "declare_relation".to_string(),
             id,
             payload: serde_json::to_value(self)?,
+            references: self.references.clone(),
         })
     }
 }
@@ -144,6 +174,7 @@ impl RequestBuilder for GetRelationRequest {
             request_type: "get_relation".to_string(),
             id,
             payload: serde_json::to_value(self)?,
+            references: None,
         })
     }
 }
@@ -154,6 +185,7 @@ impl RequestBuilder for ListRelationsRequest {
             request_type: "list_relations".to_string(),
             id,
             payload: serde_json::to_value(self)?,
+            references: None,
         })
     }
 }
@@ -164,6 +196,7 @@ impl RequestBuilder for DeleteRelationRequest {
             request_type: "delete_relation".to_string(),
             id,
             payload: serde_json::to_value(self)?,
+            references: None,
         })
     }
 }

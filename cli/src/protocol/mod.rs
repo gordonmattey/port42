@@ -8,6 +8,8 @@ pub struct DaemonRequest {
     pub request_type: String,
     pub id: String,
     pub payload: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub references: Option<Vec<crate::protocol::relations::Reference>>,
 }
 
 // Base response from daemon

@@ -223,6 +223,7 @@ fn end_session(port: u16, session_id: &str) -> Result<()> {
         payload: serde_json::json!({
             "session_id": session_id
         }),
+        references: None,
     };
     
     if let Err(e) = client.request(request) {
@@ -259,6 +260,7 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         request_type: "memory".to_string(),
         id: "cli-memory-query".to_string(),
         payload: serde_json::Value::Null,
+        references: None,
     };
     
     if std::env::var("PORT42_DEBUG").is_ok() {
@@ -387,6 +389,7 @@ fn load_memory_content(client: &mut DaemonClient, memory_path: &str) -> Result<S
             "session_id": session_id,
             "include_content": true
         }),
+        references: None,
     };
     
     eprintln!("DEBUG: load_memory_content - sending request: {:?}", request);

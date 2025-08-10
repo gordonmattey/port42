@@ -20,6 +20,7 @@ impl RequestBuilder for LsRequest {
             payload: json!({
                 "path": &self.path
             }),
+            references: None,
         })
     }
 }

@@ -5,24 +5,46 @@ use std::time::Duration;
 use crate::client::DaemonClient;
 use crate::protocol::{
     DeclareRelationRequest, DeclareRelationResponse, 
-    Relation, RequestBuilder, ResponseParser
+    Relation, Reference, RequestBuilder, ResponseParser
 };
 use crate::display::{Displayable, OutputFormat};
 use crate::common::generate_id;
 
 /// Handle declaring a new tool relation
-pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>) -> Result<()> {
+pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, references: Option<Vec<String>>) -> Result<()> {
     println!("{}", format!("🌟 Declaring tool: {}", name).bright_blue());
     
     if !transforms.is_empty() {
         println!("  {}: {}", "Transforms".bright_cyan(), transforms.join(", ").bright_green());
     }
     
+    // Parse references if provided
+    let parsed_refs = if let Some(ref_strings) = references {
+        let mut refs = Vec::new();
+        for ref_str in ref_strings {
+            match Reference::from_string(&ref_str) {
+                Ok(reference) => {
+                    println!("  {}: {} → {}", "Reference".bright_cyan(), 
+                           reference.ref_type.bright_yellow(), 
+                           reference.target.bright_white());
+                    refs.push(reference);
+                }
+                Err(e) => {
+                    eprintln!("{} {}: {}", "❌ Invalid reference".red(), ref_str.bright_white(), e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Some(refs)
+    } else {
+        None
+    };
+    
     // Create tool relation
     let relation = Relation::new_tool(name, transforms);
     
     // Create request
-    let request = DeclareRelationRequest { relation };
+    let request = DeclareRelationRequest { relation, references: parsed_refs };
     
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
@@ -54,7 +76,7 @@ pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_
     let relation = Relation::new_artifact(name, artifact_type, file_type);
     
     // Create request
-    let request = DeclareRelationRequest { relation };
+    let request = DeclareRelationRequest { relation, references: None };
     
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);

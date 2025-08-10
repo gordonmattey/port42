@@ -223,6 +223,11 @@ enum DeclareCommand {
         /// What the tool transforms/processes (comma-separated)
         #[arg(long)]
         transforms: Option<String>,
+        
+        /// Reference other entities for context (can be used multiple times)
+        /// Format: type:target (e.g., search:"nginx errors", tool:log-parser)
+        #[arg(long = "ref", action = clap::ArgAction::Append)]
+        references: Option<Vec<String>>,
     },
     
     /// Declare that an artifact should exist
@@ -356,12 +361,12 @@ fn main() -> Result<()> {
         
         Some(Commands::Declare { command }) => {
             match command {
-                DeclareCommand::Tool { name, transforms } => {
+                DeclareCommand::Tool { name, transforms, references } => {
                     let transforms_vec = transforms.as_ref()
                         .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                         .unwrap_or_default();
                     
-                    commands::declare::handle_declare_tool(port, &name, transforms_vec)?;
+                    commands::declare::handle_declare_tool(port, &name, transforms_vec, references.clone())?;
                 }
                 DeclareCommand::Artifact { name, artifact_type, file_type } => {
                     commands::declare::handle_declare_artifact(port, &name, &artifact_type, &file_type)?;

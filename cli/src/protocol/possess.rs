@@ -30,6 +30,7 @@ impl RequestBuilder for PossessRequest {
             request_type: "possess".to_string(),
             id,
             payload,
+            references: None,
         })
     }
 }

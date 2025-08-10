@@ -1083,6 +1083,27 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 			payload.Relation.ID, req.SessionContext.SessionID)
 	}
 	
+	// Phase 1: Universal References - Validate and store references
+	if len(req.References) > 0 {
+		if err := ValidateReferences(req.References); err != nil {
+			resp.SetError("Invalid references: " + err.Error())
+			return resp
+		}
+		
+		if payload.Relation.Properties == nil {
+			payload.Relation.Properties = make(map[string]interface{})
+		}
+		payload.Relation.Properties["references"] = req.References
+		
+		log.Printf("📎 References stored for %s: %d references", 
+			payload.Relation.ID, len(req.References))
+		
+		// Log each reference for debugging
+		for i, ref := range req.References {
+			log.Printf("  Reference %d: %s:%s", i, ref.Type, ref.Target)
+		}
+	}
+	
 	// Declare and materialize the relation
 	entity, err := d.realityCompiler.DeclareRelation(payload.Relation)
 	if err != nil {

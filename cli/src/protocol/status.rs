@@ -14,6 +14,7 @@ impl RequestBuilder for StatusRequest {
             request_type: "status".to_string(),
             id,
             payload: serde_json::Value::Null,
+            references: None,
         })
     }
 }
