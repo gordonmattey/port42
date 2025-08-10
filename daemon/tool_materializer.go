@@ -172,10 +172,19 @@ func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, r
 
 // buildToolPrompt creates a prompt for AI tool generation using the same format as command crystallization
 func (tm *ToolMaterializer) buildToolPrompt(name string, transforms []string) string {
-	prompt := fmt.Sprintf("Create a command-line tool called '%s'", name)
+	// Check if this is a viewer tool (auto-spawned)
+	isViewer := strings.HasPrefix(name, "view-") && contains(transforms, "view")
 	
-	if len(transforms) > 0 {
-		prompt += fmt.Sprintf(" that transforms/processes: %s", strings.Join(transforms, ", "))
+	var prompt string
+	if isViewer {
+		// Special prompt for viewer tools
+		originalTool := strings.TrimPrefix(name, "view-")
+		prompt = fmt.Sprintf("Create a viewer tool called '%s' that takes output from the '%s' tool and formats/displays it in a more visual or readable way. It should accept the '%s' tool's output (via stdin, pipe, or file) and transform it for better presentation such as tables, charts, colored output, or formatted text. Focus on visualization and formatting, not new analysis.", name, originalTool, originalTool)
+	} else {
+		prompt = fmt.Sprintf("Create a command-line tool called '%s'", name)
+		if len(transforms) > 0 {
+			prompt += fmt.Sprintf(" that transforms/processes: %s", strings.Join(transforms, ", "))
+		}
 	}
 	
 	prompt += fmt.Sprintf(`
@@ -188,7 +197,7 @@ Requirements:
 3. Handle errors gracefully with meaningful messages
 4. Make it useful and practical
 
-Respond with a JSON object in this exact format:
+IMPORTANT: Respond with a JSON object in this EXACT format (no additional text):
 
 ` + "```json\n" + `{
   "name": "%s",
@@ -200,5 +209,6 @@ Respond with a JSON object in this exact format:
 
 	return prompt
 }
+
 
 

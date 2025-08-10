@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
 // Rule defines an auto-spawning rule that can trigger when relations are declared
@@ -147,7 +148,67 @@ func getRelationName(relation Relation) string {
 
 // defaultRules returns the initial set of rules for the reality compiler
 func defaultRules() []Rule {
-	// For Phase 1, we'll return an empty slice
-	// Phase 2 will add the actual ViewerRule
-	return []Rule{}
+	return []Rule{
+		viewerRule(),
+	}
+}
+
+// viewerRule creates a rule that auto-spawns viewer tools for analysis tools
+func viewerRule() Rule {
+	return Rule{
+		ID:          "spawn-viewer",
+		Name:        "Auto-spawn viewer for analysis tools",
+		Description: "When a tool with 'analysis' transform is declared, automatically create a corresponding viewer tool",
+		Enabled:     true,
+		Condition: func(relation Relation) bool {
+			// Only process Tool relations
+			if relation.Type != "Tool" {
+				return false
+			}
+			
+			// Skip auto-spawned tools to prevent infinite recursion
+			if autoSpawned, exists := relation.Properties["auto_spawned"]; exists {
+				if spawned, ok := autoSpawned.(bool); ok && spawned {
+					return false
+				}
+			}
+			
+			// Check if it has 'analysis' in its transforms
+			transforms := getTransforms(relation)
+			return contains(transforms, "analysis")
+		},
+		Action: func(relation Relation, compiler *RealityCompiler) error {
+			toolName := getRelationName(relation)
+			if toolName == "" {
+				return fmt.Errorf("tool relation missing name property")
+			}
+			
+			// Create viewer relation
+			viewerName := "view-" + toolName
+			viewerRelation := Relation{
+				ID:   generateRelationID("tool", viewerName),
+				Type: "Tool",
+				Properties: map[string]interface{}{
+					"name":         viewerName,
+					"transforms":   []string{"view", "display", "format"},
+					"parent":       toolName,
+					"spawned_by":   relation.ID,
+					"auto_spawned": true,
+				},
+				CreatedAt: time.Now(),
+			}
+			
+			log.Printf("🌱 Auto-spawning viewer tool: %s", viewerName)
+			
+			// Use the reality compiler to declare the viewer relation
+			// This will trigger full materialization including storage
+			_, err := compiler.DeclareRelation(viewerRelation)
+			if err != nil {
+				return fmt.Errorf("failed to materialize viewer tool: %w", err)
+			}
+			
+			log.Printf("✅ Successfully spawned viewer tool: %s", viewerName)
+			return nil
+		},
+	}
 }

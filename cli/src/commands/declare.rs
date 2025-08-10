@@ -1,5 +1,6 @@
 use anyhow::Result;
 use colored::*;
+use std::time::Duration;
 
 use crate::client::DaemonClient;
 use crate::protocol::{
@@ -23,10 +24,10 @@ pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>) -> Re
     // Create request
     let request = DeclareRelationRequest { relation };
     
-    // Send to daemon
+    // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request(daemon_request)?;
+    let response = client.request_timeout(daemon_request, Duration::from_secs(120))?; // 2 minutes for AI
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
@@ -55,10 +56,10 @@ pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_
     // Create request
     let request = DeclareRelationRequest { relation };
     
-    // Send to daemon
+    // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request(daemon_request)?;
+    let response = client.request_timeout(daemon_request, Duration::from_secs(120))?; // 2 minutes for AI
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
