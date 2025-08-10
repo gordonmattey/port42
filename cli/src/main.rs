@@ -13,6 +13,7 @@ mod help_handler;
 mod protocol;
 mod possess;
 mod common;
+mod ui;
 mod display;
 
 use commands::*;
@@ -77,6 +78,10 @@ pub enum Commands {
     Possess {
         /// AI agent to possess (@ai-engineer, @ai-muse, @ai-growth, @ai-founder)
         agent: String,
+        
+        /// Search memories and load matches into session context
+        #[arg(short, long)]
+        search: Option<String>,
         
         /// Memory ID or initial message
         /// (If it looks like an ID, continues that session; otherwise treats as message)
@@ -191,6 +196,14 @@ pub enum MemoryAction {
         /// Session ID
         session_id: String,
     },
+    
+    /// Rename a memory/session
+    Rename {
+        /// Session ID to rename
+        session_id: String,
+        /// New name for the session
+        new_name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -260,7 +273,7 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Possess { agent, args }) => {
+        Some(Commands::Possess { agent, search, args }) => {
             // Parse args to determine if it's a memory ID or message
             let (session, message) = match args.len() {
                 0 => (None, None),
@@ -302,9 +315,9 @@ fn main() -> Result<()> {
                 }
             };
             if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG possess: agent={}, session={:?}, message={:?}", agent, session, message);
+                eprintln!("DEBUG possess: agent={}, search={:?}, session={:?}, message={:?}", agent, search, session, message);
             }
-            commands::possess::handle_possess(port, agent, message, session)?;
+            commands::possess::handle_possess_with_search(port, agent, message, session, search, true)?;
         }
         
         Some(Commands::Memory { args }) => {
@@ -319,6 +332,15 @@ fn main() -> Result<()> {
                 Some(MemoryAction::Search {
                     query: args[1..].join(" "),
                     limit: 10,
+                })
+            } else if args[0] == "rename" {
+                if args.len() < 3 {
+                    eprintln!("{}", "Usage: memory rename <session_id> <new_name>".red());
+                    std::process::exit(1);
+                }
+                Some(MemoryAction::Rename {
+                    session_id: args[1].clone(),
+                    new_name: args[2..].join(" "),
                 })
             } else {
                 // First arg is session ID

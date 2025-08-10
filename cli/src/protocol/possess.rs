@@ -10,17 +10,26 @@ use colored::*;
 pub struct PossessRequest {
     pub agent: String,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_context: Option<Vec<String>>,
 }
 
 impl RequestBuilder for PossessRequest {
     fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        let mut payload = json!({
+            "agent": &self.agent,
+            "message": &self.message,
+        });
+        
+        // Add memory context if present
+        if let Some(ref context) = self.memory_context {
+            payload["memory_context"] = json!(context);
+        }
+        
         Ok(DaemonRequest {
             request_type: "possess".to_string(),
             id,
-            payload: json!({
-                "agent": &self.agent,
-                "message": &self.message,
-            }),
+            payload,
         })
     }
 }

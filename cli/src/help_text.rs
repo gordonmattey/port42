@@ -47,19 +47,27 @@ pub fn possess_help() -> String {
   {}  - {}
 
 {}
-  possess @ai-engineer                    # Start new technical session
-  possess @ai-muse cli-1754170150        # Continue memory thread
-  possess @ai-growth "viral CLI ideas"    # New session with message
-  possess @ai-founder mem-123 "pivot?"    # Continue memory with question
+  {}   Search for and load matching memories before sending message
 
-Memory IDs are quantum addresses in consciousness space."#,
+{}
+  possess @ai-engineer                             # Start new technical session
+  possess @ai-muse cli-1754170150                 # Continue memory thread
+  possess @ai-growth "viral CLI ideas"             # New session with message
+  possess @ai-founder mem-123 "pivot?"             # Continue memory with question
+  possess @ai-engineer --search "docker" "How to scale containers?"  # Load docker memories and ask question
+  possess @ai-muse --search "poetry" "Write a poem about memory"     # Load poetry memories and request poem
+
+Memory IDs are quantum addresses in consciousness space.
+Search loads relevant memory context before processing your message."#,
         "Channel an AI agent's consciousness to crystallize thoughts into reality.".bright_blue().bold(),
-        "Usage: possess <agent> [memory-id] [message]".yellow(),
+        "Usage: possess <agent> [memory-id | --search <query>] [message]".yellow(),
         "Agents:".bright_cyan(),
         "@ai-engineer".bright_green(), AGENT_ENGINEER_DESC,
         "@ai-muse".bright_green(), AGENT_MUSE_DESC,
         "@ai-growth".bright_green(), AGENT_GROWTH_DESC,
         "@ai-founder".bright_green(), AGENT_FOUNDER_DESC,
+        "Options:".bright_cyan(),
+        "--search <query>".bright_green(),
         "Examples:".bright_cyan()
     )
 }

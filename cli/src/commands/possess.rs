@@ -6,6 +6,7 @@ use crate::boot::{show_boot_sequence, show_connection_progress};
 use crate::help_text;
 use crate::possess::{SessionHandler, determine_session_id};
 use crate::common::errors::Port42Error;
+use crate::commands::search;
 
 pub fn handle_possess(
     port: u16, 
@@ -13,7 +14,59 @@ pub fn handle_possess(
     message: Option<String>, 
     session: Option<String>
 ) -> Result<()> {
-    handle_possess_with_boot(port, agent, message, session, true)
+    handle_possess_with_search(port, agent, message, session, None, true)
+}
+
+pub fn handle_possess_with_search(
+    port: u16, 
+    agent: String, 
+    message: Option<String>, 
+    session: Option<String>,
+    search_query: Option<String>,
+    show_boot: bool
+) -> Result<()> {
+    if let Some(query) = search_query {
+        // Load memory contexts from search
+        let mut client = DaemonClient::new(port);
+        let memory_context = load_search_results_as_context(&mut client, &query, &agent)?;
+        
+        // Display search results summary (existing behavior)
+        if show_boot {
+            let is_tty = atty::is(atty::Stream::Stdout);
+            show_boot_sequence(is_tty, port)?;
+            show_connection_progress(&agent)?;
+        }
+        
+        println!("{}", format!("🔍 Searching memories with query: '{}'", query.bright_yellow()));
+        println!("{}", "Loading matching memories into consciousness...".blue().italic());
+        
+        // Show search results  
+        search::handle_search_with_format(
+            &mut client,
+            query.clone(),
+            None, // path
+            None, // type_filter  
+            None, // after
+            None, // before
+            Some(agent.clone()), // agent filter
+            vec![], // tags
+            Some(10), // limit
+            crate::display::OutputFormat::Plain,
+        )?;
+        
+        println!();
+        if memory_context.is_empty() {
+            println!("{}", "No memories found to load into session context.".yellow());
+        } else {
+            println!("{}", format!("✨ Loaded {} memories into session context.", memory_context.len()).green());
+        }
+        println!();
+        
+        // Use unified flow with memory context
+        handle_possess_with_boot_and_context(port, agent, message, session, false, memory_context)
+    } else {
+        handle_possess_with_boot(port, agent, message, session, show_boot)
+    }
 }
 
 pub fn handle_possess_no_boot(
@@ -31,6 +84,17 @@ fn handle_possess_with_boot(
     message: Option<String>, 
     session: Option<String>,
     show_boot: bool
+) -> Result<()> {
+    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, Vec::new())
+}
+
+fn handle_possess_with_boot_and_context(
+    port: u16, 
+    agent: String, 
+    message: Option<String>, 
+    session: Option<String>,
+    show_boot: bool,
+    memory_context: Vec<String>
 ) -> Result<()> {
     // Validate agent
     validate_agent(&agent)?;
@@ -59,8 +123,26 @@ fn handle_possess_with_boot(
         handler.display_session_info(&session_id, is_new);
         println!();
         
-        // Send message
-        let response = handler.send_message(&session_id, &agent, &msg)?;
+        // Show memory context summary if present
+        if !memory_context.is_empty() {
+            println!("{}", "🧠 Memory context summary:".bright_cyan());
+            for (i, context) in memory_context.iter().enumerate() {
+                let lines: Vec<&str> = context.lines().collect();
+                let summary = if lines.len() > 3 {
+                    format!("{}...", lines[0..3].join("\n"))
+                } else {
+                    context.clone()
+                };
+                println!("{}: {}", format!("{}", i + 1).dimmed(), summary.dimmed());
+            }
+            println!();
+            println!("{}", "This context is available to reference during the session.".green());
+            println!();
+        }
+        
+        // Send message with memory context
+        let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
+        let response = handler.send_message_with_context(&session_id, &agent, &msg, memory_ctx)?;
         
         // Show actual session ID from daemon
         println!("\n{}", help_text::format_new_session(&response.session_id).dimmed());
@@ -239,3 +321,142 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         }
     }
 }
+
+fn load_search_results_as_context(
+    client: &mut DaemonClient,
+    search_query: &str,
+    agent: &str,
+) -> Result<Vec<String>> {
+    use crate::protocol::{SearchRequest, SearchFilters, ResponseParser, RequestBuilder};
+    use crate::protocol::search::SearchResponse;
+    
+    // Build search request
+    let mut filters = SearchFilters::default();
+    filters.agent = Some(agent.to_string());
+    filters.limit = Some(5); // Limit to top 5 memories to avoid overwhelming context
+    
+    let request = SearchRequest::new(search_query.to_string())
+        .with_filters(filters)
+        .build_request(format!("search-context-{}", 
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()))?;
+    
+    // Execute search
+    let response = client.request(request)?;
+    
+    if !response.success {
+        bail!("Search failed: {}", response.error.unwrap_or_else(|| "Unknown error".to_string()));
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow::anyhow!("No search results"))?;
+    let search_response = SearchResponse::parse_response(&data)?;
+    
+    // Load full memory content for each result
+    let mut memory_contexts = Vec::new();
+    
+    for result in search_response.results.iter().take(5) {
+        // Only load session type results (memory sessions)
+        if result.result_type == "session" {
+            eprintln!("DEBUG: Attempting to load memory from path: {}", result.path);
+            match load_memory_content(client, &result.path) {
+                Ok(content) => {
+                    eprintln!("DEBUG: Successfully loaded memory content ({} chars)", content.len());
+                    memory_contexts.push(content);
+                }
+                Err(e) => {
+                    eprintln!("DEBUG: Failed to load memory content: {}", e);
+                }
+            }
+        }
+    }
+    
+    Ok(memory_contexts)
+}
+
+fn load_memory_content(client: &mut DaemonClient, memory_path: &str) -> Result<String> {
+    use crate::protocol::DaemonRequest;
+    
+    // Extract session ID from path (e.g., "/memory/cli-1754709496765" -> "cli-1754709496765")
+    let session_id = memory_path.strip_prefix("/memory/").unwrap_or(memory_path);
+    eprintln!("DEBUG: load_memory_content - path: {}, extracted session_id: {}", memory_path, session_id);
+    
+    // Request memory content from daemon
+    let request = DaemonRequest {
+        request_type: "memory".to_string(),
+        id: format!("memory-load-{}", session_id),
+        payload: serde_json::json!({
+            "session_id": session_id,
+            "include_content": true
+        }),
+    };
+    
+    eprintln!("DEBUG: load_memory_content - sending request: {:?}", request);
+    let response = client.request(request)?;
+    eprintln!("DEBUG: load_memory_content - got response: success={}, data_present={}", 
+              response.success, response.data.is_some());
+    
+    if !response.success {
+        bail!("Failed to load memory {}: {}", session_id, 
+              response.error.unwrap_or_else(|| "Unknown error".to_string()));
+    }
+    
+    // Extract conversation content
+    if let Some(data) = response.data {
+        eprintln!("DEBUG: load_memory_content - data keys: {:?}", data.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+        if let Some(messages) = data.get("messages") {
+            eprintln!("DEBUG: load_memory_content - found messages field, type: {:?}", messages);
+            if let Some(messages) = messages.as_array() {
+                eprintln!("DEBUG: load_memory_content - messages array length: {}", messages.len());
+                let mut content = String::new();
+                content.push_str(&format!("=== Memory {} ===\n", session_id));
+                
+                for message in messages {
+                    if let (Some(role), Some(msg_content)) = 
+                        (message.get("role").and_then(|r| r.as_str()),
+                         message.get("content").and_then(|c| c.as_str())) {
+                        content.push_str(&format!("{}: {}\n\n", role, msg_content));
+                    }
+                }
+                
+                eprintln!("DEBUG: load_memory_content - extracted content length: {}", content.len());
+                return Ok(content);
+            } else {
+                eprintln!("DEBUG: load_memory_content - messages field is not an array");
+            }
+        } else {
+            eprintln!("DEBUG: load_memory_content - no messages field found");
+        }
+    } else {
+        eprintln!("DEBUG: load_memory_content - no data in response");
+    }
+    
+    bail!("No conversation content found for memory {}", session_id)
+}
+
+fn start_session_with_context(session: InteractiveSession, memory_contexts: Vec<String>) -> Result<()> {
+    // For now, we'll just display the loaded context and start the session
+    // In the future, we could pre-load this context by sending it to the AI
+    if !memory_contexts.is_empty() {
+        println!("{}", "🧠 Memory context summary:".bright_cyan());
+        for (i, context) in memory_contexts.iter().enumerate() {
+            let lines: Vec<&str> = context.lines().collect();
+            let summary = if lines.len() > 3 {
+                format!("{}...", lines[0..3].join("\n"))
+            } else {
+                context.clone()
+            };
+            println!("{}: {}", format!("{}", i + 1).dimmed(), summary.dimmed());
+        }
+        println!();
+        println!("{}", "This context is available to reference during the session.".green());
+        println!();
+    }
+    
+    // Start the normal interactive session
+    // The user can use /import commands to pull specific memories if needed
+    let mut session = session;
+    session.run()?;
+    
+    Ok(())
+}
+
+// Removed handle_possess_search_mode - now using unified flow via handle_possess_with_boot_and_context

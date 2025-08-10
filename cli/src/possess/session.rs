@@ -4,6 +4,7 @@ use crate::possess::{SimpleDisplay, AnimatedDisplay};
 use crate::protocol::{RequestBuilder, ResponseParser, possess::{PossessRequest, PossessResponse}};
 use crate::common::{generate_id, errors::Port42Error};
 use crate::display::{OutputFormat, Displayable};
+use crate::ui::SpinnerGuard;
 use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -42,10 +43,15 @@ impl SessionHandler {
     }
     
     pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<PossessResponse> {
+        self.send_message_with_context(session_id, agent, message, None)
+    }
+    
+    pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>) -> Result<PossessResponse> {
         // Build request using protocol traits
         let possess_req = PossessRequest {
             agent: agent.to_string(),
             message: message.to_string(),
+            memory_context,
         };
         
         let request_id = generate_id();
@@ -56,8 +62,14 @@ impl SessionHandler {
             obj.insert("session_id".to_string(), serde_json::Value::String(session_id.to_string()));
         }
         
+        // Show spinner while waiting for AI response
+        let spinner = SpinnerGuard::new("Channeling consciousness...");
+        
         // Send to daemon
         let response = self.client.request(request)?;
+        
+        // Stop spinner once we have a response
+        spinner.stop();
         
         if !response.success {
             let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
