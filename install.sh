@@ -198,7 +198,7 @@ create_directories() {
     fi
     
     # Create directories (will not fail if they exist)
-    mkdir -p "$PORT42_HOME"/{commands,memory/sessions,artifacts,metadata,objects}
+    mkdir -p "$PORT42_HOME"/{commands,memory/sessions,artifacts,metadata,objects,tools}
     
     # Create initial memory index if missing
     if [ ! -f "$PORT42_HOME/memory/index.json" ]; then

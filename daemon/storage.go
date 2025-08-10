@@ -491,18 +491,9 @@ func (s *Storage) CreateCommandSymlink(objID, cmdName string) error {
 
 // ResolvePath resolves a virtual path to an object ID
 func (s *Storage) ResolvePath(path string) string {
-	// Handle relations paths specially
-	if s.relationStore != nil && strings.HasPrefix(path, "/relations/") {
-		// Extract potential relation ID from path
-		relationID := strings.TrimPrefix(path, "/relations/")
-		
-		// Check if this relation exists
-		if relation, err := s.relationStore.Load(relationID); err == nil {
-			// Return a special relation content identifier
-			return "relation:" + relation.ID
-		}
-		
-		return "" // Relation not found
+	// Handle unified tools paths specially
+	if s.relationStore != nil && strings.HasPrefix(path, "/tools/") {
+		return s.resolveToolsPath(path)
 	}
 	
 	// List all objects and check their metadata
@@ -536,7 +527,7 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 	// Handle root directory
 	if path == "/" || path == "" {
 		entries = append(entries, map[string]interface{}{
-			"name": "commands",
+			"name": "tools",
 			"type": "directory",
 		})
 		entries = append(entries, map[string]interface{}{
@@ -559,16 +550,12 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 			"name": "by-type",
 			"type": "directory",
 		})
-		entries = append(entries, map[string]interface{}{
-			"name": "relations",
-			"type": "directory",
-		})
 		return entries
 	}
 	
-	// Handle relations paths
-	if s.relationStore != nil && strings.HasPrefix(path, "/relations") {
-		return s.handleRelationsPath(path)
+	// Handle unified tools paths  
+	if s.relationStore != nil && strings.HasPrefix(path, "/tools") {
+		return s.handleToolsPath(path)
 	}
 	
 	// List all objects and organize by virtual paths
@@ -628,6 +615,65 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 	}
 	
 	return entries
+}
+
+// resolveToolsPath resolves unified tools paths to object IDs
+func (s *Storage) resolveToolsPath(path string) string {
+	// Remove leading /tools
+	toolsPath := strings.TrimPrefix(path, "/tools")
+	if toolsPath == "" {
+		toolsPath = "/"
+	}
+	
+	// Parse the tools path structure
+	parts := strings.Split(strings.Trim(toolsPath, "/"), "/")
+	if len(parts) == 0 || parts[0] == "" {
+		return "" // Root tools directory - no specific object
+	}
+	
+	// Handle specific tool paths like /tools/{toolname}/definition or /tools/{toolname}/executable
+	if len(parts) >= 2 {
+		toolName := parts[0]
+		subpath := parts[1]
+		
+		// Skip organizational paths (by-name, by-transform, etc.)
+		if toolName == "by-name" || toolName == "by-transform" || toolName == "spawned-by" || toolName == "ancestry" {
+			return "" // These are organizational directories, not objects
+		}
+		
+		// Find the tool relation
+		if s.relationStore != nil {
+			if relations, err := s.relationStore.List(); err == nil {
+				for _, relation := range relations {
+					if relation.Type == "Tool" {
+						if name, ok := relation.Properties["name"].(string); ok && name == toolName {
+							// Handle different subpaths
+							switch subpath {
+							case "definition":
+								// Return the relation as JSON
+								return "relation:" + relation.ID
+							case "executable":
+								// Look for executable content in properties
+								if executable, exists := relation.Properties["executable"]; exists {
+									if execStr, ok := executable.(string); ok && execStr != "" {
+										// Store the executable content and return its ID
+										objID, err := s.Store([]byte(execStr))
+										if err == nil {
+											return objID
+										}
+									}
+								}
+								return "" // No executable found
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return "" // Path not found
 }
 
 // ==================== Utilities ====================
@@ -1357,41 +1403,47 @@ func extractSnippet(text, query string) string {
 	return strings.TrimSpace(snippet)
 }
 
-// handleRelationsPath handles virtual filesystem paths under /relations/
-func (s *Storage) handleRelationsPath(path string) []map[string]interface{} {
+// Unified Tools Hierarchy Helper Methods
+
+// handleToolsPath handles the unified tools virtual filesystem paths
+func (s *Storage) handleToolsPath(path string) []map[string]interface{} {
 	entries := []map[string]interface{}{}
 	
-	// Remove leading /relations
-	relPath := strings.TrimPrefix(path, "/relations")
-	if relPath == "" {
-		relPath = "/"
+	// Remove leading /tools
+	toolsPath := strings.TrimPrefix(path, "/tools")
+	if toolsPath == "" {
+		toolsPath = "/"
 	}
 	
-	switch relPath {
-	case "/":
-		// /relations/ - show top-level categories
+	switch {
+	case toolsPath == "/":
+		// /tools/ - show unified tool structure
 		entries = append(entries, map[string]interface{}{
-			"name": "tools",
+			"name": "by-name",
 			"type": "directory",
 		})
 		entries = append(entries, map[string]interface{}{
-			"name": "artifacts", 
+			"name": "by-transform",
+			"type": "directory",
+		})
+		entries = append(entries, map[string]interface{}{
+			"name": "spawned-by",
+			"type": "directory",
+		})
+		entries = append(entries, map[string]interface{}{
+			"name": "ancestry",
 			"type": "directory",
 		})
 		
-	case "/tools", "/tools/":
-		// /relations/tools/ - show all tool relations
+		// Also show individual tools as directories
 		if relations, err := s.relationStore.List(); err == nil {
 			for _, relation := range relations {
 				if relation.Type == "Tool" {
 					if name, ok := relation.Properties["name"].(string); ok {
-						// Show relation ID as the filename for cat command
-						displayName := fmt.Sprintf("%s (%s)", relation.ID, name)
 						entries = append(entries, map[string]interface{}{
-							"name":         displayName,
-							"type":         "file",
+							"name":         name,
+							"type":         "directory",
 							"relation_id":  relation.ID,
-							"tool_name":    name,
 							"created":      relation.CreatedAt,
 							"modified":     relation.UpdatedAt,
 						})
@@ -1400,45 +1452,303 @@ func (s *Storage) handleRelationsPath(path string) []map[string]interface{} {
 			}
 		}
 		
-	case "/artifacts", "/artifacts/":
-		// /relations/artifacts/ - show all artifact relations
-		if relations, err := s.relationStore.List(); err == nil {
-			for _, relation := range relations {
-				if relation.Type == "Artifact" {
-					if name, ok := relation.Properties["name"].(string); ok {
-						// Show relation ID as the filename for cat command
-						displayName := fmt.Sprintf("%s (%s)", relation.ID, name)
-						entries = append(entries, map[string]interface{}{
-							"name":         displayName,
-							"type":         "file", 
-							"relation_id":  relation.ID,
-							"artifact_name": name,
-							"created":      relation.CreatedAt,
-							"modified":     relation.UpdatedAt,
-						})
-					}
-				}
-			}
-		}
+	case toolsPath == "/by-name" || toolsPath == "/by-name/":
+		// /tools/by-name/ - all tools alphabetically
+		return s.handleToolsByName()
+		
+	case toolsPath == "/by-transform" || toolsPath == "/by-transform/":
+		// /tools/by-transform/ - grouped by transforms
+		return s.handleToolsByTransform("")
+		
+	case strings.HasPrefix(toolsPath, "/by-transform/"):
+		// /tools/by-transform/{transform}/ - tools with specific transform
+		transform := strings.TrimPrefix(toolsPath, "/by-transform/")
+		transform = strings.TrimSuffix(transform, "/")
+		return s.handleToolsByTransform(transform)
+		
+	case toolsPath == "/spawned-by" || toolsPath == "/spawned-by/":
+		// /tools/spawned-by/ - global spawned-by index
+		return s.handleSpawnedByIndex()
+		
+	case strings.HasPrefix(toolsPath, "/spawned-by/"):
+		// /tools/spawned-by/{tool}/ - what this tool spawned
+		toolName := strings.TrimPrefix(toolsPath, "/spawned-by/")
+		toolName = strings.TrimSuffix(toolName, "/")
+		return s.handleSpawnedByTool(toolName)
+		
+	case toolsPath == "/ancestry" || toolsPath == "/ancestry/":
+		// /tools/ancestry/ - tools with parent chains
+		return s.handleAncestryIndex()
 		
 	default:
-		// Check if it's a specific relation ID
-		relationID := strings.TrimPrefix(relPath, "/")
-		if relation, err := s.relationStore.Load(relationID); err == nil {
-			// This is handled by cat command, not ls
-			// But we could return relation as a virtual file entry
-			if name, ok := relation.Properties["name"].(string); ok {
-				entries = append(entries, map[string]interface{}{
-					"name":         name,
-					"type":         "file",
-					"relation_id":  relation.ID,
-					"relation_type": relation.Type,
-					"created":      relation.CreatedAt,
-					"modified":     relation.UpdatedAt,
-				})
+		// Check if it's an individual tool directory
+		parts := strings.Split(strings.Trim(toolsPath, "/"), "/")
+		if len(parts) >= 1 {
+			toolName := parts[0]
+			if len(parts) == 1 {
+				// /tools/{tool}/ - show tool subpaths
+				return s.handleIndividualTool(toolName)
+			} else {
+				// /tools/{tool}/{subpath}
+				subpath := strings.Join(parts[1:], "/")
+				return s.handleToolSubpath(toolName, subpath)
 			}
 		}
 	}
 	
 	return entries
+}
+// handleToolsByName shows all tools alphabetically
+func (s *Storage) handleToolsByName() []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	if relations, err := s.relationStore.List(); err == nil {
+		for _, relation := range relations {
+			if relation.Type == "Tool" {
+				if name, ok := relation.Properties["name"].(string); ok {
+					entries = append(entries, map[string]interface{}{
+						"name":         name,
+						"type":         "directory",
+						"relation_id":  relation.ID,
+						"created":      relation.CreatedAt,
+						"modified":     relation.UpdatedAt,
+					})
+				}
+			}
+		}
+	}
+	
+	return entries
+}
+
+// handleToolsByTransform shows tools grouped by transforms or specific transform
+func (s *Storage) handleToolsByTransform(specificTransform string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	if specificTransform == "" {
+		// Show available transforms
+		transformSet := make(map[string]bool)
+		if relations, err := s.relationStore.List(); err == nil {
+			for _, relation := range relations {
+				if relation.Type == "Tool" {
+					if transformsRaw, exists := relation.Properties["transforms"]; exists {
+						if transformsList, ok := transformsRaw.([]interface{}); ok {
+							for _, t := range transformsList {
+								if tStr, ok := t.(string); ok {
+									transformSet[tStr] = true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// Convert set to entries
+		for transform := range transformSet {
+			entries = append(entries, map[string]interface{}{
+				"name": transform,
+				"type": "directory",
+			})
+		}
+	} else {
+		// Show tools with specific transform
+		if relations, err := s.relationStore.List(); err == nil {
+			for _, relation := range relations {
+				if relation.Type == "Tool" {
+					if name, ok := relation.Properties["name"].(string); ok {
+						if hasTransformInRelation(relation, specificTransform) {
+							entries = append(entries, map[string]interface{}{
+								"name":         name,
+								"type":         "directory",
+								"relation_id":  relation.ID,
+								"created":      relation.CreatedAt,
+								"modified":     relation.UpdatedAt,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return entries
+}
+
+// handleSpawnedByIndex shows tools that have spawned other entities
+func (s *Storage) handleSpawnedByIndex() []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	spawningTools := make(map[string]bool)
+	
+	if relations, err := s.relationStore.List(); err == nil {
+		// Find tools that spawned others
+		for _, relation := range relations {
+			if spawnedBy, exists := relation.Properties["spawned_by"]; exists {
+				if spawnedByID, ok := spawnedBy.(string); ok {
+					// Find the tool that did the spawning
+					if parent, err := s.relationStore.Load(spawnedByID); err == nil {
+						if parentName, ok := parent.Properties["name"].(string); ok {
+							spawningTools[parentName] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Convert to entries
+	for toolName := range spawningTools {
+		entries = append(entries, map[string]interface{}{
+			"name": toolName,
+			"type": "directory",
+		})
+	}
+	
+	return entries
+}
+
+// handleSpawnedByTool shows what a specific tool spawned
+func (s *Storage) handleSpawnedByTool(toolName string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Find the tool relation first
+	var parentRelation *Relation
+	if relations, err := s.relationStore.List(); err == nil {
+		for _, relation := range relations {
+			if name, ok := relation.Properties["name"].(string); ok && name == toolName {
+				parentRelation = &relation
+				break
+			}
+		}
+	}
+	
+	if parentRelation == nil {
+		return entries
+	}
+	
+	// Find entities spawned by this tool
+	if relations, err := s.relationStore.List(); err == nil {
+		for _, relation := range relations {
+			if spawnedBy, exists := relation.Properties["spawned_by"]; exists {
+				if spawnedByID, ok := spawnedBy.(string); ok && spawnedByID == parentRelation.ID {
+					if name, ok := relation.Properties["name"].(string); ok {
+						entries = append(entries, map[string]interface{}{
+							"name":         name,
+							"type":         "directory",
+							"relation_id":  relation.ID,
+							"created":      relation.CreatedAt,
+							"modified":     relation.UpdatedAt,
+						})
+					}
+				}
+			}
+		}
+	}
+	
+	return entries
+}
+
+// handleAncestryIndex shows tools with parent relationships
+func (s *Storage) handleAncestryIndex() []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	toolsWithParents := make(map[string]bool)
+	
+	if relations, err := s.relationStore.List(); err == nil {
+		for _, relation := range relations {
+			if _, hasParent := relation.Properties["parent"]; hasParent {
+				if name, ok := relation.Properties["name"].(string); ok {
+					toolsWithParents[name] = true
+				}
+			}
+		}
+	}
+	
+	for toolName := range toolsWithParents {
+		entries = append(entries, map[string]interface{}{
+			"name": toolName,
+			"type": "directory",
+		})
+	}
+	
+	return entries
+}
+
+// handleIndividualTool shows subpaths for a specific tool
+func (s *Storage) handleIndividualTool(toolName string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Standard subpaths for every tool
+	entries = append(entries, map[string]interface{}{
+		"name": "definition",
+		"type": "file",
+	})
+	entries = append(entries, map[string]interface{}{
+		"name": "executable",
+		"type": "file",
+	})
+	entries = append(entries, map[string]interface{}{
+		"name": "spawned",
+		"type": "directory",
+	})
+	entries = append(entries, map[string]interface{}{
+		"name": "parents",
+		"type": "directory",
+	})
+	
+	return entries
+}
+
+// handleToolSubpath handles specific tool subpaths
+func (s *Storage) handleToolSubpath(toolName string, subpath string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	switch subpath {
+	case "spawned", "spawned/":
+		// Show what this tool spawned (same as spawned-by logic)
+		return s.handleSpawnedByTool(toolName)
+		
+	case "parents", "parents/":
+		// Show parent chain for this tool
+		return s.handleParentChain(toolName)
+	}
+	
+	return entries
+}
+
+// handleParentChain shows the parent ancestry for a tool
+func (s *Storage) handleParentChain(toolName string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Find the tool and its parent
+	if relations, err := s.relationStore.List(); err == nil {
+		for _, relation := range relations {
+			if name, ok := relation.Properties["name"].(string); ok && name == toolName {
+				if parent, exists := relation.Properties["parent"]; exists {
+					if parentName, ok := parent.(string); ok {
+						entries = append(entries, map[string]interface{}{
+							"name": parentName,
+							"type": "directory",
+						})
+					}
+				}
+				break
+			}
+		}
+	}
+	
+	return entries
+}
+
+// hasTransformInRelation checks if a relation has a specific transform (helper function)
+func hasTransformInRelation(relation Relation, transform string) bool {
+	if transformsRaw, exists := relation.Properties["transforms"]; exists {
+		if transformsList, ok := transformsRaw.([]interface{}); ok {
+			for _, t := range transformsList {
+				if tStr, ok := t.(string); ok && tStr == transform {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
