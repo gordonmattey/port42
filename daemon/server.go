@@ -15,14 +15,15 @@ import (
 
 // Daemon represents the Port 42 daemon
 type Daemon struct {
-	listener   net.Listener
-	sessions   map[string]*Session
-	mu         sync.RWMutex
-	config     Config
-	shutdownCh chan struct{}
-	wg         sync.WaitGroup
-	storage    *Storage
-	baseDir    string
+	listener        net.Listener
+	sessions        map[string]*Session
+	mu              sync.RWMutex
+	config          Config
+	shutdownCh      chan struct{}
+	wg              sync.WaitGroup
+	storage         *Storage
+	baseDir         string
+	realityCompiler *RealityCompiler // NEW: Reality compiler component
 }
 
 // Session represents an active possession session
@@ -88,6 +89,15 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 			MemoryPath:   filepath.Join(homeDir, ".port42", "memory"),
 			CommandsPath: filepath.Join(homeDir, ".port42", "commands"),
 		},
+	}
+	
+	// Initialize Reality Compiler
+	log.Printf("🌟 Initializing Reality Compiler...")
+	if err := daemon.initializeRealityCompiler(); err != nil {
+		log.Printf("⚠️ Failed to initialize Reality Compiler: %v", err)
+		log.Printf("💡 Declarative commands will not be available")
+	} else {
+		log.Printf("✅ Reality Compiler initialized successfully")
 	}
 	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
@@ -216,6 +226,14 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleGetMetadata(req)
 	case "search":
 		return d.handleSearch(req)
+	case "declare_relation":
+		return d.handleDeclareRelation(req)
+	case "get_relation":
+		return d.handleGetRelation(req)
+	case "list_relations":
+		return d.handleListRelations(req)
+	case "delete_relation":
+		return d.handleDeleteRelation(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -1015,6 +1033,192 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 	log.Printf("🔍 [DEBUG] handleMemoryShow - session not found: %s", sessionID)
 	resp.SetError(fmt.Sprintf("Session '%s' not found", sessionID))
 	return resp
+}
+
+// Reality Compiler handlers
+
+// handleDeclareRelation declares a new relation and materializes it
+func (d *Daemon) handleDeclareRelation(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	if d.realityCompiler == nil {
+		resp.SetError("Reality compiler not initialized")
+		return resp
+	}
+	
+	// Parse relation from payload
+	var payload struct {
+		Relation Relation `json:"relation"`
+	}
+	
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		resp.SetError("Invalid relation payload: " + err.Error())
+		return resp
+	}
+	
+	// Set ID if not provided
+	if payload.Relation.ID == "" {
+		payload.Relation.ID = generateRelationID(payload.Relation.Type, 
+			fmt.Sprintf("%v", payload.Relation.Properties["name"]))
+	}
+	
+	// Declare and materialize the relation
+	entity, err := d.realityCompiler.DeclareRelation(payload.Relation)
+	if err != nil {
+		resp.SetError("Failed to declare relation: " + err.Error())
+		return resp
+	}
+	
+	// Return success with materialized entity info
+	data := map[string]interface{}{
+		"relation_id":    payload.Relation.ID,
+		"type":          payload.Relation.Type,
+		"materialized":  true,
+		"physical_path": entity.PhysicalPath,
+		"status":        entity.Status,
+	}
+	
+	resp.SetData(data)
+	return resp
+}
+
+// handleGetRelation retrieves a relation by ID
+func (d *Daemon) handleGetRelation(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	if d.realityCompiler == nil {
+		resp.SetError("Reality compiler not initialized")
+		return resp
+	}
+	
+	var payload struct {
+		RelationID string `json:"relation_id"`
+	}
+	
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		resp.SetError("Invalid payload: " + err.Error())
+		return resp
+	}
+	
+	relation, err := d.realityCompiler.GetRelation(payload.RelationID)
+	if err != nil {
+		resp.SetError("Failed to get relation: " + err.Error())
+		return resp
+	}
+	
+	resp.SetData(map[string]interface{}{
+		"relation": relation,
+	})
+	return resp
+}
+
+// handleListRelations lists all relations or relations of a specific type
+func (d *Daemon) handleListRelations(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	if d.realityCompiler == nil {
+		resp.SetError("Reality compiler not initialized")
+		return resp
+	}
+	
+	var payload struct {
+		Type string `json:"type,omitempty"`
+	}
+	
+	// Parse payload (optional)
+	if req.Payload != nil {
+		json.Unmarshal(req.Payload, &payload)
+	}
+	
+	var relations []Relation
+	var err error
+	
+	if payload.Type != "" {
+		relations, err = d.realityCompiler.ListRelationsByType(payload.Type)
+	} else {
+		relations, err = d.realityCompiler.ListRelations()
+	}
+	
+	if err != nil {
+		resp.SetError("Failed to list relations: " + err.Error())
+		return resp
+	}
+	
+	resp.SetData(map[string]interface{}{
+		"relations": relations,
+		"count":     len(relations),
+	})
+	return resp
+}
+
+// handleDeleteRelation deletes a relation and dematerializes it
+func (d *Daemon) handleDeleteRelation(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	if d.realityCompiler == nil {
+		resp.SetError("Reality compiler not initialized")
+		return resp
+	}
+	
+	var payload struct {
+		RelationID string `json:"relation_id"`
+	}
+	
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		resp.SetError("Invalid payload: " + err.Error())
+		return resp
+	}
+	
+	if err := d.realityCompiler.DeleteRelation(payload.RelationID); err != nil {
+		resp.SetError("Failed to delete relation: " + err.Error())
+		return resp
+	}
+	
+	resp.SetData(map[string]interface{}{
+		"deleted": true,
+		"relation_id": payload.RelationID,
+	})
+	return resp
+}
+
+// initializeRealityCompiler sets up the reality compiler with materializers
+func (d *Daemon) initializeRealityCompiler() error {
+	// Initialize relation store
+	relationStore, err := NewFileRelationStore(d.baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to initialize relation store: %w", err)
+	}
+	
+	// Initialize materialization store  
+	matStore, err := NewFileMaterializationStore(d.baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to initialize materialization store: %w", err)
+	}
+	
+	// Initialize AI client for tool generation
+	aiClient := NewAnthropicClient()
+	
+	// Initialize tool materializer
+	toolMaterializer, err := NewToolMaterializer(aiClient, d.storage, matStore)
+	if err != nil {
+		return fmt.Errorf("failed to initialize tool materializer: %w", err)
+	}
+	
+	// Create reality compiler with materializers
+	materializers := []Materializer{
+		toolMaterializer,
+		// TODO: Add more materializers in future steps (artifact, memory, etc.)
+	}
+	
+	d.realityCompiler = NewRealityCompiler(relationStore, materializers)
+	
+	// Initialize rule engine with default rules
+	ruleEngine := NewRuleEngine(d.realityCompiler, defaultRules())
+	d.realityCompiler.SetRuleEngine(ruleEngine)
+	
+	log.Printf("🎯 Reality compiler initialized with %d rules", len(ruleEngine.ListRules()))
+	
+	return nil
 }
 
 // Command generation functionality

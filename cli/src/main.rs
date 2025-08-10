@@ -88,6 +88,13 @@ pub enum Commands {
         args: Vec<String>,
     },
     
+    /// Declare that something should exist in reality
+    Declare {
+        /// Type of relation to declare
+        #[command(subcommand)]
+        command: DeclareCommand,
+    },
+    
     #[command(about = crate::help_text::MEMORY_DESC)]
     /// Browse the persistent memory of conversations
     Memory {
@@ -206,6 +213,33 @@ pub enum MemoryAction {
     },
 }
 
+#[derive(Subcommand)]
+enum DeclareCommand {
+    /// Declare that a tool should exist
+    Tool {
+        /// Name of the tool
+        name: String,
+        
+        /// What the tool transforms/processes (comma-separated)
+        #[arg(long)]
+        transforms: Option<String>,
+    },
+    
+    /// Declare that an artifact should exist
+    Artifact {
+        /// Name of the artifact
+        name: String,
+        
+        /// Type of artifact (document, config, schema, etc.)
+        #[arg(long, default_value = "document")]
+        artifact_type: String,
+        
+        /// File type/extension
+        #[arg(long, default_value = ".md")]
+        file_type: String,
+    },
+}
+
 fn main() -> Result<()> {
     // Set up colored output first
     colored::control::set_override(true);
@@ -318,6 +352,21 @@ fn main() -> Result<()> {
                 eprintln!("DEBUG possess: agent={}, search={:?}, session={:?}, message={:?}", agent, search, session, message);
             }
             commands::possess::handle_possess_with_search(port, agent, message, session, search, true)?;
+        }
+        
+        Some(Commands::Declare { command }) => {
+            match command {
+                DeclareCommand::Tool { name, transforms } => {
+                    let transforms_vec = transforms.as_ref()
+                        .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+                        .unwrap_or_default();
+                    
+                    commands::declare::handle_declare_tool(port, &name, transforms_vec)?;
+                }
+                DeclareCommand::Artifact { name, artifact_type, file_type } => {
+                    commands::declare::handle_declare_artifact(port, &name, &artifact_type, &file_type)?;
+                }
+            }
         }
         
         Some(Commands::Memory { args }) => {

@@ -8,3 +8,4 @@ pub mod ls;
 pub mod cat;
 pub mod info;
 pub mod search;
+pub mod declare;
