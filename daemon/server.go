@@ -62,9 +62,16 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	homeDir, _ := os.UserHomeDir()
 	baseDir := filepath.Join(homeDir, ".port42")
 	
-	// Initialize unified storage
+	// Initialize relation store first
+	relationStore, err := NewFileRelationStore(baseDir)
+	if err != nil {
+		log.Printf("❌ Failed to initialize relation store: %v", err)
+		relationStore = nil // Continue without relations
+	}
+	
+	// Initialize unified storage with relation store
 	log.Printf("🗄️ Initializing storage...")
-	storage, err := NewStorage(baseDir)
+	storage, err := NewStorage(baseDir, relationStore)
 	if err != nil {
 		log.Printf("❌ Failed to initialize storage: %v", err)
 		// Continue without storage for now

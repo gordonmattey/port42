@@ -432,7 +432,38 @@ By Step 8, you have a **reality compiler** that:
 
 ---
 
-## **Next Action**
-Start with Step 1: Add basic relation storage and declarative tool creation. Should take about a day and immediately improve how you create tools.
+## **Deferred/Future Work**
 
-The revolution starts with the first declaration that materializes into reality.
+### **Step 2 Phase 3: Advanced Rules & Multi-Entity Spawning**
+- **Test Suite Rule**: Auto-spawn test files and validation tools when declaring tools
+- **Documentation Rule**: Auto-spawn help/man page generators for new tools  
+- **Pipeline Rule**: When creating data processors, spawn complementary filters/transformers
+- **Backup Rule**: Auto-spawn archival/backup tools for destructive operations
+- **Config Rule**: Auto-spawn configuration managers for complex tools
+- **Multi-entity chains**: One declaration spawns entire tool ecosystems
+
+### **Step 2 Phase 4: Rule Interdependencies & Smart Cascading**
+- **Rule chains**: Rules that trigger other rules in sequences
+- **Dependency resolution**: Handle spawning order when tools depend on each other
+- **Conflict detection**: Prevent contradictory rules from interfering  
+- **Smart conditions**: Rules that consider existing tool landscape before spawning
+- **Resource management**: Limit spawning to prevent tool explosion
+- **Cascade intelligence**: System reasons about what should exist based on existing entities
+
+**Note**: Step 2 Phases 1-2 are complete and demonstrate the core reality compilation magic. The above phases would be incremental improvements rather than conceptual breakthroughs.
+
+---
+
+## **Current Status**
+✅ **Step 1**: Complete - Basic relation storage and declarative tool creation  
+✅ **Step 2 Phase 1**: Complete - Rule engine foundation  
+✅ **Step 2 Phase 2**: Complete - ViewerRule with relationship tracking and improved AI prompts
+
+**Ready for**: Step 3 (Virtual Views) or other architectural advances
+
+---
+
+## **Next Action**
+Step 2 core magic is proven and working. Consider Step 3 (Virtual Views) for the next major conceptual leap, or explore other architectural improvements.
+
+The revolution has begun - declarations materialize into interconnected reality. 🌟

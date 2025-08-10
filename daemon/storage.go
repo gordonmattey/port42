@@ -25,6 +25,9 @@ type Storage struct {
 	sessionIndex map[string]SessionReference
 	indexMutex   sync.RWMutex
 	
+	// Relations integration for virtual filesystem
+	relationStore RelationStore
+	
 	// Stats
 	stats StorageStats
 }
@@ -40,7 +43,7 @@ type StorageStats struct {
 }
 
 // NewStorage creates a new unified storage instance
-func NewStorage(baseDir string) (*Storage, error) {
+func NewStorage(baseDir string, relationStore RelationStore) (*Storage, error) {
 	objectsDir := filepath.Join(baseDir, "objects")
 	metadataDir := filepath.Join(baseDir, "metadata")
 	
@@ -61,11 +64,12 @@ func NewStorage(baseDir string) (*Storage, error) {
 	}
 	
 	s := &Storage{
-		baseDir:      baseDir,
-		objectsDir:   objectsDir,
-		metadataDir:  metadataDir,
-		sessionIndex: make(map[string]SessionReference),
-		stats:        StorageStats{LastUpdated: time.Now()},
+		baseDir:       baseDir,
+		objectsDir:    objectsDir,
+		metadataDir:   metadataDir,
+		sessionIndex:  make(map[string]SessionReference),
+		relationStore: relationStore,
+		stats:         StorageStats{LastUpdated: time.Now()},
 	}
 	
 	// Load session index
@@ -112,6 +116,18 @@ func (s *Storage) Store(content []byte) (string, error) {
 
 // Read retrieves content by hash ID
 func (s *Storage) Read(id string) ([]byte, error) {
+	// Handle special relation IDs
+	if strings.HasPrefix(id, "relation:") {
+		relationID := strings.TrimPrefix(id, "relation:")
+		if s.relationStore != nil {
+			if relation, err := s.relationStore.Load(relationID); err == nil {
+				// Return relation as JSON
+				return json.MarshalIndent(relation, "", "  ")
+			}
+		}
+		return nil, fmt.Errorf("relation not found: %s", relationID)
+	}
+	
 	if len(id) < 4 {
 		return nil, fmt.Errorf("invalid object ID: %s", id)
 	}
@@ -475,6 +491,20 @@ func (s *Storage) CreateCommandSymlink(objID, cmdName string) error {
 
 // ResolvePath resolves a virtual path to an object ID
 func (s *Storage) ResolvePath(path string) string {
+	// Handle relations paths specially
+	if s.relationStore != nil && strings.HasPrefix(path, "/relations/") {
+		// Extract potential relation ID from path
+		relationID := strings.TrimPrefix(path, "/relations/")
+		
+		// Check if this relation exists
+		if relation, err := s.relationStore.Load(relationID); err == nil {
+			// Return a special relation content identifier
+			return "relation:" + relation.ID
+		}
+		
+		return "" // Relation not found
+	}
+	
 	// List all objects and check their metadata
 	ids, err := s.List()
 	if err != nil {
@@ -529,7 +559,16 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 			"name": "by-type",
 			"type": "directory",
 		})
+		entries = append(entries, map[string]interface{}{
+			"name": "relations",
+			"type": "directory",
+		})
 		return entries
+	}
+	
+	// Handle relations paths
+	if s.relationStore != nil && strings.HasPrefix(path, "/relations") {
+		return s.handleRelationsPath(path)
 	}
 	
 	// List all objects and organize by virtual paths
@@ -1316,4 +1355,90 @@ func extractSnippet(text, query string) string {
 	}
 	
 	return strings.TrimSpace(snippet)
+}
+
+// handleRelationsPath handles virtual filesystem paths under /relations/
+func (s *Storage) handleRelationsPath(path string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Remove leading /relations
+	relPath := strings.TrimPrefix(path, "/relations")
+	if relPath == "" {
+		relPath = "/"
+	}
+	
+	switch relPath {
+	case "/":
+		// /relations/ - show top-level categories
+		entries = append(entries, map[string]interface{}{
+			"name": "tools",
+			"type": "directory",
+		})
+		entries = append(entries, map[string]interface{}{
+			"name": "artifacts", 
+			"type": "directory",
+		})
+		
+	case "/tools", "/tools/":
+		// /relations/tools/ - show all tool relations
+		if relations, err := s.relationStore.List(); err == nil {
+			for _, relation := range relations {
+				if relation.Type == "Tool" {
+					if name, ok := relation.Properties["name"].(string); ok {
+						// Show relation ID as the filename for cat command
+						displayName := fmt.Sprintf("%s (%s)", relation.ID, name)
+						entries = append(entries, map[string]interface{}{
+							"name":         displayName,
+							"type":         "file",
+							"relation_id":  relation.ID,
+							"tool_name":    name,
+							"created":      relation.CreatedAt,
+							"modified":     relation.UpdatedAt,
+						})
+					}
+				}
+			}
+		}
+		
+	case "/artifacts", "/artifacts/":
+		// /relations/artifacts/ - show all artifact relations
+		if relations, err := s.relationStore.List(); err == nil {
+			for _, relation := range relations {
+				if relation.Type == "Artifact" {
+					if name, ok := relation.Properties["name"].(string); ok {
+						// Show relation ID as the filename for cat command
+						displayName := fmt.Sprintf("%s (%s)", relation.ID, name)
+						entries = append(entries, map[string]interface{}{
+							"name":         displayName,
+							"type":         "file", 
+							"relation_id":  relation.ID,
+							"artifact_name": name,
+							"created":      relation.CreatedAt,
+							"modified":     relation.UpdatedAt,
+						})
+					}
+				}
+			}
+		}
+		
+	default:
+		// Check if it's a specific relation ID
+		relationID := strings.TrimPrefix(relPath, "/")
+		if relation, err := s.relationStore.Load(relationID); err == nil {
+			// This is handled by cat command, not ls
+			// But we could return relation as a virtual file entry
+			if name, ok := relation.Properties["name"].(string); ok {
+				entries = append(entries, map[string]interface{}{
+					"name":         name,
+					"type":         "file",
+					"relation_id":  relation.ID,
+					"relation_type": relation.Type,
+					"created":      relation.CreatedAt,
+					"modified":     relation.UpdatedAt,
+				})
+			}
+		}
+	}
+	
+	return entries
 }
