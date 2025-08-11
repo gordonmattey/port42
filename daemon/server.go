@@ -1157,6 +1157,35 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 		return resp
 	}
 	
+	// Step 6 Phase C: Create similarity relationships for new tools
+	// Process in background after successful response to avoid any blocking
+	if payload.Relation.Type == "Tool" && d.realityCompiler != nil {
+		relationCopy := payload.Relation // Copy for goroutine safety
+		go func() {
+			// Add a small delay to ensure main response is sent first
+			time.Sleep(100 * time.Millisecond)
+			
+			defer func() {
+				// Catch any panics in similarity processing
+				if r := recover(); r != nil {
+					log.Printf("⚠️ Panic in similarity processing: %v", r)
+				}
+			}()
+			
+			similarityCalculator := NewSimilarityCalculator(d.realityCompiler.GetRelationStore())
+			if similarityCalculator != nil {
+				err := similarityCalculator.createSimilarityRelationships(relationCopy, 0.5)
+				if err != nil {
+					log.Printf("⚠️ Failed to create similarity relationships for %s: %v", 
+						relationCopy.ID, err)
+				} else {
+					log.Printf("🔗 Similarity relationships processed for %s", 
+						relationCopy.Properties["name"])
+				}
+			}
+		}()
+	}
+	
 	// Return success with materialized entity info
 	data := map[string]interface{}{
 		"relation_id":    payload.Relation.ID,

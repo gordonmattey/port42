@@ -32,15 +32,21 @@ port42 declare tool hello-port42 --transforms greeting,demo
 hello-port42
 # Output: Hello from Port 42! This is a demo greeting tool.
 
-# See what was created
+# See what was created  
 port42 ls /commands/
 # Shows: hello-port42 (executable)
 
 port42 cat /commands/hello-port42
 # Shows the generated script
+
+# Explore the virtual filesystem
+port42 ls /
+# Shows: commands/, tools/, memory/, by-date/, similar/
 ```
 
 **🎉 Success!** You've just experienced **declarative reality creation** - you declared what should exist, and the reality compiler made it real.
+
+**🗂️ Virtual Filesystem Preview**: Notice that Port 42 presents everything through a unified virtual filesystem. The `/similar/` path (which you'll explore in Level 9) automatically discovers relationships between your tools!
 
 ### Level 2: Transform-Based Capabilities (10 minutes)
 
@@ -264,33 +270,75 @@ port42 possess @ai-muse
 
 **💡 Key Insight**: Memory references create continuity between conversations and implementations, and AI can leverage your entire tool ecosystem.
 
-### Level 9: Discovery and Exploration (60 minutes)
+### Level 9: Semantic Tool Discovery (60 minutes)
 
-Master the semantic discovery system:
+Master the automatic similarity detection and exploration system:
 
 ```bash
-# Discover tools by capability
-port42 search "json"           # Find all JSON-related tools
-port42 search "process"        # Find all processing tools
-port42 search "web scraping"   # Find scraping tools
+# Step 1: Create some analysis tools to demonstrate similarity detection
+port42 declare tool log-analyzer --transforms logs,analysis
+port42 declare tool data-analyzer --transforms data,analysis  
+port42 declare tool quick-analyzer --transforms quick,analysis
 
-# Explore the virtual filesystem
-port42 ls /                    # See everything
-port42 ls /tools/              # Browse tools
-port42 ls /commands/           # Browse executables  
-port42 ls /by-date/$(date +%Y-%m-%d)/  # Today's creations
+# Step 2: Explore automatic similarity relationships
+port42 ls /similar/                    # See all tools with similarities (150+)
+port42 ls /similar/log-analyzer/       # Find tools similar to log-analyzer
+port42 ls /similar/data-analyzer/      # Find tools similar to data-analyzer
 
-# Understand tool relationships
-port42 info /tools/my-analyzer    # Full metadata
-port42 ls /tools/my-analyzer/     # Tool's directory structure
-port42 cat /tools/my-analyzer/definition  # See the relation
+# Step 3: Discover cross-category relationships  
+port42 declare tool basic-parser --transforms parse,basic
+port42 declare tool data-processor --transforms data,process
+port42 ls /similar/data-processor/     # May find parsers (both process data)
 
-# Find related tools
-port42 ls /tools/by-transform/analyze/    # All analysis tools
-port42 ls /tools/spawned-by/              # Auto-spawned relationships
+# Step 4: Understand the semantic intelligence
+port42 ls /similar/analyzer/           # Tools with 'analyze' find 'analysis' tools
+# Results show: log-analyzer, data-analyzer, semantic-analyzer, etc.
+
+# Step 5: Explore the mathematical precision
+port42 ls /similar/log-analyzer/ | wc -l     # Count similar tools (likely 40+)
+port42 ls /similar/basic-parser/ | wc -l     # Count similar tools (likely 10+)
 ```
 
-**💡 Key Insight**: Port 42 is not just a tool creator, it's a knowledge discovery engine.
+**🎯 Advanced Discovery Techniques:**
+
+```bash
+# Find tools by capability without knowing names
+port42 ls /similar/analyzer/           # "I need something that analyzes"
+port42 ls /similar/parser/             # "I need something that parses"  
+port42 ls /similar/processor/          # "I need something that processes"
+
+# Explore tool ecosystems
+port42 ls /similar/security-test/      # Find all security-related tools
+port42 ls /similar/view-analyzer/      # Find all viewer tools
+
+# Quality assurance via bidirectional relationships
+port42 ls /similar/A/ | grep B         # Check if A finds B
+port42 ls /similar/B/ | grep A         # Check if B finds A (both should work)
+
+# Combine with traditional discovery
+port42 search "analysis"               # Text-based search
+port42 ls /similar/log-analyzer/       # Similarity-based discovery
+port42 ls /tools/by-transform/analysis/  # Transform-based browsing
+```
+
+**💡 Key Insights**: 
+- **Automatic Discovery**: Every tool you create is automatically analyzed for similarity
+- **150+ Tool Scale**: System handles large collections with 18ms response times
+- **Mathematical Precision**: Uses Jaccard similarity + semantic enhancement  
+- **Bidirectional Relationships**: If A is similar to B, then B is similar to A
+- **Cross-Category Intelligence**: Parsers can find processors, analyzers can find viewers
+
+**🚀 Real-World Use Case**:
+```bash
+# Scenario: You forgot the name of a tool but remember it does analysis
+port42 ls /similar/analyzer/           # Shows ALL analysis tools regardless of name
+# Result: log-analyzer, quick-analyzer, semantic-analyzer, test-analyzer, etc.
+
+# Scenario: You want to find tools like an existing one  
+port42 ls /similar/my-existing-tool/   # Shows similar capabilities
+```
+
+**The similarity system transforms Port 42 from a file browser into an intelligent capability discovery engine.**
 
 ### Level 9.5: Auto-Spawning and Rules Engine (65 minutes)
 

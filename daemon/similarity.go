@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"strings"
+	"time"
 )
 
 // SimilarityCalculator handles tool similarity detection and scoring
@@ -295,4 +296,75 @@ func (sc *SimilarityCalculator) GetSimilarToolsForTool(toolName string, threshol
 	}
 	
 	return sc.findSimilarTools(*targetTool, threshold)
+}
+
+// createSimilarityRelationships stores similarity relationships in the relation system
+func (sc *SimilarityCalculator) createSimilarityRelationships(tool Relation, threshold float64) error {
+	if tool.Type != "Tool" {
+		return fmt.Errorf("target relation is not a Tool: %s", tool.Type)
+	}
+	
+	// Find similar tools using the specified threshold
+	similarTools, err := sc.findSimilarTools(tool, threshold)
+	if err != nil {
+		return fmt.Errorf("failed to find similar tools: %v", err)
+	}
+	
+	if len(similarTools) == 0 {
+		return nil // No similar tools found, nothing to store
+	}
+	
+	// Create bidirectional similarity relationships
+	for _, simTool := range similarTools {
+		// Create forward relationship (tool -> similar tool)
+		forwardRelID := fmt.Sprintf("similarity-%s-%s", tool.ID, simTool.Tool.ID)
+		forwardRelationship := Relation{
+			ID:   forwardRelID,
+			Type: "Relationship",
+			Properties: map[string]interface{}{
+				"relationship_type": "similar_to",
+				"from":             tool.ID,
+				"to":               simTool.Tool.ID,
+				"similarity_score": simTool.Similarity,
+				"reasons":          simTool.Reason,
+				"auto_generated":   true,
+				"created_by":       "similarity_calculator",
+			},
+			CreatedAt: time.Now(),
+		}
+		
+		err := sc.relationStore.Save(forwardRelationship)
+		if err != nil {
+			log.Printf("Failed to store forward similarity relationship %s: %v", forwardRelID, err)
+			continue
+		}
+		
+		// Create reverse relationship (similar tool -> tool) for bidirectionality
+		reverseRelID := fmt.Sprintf("similarity-%s-%s", simTool.Tool.ID, tool.ID)
+		reverseRelationship := Relation{
+			ID:   reverseRelID,
+			Type: "Relationship", 
+			Properties: map[string]interface{}{
+				"relationship_type": "similar_to",
+				"from":             simTool.Tool.ID,
+				"to":               tool.ID,
+				"similarity_score": simTool.Similarity,
+				"reasons":          simTool.Reason,
+				"auto_generated":   true,
+				"created_by":       "similarity_calculator",
+			},
+			CreatedAt: time.Now(),
+		}
+		
+		err = sc.relationStore.Save(reverseRelationship)
+		if err != nil {
+			log.Printf("Failed to store reverse similarity relationship %s: %v", reverseRelID, err)
+			continue
+		}
+		
+		log.Printf("✓ Created bidirectional similarity relationship: %s ↔ %s (%.0f%%)", 
+			tool.Properties["name"], simTool.Tool.Properties["name"], simTool.Similarity*100)
+	}
+	
+	return nil
 }

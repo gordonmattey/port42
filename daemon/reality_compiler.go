@@ -21,6 +21,11 @@ func NewRealityCompiler(relationStore RelationStore, materializers []Materialize
 	}
 }
 
+// GetRelationStore returns the relation store (for similarity calculator access)
+func (rc *RealityCompiler) GetRelationStore() RelationStore {
+	return rc.relationStore
+}
+
 // DeclareRelation declares that a relation should exist and materializes it
 func (rc *RealityCompiler) DeclareRelation(relation Relation) (*MaterializedEntity, error) {
 	log.Printf("🌟 Declaring relation: %s (type: %s)", relation.ID, relation.Type)

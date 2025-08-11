@@ -73,10 +73,16 @@ port42 declare tool smart-analyzer --transforms analyze,process \
   --ref search:"error patterns"
 
 # Explore the unified filesystem
-port42 ls /                     # Root: tools/, commands/, memory/, by-date/
+port42 ls /                     # Root: tools/, commands/, memory/, by-date/, similar/
 port42 ls /tools/               # All tools with relationships  
 port42 ls /commands/            # Executable view of tools
 port42 ls /by-date/2024-01-15/  # Everything created today
+
+# Discover tool similarities (Step 6: Semantic Tool Discovery)
+port42 ls /similar/             # All tools with automatic relationships (150+)
+port42 ls /similar/hello-world/ # Tools similar to hello-world
+port42 ls /similar/analyzer/    # Find all analysis-related tools
+port42 ls /similar/parser/      # Find all parsing-related tools
 
 # Navigate tool relationships
 port42 ls /tools/hello-world/   # definition, executable, spawned/, parents/
@@ -148,6 +154,10 @@ Unified access to all entities through different lenses:
     ├── executable        # Generated code
     ├── spawned/          # Child entities
     └── parents/          # Parent chain
+
+/similar/                  # Semantic similarity discovery (Step 6)
+├── {tool-name}/          # Tools similar to specified tool
+└── [150+ tools with automatic relationships]
 
 /commands/                # Traditional executable view (enhanced)
 /by-date/{date}/          # Time-based organization (unified)
@@ -269,81 +279,161 @@ port42 declare tool intelligent-processor --transforms process,analyze,output \
   --ref p42:/memory/design-session-456
 ```
 
-## 🔍 Semantic Discovery - Search by What You Need
+## 🔍 Semantic Tool Discovery - Find Tools by What They Do
 
-Port 42's reality compiler includes **semantic similarity search** that transforms how you discover tools. Instead of remembering exact names, search by capabilities and intent.
+Port 42's reality compiler includes **semantic similarity detection** that automatically discovers relationships between your tools. Instead of remembering what tools exist, explore by capability and discover unexpected connections.
 
-### Capability-Based Discovery
+### Automatic Similarity Detection
 
-```bash
-# Traditional: Must remember exact tool names
-$ git-haiku              # ❌ Have to know this exists
-$ csv-to-markdown        # ❌ Have to know this exists
-
-# Semantic: Search by what you want to accomplish  
-$ port42 search 'haiku'          # ✅ Finds git-haiku, haiku-generator, etc.
-$ port42 search 'csv'            # ✅ Finds csv-to-markdown, csv-analyzer, etc.
-$ port42 search 'analysis'       # ✅ Finds ALL analysis tools regardless of name
-$ port42 search 'git'            # ✅ Finds ALL git-related tools
-```
-
-### Transform-Based Intelligence
-
-Every tool declares its **transforms** (capabilities), enabling semantic discovery:
+Every tool you create is automatically analyzed for similarity to existing tools:
 
 ```bash
-# Declare tools by what they do, not what they're called
-$ port42 declare tool mystery-processor --transforms data,parse,json
-$ port42 declare tool secret-analyzer --transforms logs,analysis,patterns
-
-# Later, discover by capability (without remembering names):
-$ port42 search 'json'           # Finds mystery-processor
-$ port42 search 'analysis'       # Finds secret-analyzer  
-$ port42 search 'parse'          # Finds mystery-processor
-$ port42 search 'patterns'       # Finds secret-analyzer
-```
-
-### Cross-Entity Semantic Links
-
-Search finds connections across **all entity types** - tools, memory sessions, and artifacts:
-
-```bash
-$ port42 search 'docker'
-# Results include:
-# - /tools/docker-manager          [tool with docker transforms]
-# - /memory/cli-1234               [AI conversation about docker]  
-# - /artifacts/docker-compose.yml  [generated docker config]
-```
-
-### Relationship-Aware Discovery
-
-The reality compiler tracks tool relationships for enhanced discovery:
-
-```bash
-# Auto-spawning creates semantic relationships
+# Create analysis tools - they automatically find each other
 $ port42 declare tool log-analyzer --transforms logs,analysis
-# ✅ Creates log-analyzer 
-# ✅ Auto-spawns view-log-analyzer (viewer relationship)
+$ port42 declare tool quick-analyzer --transforms data,analysis
+$ port42 declare tool semantic-analyzer --transforms text,analysis
 
-# Discover the entire tool ecosystem
-$ port42 search 'analysis'       # Finds BOTH tools
-$ port42 search 'logs'           # Finds BOTH tools  
-$ port42 search 'view'           # Finds ALL viewer tools
+# Explore automatic relationships via /similar/ virtual path
+$ port42 ls /similar/log-analyzer/
+quick-analyzer
+semantic-analyzer
+test-analyzer
+phase-b-analyzer
+code-analyzer
 ```
 
-### Smart Scoring for Relevance
+### Similarity Virtual Filesystem
+
+Navigate tool relationships like a filesystem - no complex queries needed:
 
 ```bash
-$ port42 search 'git'
-# Results ranked by semantic relevance:
-# 1. git-haiku          (name match - highest score)
-# 2. git-summary        (name match - highest score)  
-# 3. repo-analyzer      (git transform - high score)
-# 4. commit-formatter   (git transform - high score)
-# 5. /memory/git-help   (content match - medium score)
+# See all tools that have similar tools available
+$ port42 ls /similar/
+advanced-parser/
+analyzer/
+basic-parser/
+data-processor/
+log-analyzer/
+semantic-analyzer/
+# ... 150+ tools with automatic relationships
+
+# Explore specific tool similarities
+$ port42 ls /similar/basic-parser/
+enhanced-parser
+test-parser
+doc-processor       # Cross-category: parsers can find processors
+
+# Tools automatically group by capability
+$ port42 ls /similar/semantic-analyzer/
+log-analyzer        # Both do analysis
+quick-analyzer      # Both do analysis  
+test-analyzer       # Both do analysis
+phase-b-analyzer    # Both do analysis
 ```
 
-**The semantic discovery system transforms Port 42 from a file browser into a capability discovery engine** - you search for *what you want to accomplish* rather than *what files exist*.
+### Semantic Transform Intelligence
+
+The system understands **semantic relationships** between transforms:
+
+```bash
+# Tools with 'analyze' find tools with 'analysis' (semantic boost)
+$ port42 ls /similar/analyzer/
+semantic-analyzer   # analyze ↔ analysis relationship detected
+log-analyzer        # analyze ↔ analysis relationship detected
+
+# Cross-category detection based on shared capabilities
+$ port42 ls /similar/data-processor/
+enhanced-parser     # Both process/transform data
+doc-processor       # Both process documents
+phase-b-processor   # Both processors
+```
+
+### Mathematical Similarity Scoring
+
+Port 42 uses **Jaccard similarity coefficient** with semantic enhancement:
+
+- **Base similarity**: Shared transforms / Total unique transforms
+- **Semantic boost**: Related words (analyze ↔ analysis, parse ↔ parser)
+- **Threshold filtering**: 20% for browsing, 50% for relationship storage
+- **Bidirectional relationships**: If A is similar to B, then B is similar to A
+
+```bash
+# High similarity tools find many matches (>40 similar tools)
+$ port42 ls /similar/log-analyzer/ | wc -l
+45
+
+# Specialized tools find fewer, more relevant matches
+$ port42 ls /similar/basic-parser/ | wc -l  
+12
+
+# System maintains mathematical consistency
+$ port42 ls /similar/log-analyzer/ | grep semantic-analyzer
+semantic-analyzer
+$ port42 ls /similar/semantic-analyzer/ | grep log-analyzer  
+log-analyzer
+```
+
+### Performance at Scale
+
+The similarity system handles large tool collections efficiently:
+
+```bash
+# Instant response even with 150+ tools in system
+$ time port42 ls /similar/semantic-analyzer/
+# Response: ~18ms (< 100ms typical)
+
+# Root directory shows comprehensive coverage
+$ port42 ls /similar/ | wc -l
+154
+```
+
+### Discovery Use Cases
+
+**Find tools by capability without remembering names:**
+```bash
+# "I need something that analyzes data"
+$ port42 ls /similar/analyzer/
+
+# "I need something that parses files"  
+$ port42 ls /similar/basic-parser/
+
+# "I need something like this existing tool"
+$ port42 ls /similar/my-existing-tool/
+```
+
+**Discover tool ecosystems:**
+```bash
+# Find all tools related to security
+$ port42 ls /similar/security-test/
+
+# Find all tools related to file processing
+$ port42 ls /similar/file-processor/
+
+# Explore generated viewer tools
+$ port42 ls /similar/view-analyzer/
+```
+
+**Quality assurance via relationships:**
+```bash
+# Verify similar tools cluster correctly
+$ port42 ls /similar/log-analyzer/ | grep analyzer | wc -l    # Many analyzers
+$ port42 ls /similar/log-analyzer/ | grep parser | wc -l     # Few parsers
+
+# Check bidirectional relationships
+$ port42 ls /similar/A/ | grep B
+$ port42 ls /similar/B/ | grep A    # Should both work
+```
+
+### Integration with Reality Compiler
+
+Similarity detection is **seamlessly integrated** with all Port 42 features:
+
+- **Auto-spawning rules**: Similar tools influence spawning decisions
+- **Virtual filesystem**: Relationships visible through `/tools/` and `/similar/`
+- **Search enhancement**: Semantic scoring improves search relevance
+- **Background processing**: Similarity analysis doesn't block tool creation
+
+**The similarity system transforms Port 42 from a tool collection into an intelligent capability discovery engine** - you explore *what tools can do* rather than *what files exist*.
 
 ### Creating Commands and Artifacts
 
@@ -706,6 +796,13 @@ Virtual Filesystem View:
 ├── memory/               # All conversation threads
 │   └── cli-*/           # Individual sessions with artifacts
 ├── commands/            # All crystallized commands
+├── tools/               # Relationship-aware tool browser
+│   ├── by-name/        # Alphabetical listing
+│   ├── by-transform/   # Grouped by capabilities
+│   ├── spawned-by/     # Global spawning relationships
+│   └── ancestry/       # Parent-child chains
+├── similar/             # Semantic similarity discovery (Step 6)
+│   └── {tool-name}/    # Tools similar to specified tool (150+ with relationships)
 ├── by-date/            # Temporal organization
 │   └── 2025-01-04/    # Daily views
 └── by-agent/          # Organized by AI consciousness
@@ -721,6 +818,8 @@ Virtual Filesystem View:
 
 - **AI Conversations**: Natural dialogue with multiple AI personalities
 - **Command Generation**: Your conversations become executable commands
+- **Semantic Tool Discovery**: Automatic similarity detection across 150+ tools
+- **Virtual Filesystem**: Navigate `/similar/`, `/tools/`, `/memory/`, `/commands/`
 - **Memory Persistence**: Sessions continue across daemon restarts
 - **Interactive Shell**: Immersive terminal experience with boot sequences
 - **Smart Context**: Handles long conversations intelligently
