@@ -1522,12 +1522,6 @@ func (d *Daemon) initializeResolutionManager() error {
 			return nil, nil // Don't fail resolution, just return empty
 		},
 		
-		// Memory handler - simplified for now
-		MemoryHandler: func(sessionID string) (*resolution.MemorySession, error) {
-			log.Printf("🧠 Memory handler called for: %s", sessionID)
-			// Return not found for now - this would integrate with storage
-			return nil, fmt.Errorf("memory session '%s' not found", sessionID)
-		},
 		
 		// File handler - local filesystem with security boundaries
 		FileHandler: func(path string) (*resolution.FileContent, error) {

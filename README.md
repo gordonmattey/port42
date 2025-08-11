@@ -246,11 +246,11 @@ port42 declare tool super-analyzer --transforms analyze,extend \
   --ref tool:data-processor
 ```
 
-**Memory Sessions (`memory:session-id`)**
+**Memory Sessions (`p42:/memory/session-id`)**
 ```bash
 # Reference previous conversations and decisions
 port42 declare tool project-manager --transforms manage,track \
-  --ref memory:cli-1234 \
+  --ref p42:/memory/cli-1234 \
   --ref file:./project-spec.md
 ```
 
@@ -266,7 +266,7 @@ port42 declare tool intelligent-processor --transforms process,analyze,output \
   --ref url:https://standards.org/spec \
   --ref search:"processing patterns" \
   --ref tool:existing-analyzer \
-  --ref memory:design-session-456
+  --ref p42:/memory/design-session-456
 ```
 
 ## 🔍 Semantic Discovery - Search by What You Need

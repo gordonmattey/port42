@@ -81,35 +81,6 @@ func (r *toolResolver) getTimeout() time.Duration {
 	return 3 * time.Second
 }
 
-// memoryResolver handles memory session lookups
-type memoryResolver struct {
-	handler func(sessionID string) (*MemorySession, error)
-}
-
-func (r *memoryResolver) resolve(ctx context.Context, target string) (*ResolvedContext, error) {
-	session, err := r.handler(target)
-	if err != nil {
-		return &ResolvedContext{
-			Type:    "memory",
-			Target:  target,
-			Success: false,
-			Error:   err.Error(),
-		}, nil
-	}
-	
-	content := formatMemorySession(session)
-	
-	return &ResolvedContext{
-		Type:    "memory",
-		Target:  target,
-		Content: content,
-		Success: true,
-	}, nil
-}
-
-func (r *memoryResolver) getTimeout() time.Duration {
-	return 4 * time.Second
-}
 
 // fileResolver handles file content loading
 type fileResolver struct {
@@ -442,35 +413,6 @@ func formatToolDefinition(tool *ToolDefinition) string {
 	return strings.Join(parts, "\n")
 }
 
-func formatMemorySession(session *MemorySession) string {
-	var parts []string
-	parts = append(parts, fmt.Sprintf("Memory Session: %s", session.SessionID))
-	
-	if session.Agent != "" {
-		parts = append(parts, fmt.Sprintf("Agent: %s", session.Agent))
-	}
-	
-	if len(session.Messages) > 0 {
-		parts = append(parts, fmt.Sprintf("Messages: %d", len(session.Messages)))
-		
-		// Show last 2 messages as context
-		start := len(session.Messages) - 2
-		if start < 0 {
-			start = 0
-		}
-		
-		for i := start; i < len(session.Messages) && i < start+2; i++ {
-			msg := session.Messages[i]
-			content := msg.Content
-			if len(content) > 200 {
-				content = content[:200] + "..."
-			}
-			parts = append(parts, fmt.Sprintf("[%s] %s", strings.ToUpper(msg.Role), content))
-		}
-	}
-	
-	return strings.Join(parts, "\n")
-}
 
 func formatFileContent(file *FileContent) string {
 	var parts []string

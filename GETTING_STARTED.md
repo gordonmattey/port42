@@ -215,7 +215,7 @@ port42 possess @ai-engineer --session project-design
 
 # Later, reference that design session
 port42 declare tool log-processor --transforms log,process,report \
-  --ref memory:cli-1234 \
+  --ref p42:/memory/cli-1234 \
   --ref file:./nginx-sample.log \
   --ref url:https://nginx.org/en/docs/http/ngx_http_log_module.html
 
@@ -272,7 +272,7 @@ port42 declare tool smart-analyzer --transforms analyze,intelligent \
 port42 declare tool project-analyzer --transforms analyze,project \
   --ref tool:smart-analyzer \
   --ref file:./project-spec.md \
-  --ref memory:requirements-session
+  --ref p42:/memory/requirements-session
 
 # 2. Knowledge Synthesis Pattern
 port42 possess @ai-engineer --session architecture
@@ -283,7 +283,7 @@ port42 possess @ai-engineer --session architecture
 
 # Implement with full context
 port42 declare tool service-monitor --transforms monitor,microservice,alert \
-  --ref memory:architecture-session \
+  --ref p42:/memory/architecture-session \
   --ref file:./docker-compose.yml \
   --ref url:https://prometheus.io/docs/concepts/ \
   --ref p42:/tools/base-monitor \
@@ -293,7 +293,7 @@ port42 declare tool service-monitor --transforms monitor,microservice,alert \
 # Tools that reference and improve each other over time
 port42 declare tool evolved-processor --transforms process,evolve \
   --ref tool:previous-processor \
-  --ref memory:feedback-session \
+  --ref p42:/memory/feedback-session \
   --ref file:./new-requirements.md
 ```
 

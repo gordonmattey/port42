@@ -32,9 +32,6 @@ func newService(handlers Handlers) *service {
 	if handlers.ToolHandler != nil {
 		s.resolvers["tool"] = &toolResolver{handler: handlers.ToolHandler}
 	}
-	if handlers.MemoryHandler != nil {
-		s.resolvers["memory"] = &memoryResolver{handler: handlers.MemoryHandler}
-	}
 	if handlers.FileHandler != nil {
 		s.resolvers["file"] = &fileResolver{handler: handlers.FileHandler}
 	}

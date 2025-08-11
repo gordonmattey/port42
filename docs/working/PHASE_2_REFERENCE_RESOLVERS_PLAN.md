@@ -25,13 +25,13 @@ Convert reference specifications (e.g., `--ref search:"nginx errors"`, `--ref to
 - Include generated commands if available
 - Format: "Tool Definition: {name: X, transforms: Y, commands: Z}"
 
-#### 3. Memory Resolver (`memory:session-id`)
+#### 3. Memory Access (via P42 VFS: `p42:/memory/session-id`)
 **Purpose**: Load conversation history from specific sessions
 **Implementation**:
-- Use existing memory system to fetch session content
-- Extract key conversation points and decisions
-- Limit to most relevant parts to avoid context overflow
-- Format: "Memory from session-id: [conversation summary]"
+- Access memory sessions through P42 VFS unified interface
+- Use P42 resolver's storage integration for session lookup
+- Extract key conversation points and decisions from storage
+- Format: "P42 Memory Session: [conversation summary + metadata]"
 
 #### 4. File Resolver (`file:path`)
 **Purpose**: Read local filesystem files with security boundaries
@@ -74,9 +74,8 @@ Convert reference specifications (e.g., `--ref search:"nginx errors"`, `--ref to
    - `interface.go` - Resolver interfaces and types ✅ IMPLEMENTED
    - Search resolver ✅ IMPLEMENTED
    - Tool resolver ✅ IMPLEMENTED  
-   - Memory resolver ⚠️ STUB
-   - File resolver (`file:`) ⚠️ STUB  
-   - P42 resolver (`p42:`) ❌ NOT IMPLEMENTED
+   - File resolver (`file:`) ✅ IMPLEMENTED  
+   - P42 resolver (`p42:`) ✅ IMPLEMENTED (includes memory via `/memory/` paths)
    - URL resolver ✅ IMPLEMENTED
 
 2. **Context Synthesis** (`daemon/context/`)
@@ -196,6 +195,7 @@ func (r *p42Resolver) resolve(ctx context.Context, target string) (*ResolvedCont
 **VFS Path Examples:**
 - `/tools/log-parser` → Relations store tool definition + generated commands
 - `/commands/my-script` → Direct storage object via symlink resolution
+- `/memory/cli-1234` → Memory session access via storage integration
 - `/knowledge/nginx-config` → Search-based content resolution
 
 ### Step 2.4: URL Resolver and Context Management ✅ COMPLETE
@@ -244,10 +244,10 @@ daemon/test_phase2_reference_resolvers.sh
    # Test each resolver individually
    port42 declare tool test-search --ref search:"error patterns"           # ✅ IMPLEMENTED
    port42 declare tool test-tool --ref tool:existing-parser                # ✅ IMPLEMENTED  
-   port42 declare tool test-memory --ref memory:session-123                # ⚠️ STUB
-   port42 declare tool test-local-file --ref file:./config/app.json        # ⚠️ STUB → TO IMPLEMENT
-   port42 declare tool test-p42-tool --ref p42:/tools/log-parser           # ❌ TO IMPLEMENT
-   port42 declare tool test-p42-cmd --ref p42:/commands/existing-tool      # ❌ TO IMPLEMENT
+   port42 declare tool test-memory --ref p42:/memory/session-123           # ✅ IMPLEMENTED (via P42 VFS)
+   port42 declare tool test-local-file --ref file:./config/app.json        # ✅ IMPLEMENTED
+   port42 declare tool test-p42-tool --ref p42:/tools/log-parser           # ✅ IMPLEMENTED
+   port42 declare tool test-p42-cmd --ref p42:/commands/existing-tool      # ✅ IMPLEMENTED
    port42 declare tool test-url --ref url:https://docs.example.com/api     # ✅ IMPLEMENTED
    ```
 
@@ -268,7 +268,7 @@ daemon/test_phase2_reference_resolvers.sh
    port42 declare tool robust-tool --transforms analysis \
      --ref search:"nonexistent query" \
      --ref tool:missing-tool \
-     --ref memory:invalid-session \
+     --ref p42:/memory/invalid-session \
      --ref file:/nonexistent/path \
      --ref url:https://invalid-domain-xyz123.com/
    ```
@@ -278,7 +278,7 @@ daemon/test_phase2_reference_resolvers.sh
    # Test context size limiting
    port42 declare tool large-context --transforms processing \
      --ref url:https://very-large-document.com/content \
-     --ref memory:very-long-session \
+     --ref p42:/memory/very-long-session \
      --ref file:/huge/config/file.json
    ```
 
@@ -325,7 +325,7 @@ daemon/test_phase2_reference_resolvers.sh
 2. **Tool Resolver**: Relations-based tool definition lookup ✅ IMPLEMENTED & TESTED
 3. **URL Resolver**: HTTP content with intelligent caching ✅ IMPLEMENTED & TESTED
 4. **File Resolver (`file:path`)**: Local filesystem access ✅ IMPLEMENTED & TESTED
-5. **P42 Resolver (`p42:path`)**: VFS/crystallized knowledge access ✅ IMPLEMENTED & TESTED
+5. **P42 Resolver (`p42:path`)**: VFS/crystallized knowledge + memory access ✅ IMPLEMENTED & TESTED
 
 ### 🎉 File Resolvers Implementation Complete!
 
@@ -337,16 +337,19 @@ daemon/test_phase2_reference_resolvers.sh
 - **Testing**: JSON, Markdown, Go source files all working ✅
 
 #### **P42 Resolver (`p42:path`)** ✅ FULLY IMPLEMENTED  
-- **VFS Integration**: Access `/tools/*`, `/commands/*`, `/knowledge/*` paths ✅
+- **VFS Integration**: Access `/tools/*`, `/commands/*`, `/memory/*`, `/knowledge/*` paths ✅
 - **Storage Bridge**: Convert VFS paths to storage object IDs ✅
 - **Resolution Methods**: Relations store, storage search, general search ✅
-- **Use Cases**: `--ref p42:/tools/parser`, `--ref p42:/commands/tool` ✅
-- **Testing**: Tool paths, command paths all working ✅
+- **Memory Integration**: Access sessions via `/memory/session-id` paths ✅
+- **Use Cases**: `--ref p42:/tools/parser`, `--ref p42:/memory/cli-1234` ✅
+- **Testing**: Tool paths, command paths, memory paths all working ✅
 
 ### Architecture Benefits
-- **Three-tier file access**: Local files (`file:`), crystallized knowledge (`p42:`), web content (`url:`)
+- **Unified VFS Interface**: Single `p42:` resolver handles tools, commands, memory, knowledge
+- **Five-tier access**: Local files (`file:`), crystallized knowledge (`p42:`), web content (`url:`), search (`search:`), tools (`tool:`)
 - **Security by design**: Each resolver has appropriate access boundaries
 - **Performance optimization**: Caching where appropriate (URL artifacts)
 - **Graceful degradation**: Missing references don't break tool generation
+- **Simplified mental model**: Memory via P42 VFS eliminates redundant resolver types
 
-This architecture provides comprehensive contextual intelligence for the Reality Compiler, enabling sophisticated tool generation with rich background knowledge from multiple sources.
+This architecture provides comprehensive contextual intelligence for the Reality Compiler, enabling sophisticated tool generation with rich background knowledge from multiple sources through a clean, unified interface.
