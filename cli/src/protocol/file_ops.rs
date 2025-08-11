@@ -22,6 +22,7 @@ impl RequestBuilder for CatRequest {
                 "path": &self.path
             }),
             references: None,
+            session_context: None,
         })
     }
 }
@@ -208,6 +209,7 @@ impl RequestBuilder for InfoRequest {
                 "path": &self.path
             }),
             references: None,
+            session_context: None,
         })
     }
 }

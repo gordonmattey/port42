@@ -15,6 +15,7 @@ impl RequestBuilder for StatusRequest {
             id,
             payload: serde_json::Value::Null,
             references: None,
+            session_context: None,
         })
     }
 }

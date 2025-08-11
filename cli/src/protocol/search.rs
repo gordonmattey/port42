@@ -56,6 +56,7 @@ impl RequestBuilder for SearchRequest {
                 "filters": &self.filters
             }),
             references: None,
+            session_context: None,
         })
     }
 }

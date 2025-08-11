@@ -1,6 +1,15 @@
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
 
+// Session context for memory-relation bridge
+#[derive(Debug, Serialize, Clone)]
+pub struct SessionContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent: Option<String>,
+}
+
 // Base request that all commands use
 #[derive(Debug, Serialize)]
 pub struct DaemonRequest {
@@ -10,6 +19,8 @@ pub struct DaemonRequest {
     pub payload: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub references: Option<Vec<crate::protocol::relations::Reference>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_context: Option<SessionContext>,
 }
 
 // Base response from daemon

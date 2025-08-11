@@ -31,6 +31,7 @@ impl RequestBuilder for PossessRequest {
             id,
             payload,
             references: None,
+            session_context: None,
         })
     }
 }

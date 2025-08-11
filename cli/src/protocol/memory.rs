@@ -24,6 +24,7 @@ impl RequestBuilder for MemoryListRequest {
             id,
             payload: serde_json::Value::Null,
             references: None,
+            session_context: None,
         })
     }
 }
@@ -37,6 +38,7 @@ impl RequestBuilder for MemoryDetailRequest {
                 "session_id": self.session_id
             }),
             references: None,
+            session_context: None,
         })
     }
 }

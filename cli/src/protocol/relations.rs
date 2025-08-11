@@ -5,7 +5,6 @@ use std::time::SystemTime;
 
 use crate::protocol::{DaemonRequest, RequestBuilder, ResponseParser};
 use crate::display::{Displayable, OutputFormat};
-use crate::common::generate_id;
 use colored::*;
 
 // Relation represents a declarative entity that should exist
@@ -159,11 +158,21 @@ impl Reference {
 // Protocol implementations
 impl RequestBuilder for DeclareRelationRequest {
     fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        use crate::common::generate_session_id;
+        use crate::protocol::SessionContext;
+        
+        // Step 5: Generate CLI session context for memory-relation bridge
+        let session_context = Some(SessionContext {
+            session_id: Some(generate_session_id()),
+            agent: None, // CLI sessions don't have AI agent context
+        });
+        
         Ok(DaemonRequest {
             request_type: "declare_relation".to_string(),
             id,
             payload: serde_json::to_value(self)?,
             references: self.references.clone(),
+            session_context,
         })
     }
 }
@@ -175,6 +184,7 @@ impl RequestBuilder for GetRelationRequest {
             id,
             payload: serde_json::to_value(self)?,
             references: None,
+            session_context: None,
         })
     }
 }
@@ -186,6 +196,7 @@ impl RequestBuilder for ListRelationsRequest {
             id,
             payload: serde_json::to_value(self)?,
             references: None,
+            session_context: None,
         })
     }
 }
@@ -197,6 +208,7 @@ impl RequestBuilder for DeleteRelationRequest {
             id,
             payload: serde_json::to_value(self)?,
             references: None,
+            session_context: None,
         })
     }
 }

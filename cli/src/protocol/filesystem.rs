@@ -21,6 +21,7 @@ impl RequestBuilder for LsRequest {
                 "path": &self.path
             }),
             references: None,
+            session_context: None,
         })
     }
 }
