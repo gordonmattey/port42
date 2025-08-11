@@ -442,6 +442,40 @@ By Step 8, you have a **reality compiler** that:
 
 **Note**: Step 2 Phases 1-2 are complete and demonstrate the core reality compilation magic. The above phases would be incremental improvements rather than conceptual breakthroughs.
 
+### **Step 6 Phase D: Advanced Discovery Features**
+*Deferred enhancements for comprehensive tool discovery beyond core Step 6 implementation*
+
+- **Similarity Threshold Configuration**
+  - Configurable similarity thresholds per user preference
+  - Different thresholds for path resolution vs relationship creation
+  - Dynamic threshold adjustment based on tool ecosystem size
+
+- **Multi-dimensional Similarity Analysis**
+  - Consider tool naming patterns and conventions
+  - Factor in creation timestamps (recent tools weighted higher)
+  - Include file extension patterns from materialized executables
+  - Analyze actual tool code content for deeper similarity
+
+- **Enhanced Similarity Explanation**
+  - Detailed reasoning output for why tools are considered similar
+  - Visual similarity scores and breakdowns in CLI output
+  - Interactive similarity exploration commands
+  - Similarity confidence indicators
+
+- **Discovery Recommendation System**
+  - `port42 discover` command to find underutilized similar tools
+  - Smart recommendations when creating new tools ("Did you mean to extend X?")
+  - Similarity-based tool consolidation suggestions
+  - Tool ecosystem health insights and optimization recommendations
+
+- **Advanced Virtual Navigation**
+  - `/similar/by-score/{threshold}` - filter by minimum similarity
+  - `/similar/recent/` - recently discovered similar relationships
+  - `/similar/clusters/` - groups of highly interconnected similar tools
+  - Multi-hop similarity (tools similar to similar tools)
+
+**Note**: Step 6 core phases A-C deliver the fundamental semantic discovery value. Phase D would be optimization and user experience enhancements.
+
 ---
 
 ## **Current Status**
@@ -450,6 +484,7 @@ By Step 8, you have a **reality compiler** that:
 ✅ **Step 2 Phase 2**: Complete - ViewerRule with relationship tracking and improved AI prompts
 ✅ **Step 3**: Complete - Virtual Views with advanced filesystem metaphors (Phases A-D)
 ❌ **Step 4**: Not applicable - Superseded by superior virtual filesystem implementation
+✅ **Step 5**: Complete - Memory-Relation Bridge with CLI session context capture
  
 **Implemented beyond original plan**:
 - Advanced virtual filesystem with `/tools/` hierarchy
@@ -457,8 +492,10 @@ By Step 8, you have a **reality compiler** that:
 - Semantic similarity search across all entities
 - Cross-entity discovery (tools, memory, artifacts)
 - Transform-based capability discovery
+- CLI session context linking tools to their creation sessions
+- Bidirectional memory navigation between sessions and generated tools
 
-**Ready for**: Step 5 (Memory-Relation Bridge) - Connect conversation threads to created tools
+**Ready for**: Step 6 (Semantic Tool Discovery) - Automated tool similarity detection and linking
 
 ---
 

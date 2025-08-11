@@ -582,6 +582,11 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 		return s.handleMemoryGeneratedView(path)
 	}
 	
+	// Handle similar paths - show notice for unimplemented Step 6 feature
+	if strings.HasPrefix(path, "/similar") {
+		return s.handleSimilarPathNotice(path)
+	}
+	
 	// List all objects and organize by virtual paths
 	ids, err := s.List()
 	if err != nil {
@@ -2171,6 +2176,50 @@ func (s *Storage) handleMemoryGeneratedView(path string) []map[string]interface{
 				}
 			}
 		}
+	}
+	
+	return entries
+}
+
+// handleSimilarPathNotice shows a helpful notice for unimplemented /similar paths
+func (s *Storage) handleSimilarPathNotice(path string) []map[string]interface{} {
+	entries := []map[string]interface{}{}
+	
+	// Extract tool name from path if provided
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	
+	if len(pathParts) == 1 && pathParts[0] == "similar" {
+		// Root /similar path - show general notice
+		entry := map[string]interface{}{
+			"name":        "🚧 SEMANTIC TOOL DISCOVERY - Coming Soon",
+			"type":        "notice",
+			"description": "Step 6 of the Reality Compiler will implement automatic tool similarity detection",
+			"features": []string{
+				"Find tools with similar transforms and purposes",
+				"Discover connections between tools you didn't know existed", 
+				"Improve tool reuse through semantic relationships",
+			},
+			"usage":      "port42 ls /similar/{tool-name} - will show tools similar to the specified tool",
+			"status":     "planned",
+			"step":       "Step 6: Semantic Tool Discovery",
+		}
+		entries = append(entries, entry)
+	} else if len(pathParts) >= 2 {
+		// Specific tool similarity path - show targeted notice  
+		toolName := pathParts[1]
+		entry := map[string]interface{}{
+			"name":        fmt.Sprintf("🔍 Similarity detection for '%s'", toolName),
+			"type":        "notice", 
+			"description": fmt.Sprintf("Semantic analysis will find tools similar to '%s'", toolName),
+			"implementation": []string{
+				"Transform similarity analysis (shared capabilities)",
+				"Semantic naming pattern recognition", 
+				"Purpose and function relationship detection",
+			},
+			"expected": fmt.Sprintf("Tools with similar transforms to %s will appear here", toolName),
+			"status":   "Step 6 implementation in progress",
+		}
+		entries = append(entries, entry)
 	}
 	
 	return entries
