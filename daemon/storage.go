@@ -582,9 +582,9 @@ func (s *Storage) ListPath(path string) []map[string]interface{} {
 		return s.handleMemoryGeneratedView(path)
 	}
 	
-	// Handle similar paths - show notice for unimplemented Step 6 feature
+	// Handle similar paths - semantic tool discovery
 	if strings.HasPrefix(path, "/similar") {
-		return s.handleSimilarPathNotice(path)
+		return s.handleSimilarView(path)
 	}
 	
 	// List all objects and organize by virtual paths
@@ -2181,46 +2181,185 @@ func (s *Storage) handleMemoryGeneratedView(path string) []map[string]interface{
 	return entries
 }
 
-// handleSimilarPathNotice shows a helpful notice for unimplemented /similar paths
-func (s *Storage) handleSimilarPathNotice(path string) []map[string]interface{} {
-	entries := []map[string]interface{}{}
-	
+// handleSimilarView provides semantic tool discovery through similarity analysis
+func (s *Storage) handleSimilarView(path string) []map[string]interface{} {
 	// Extract tool name from path if provided
 	pathParts := strings.Split(strings.Trim(path, "/"), "/")
 	
 	if len(pathParts) == 1 && pathParts[0] == "similar" {
-		// Root /similar path - show general notice
-		entry := map[string]interface{}{
-			"name":        "🚧 SEMANTIC TOOL DISCOVERY - Coming Soon",
-			"type":        "notice",
-			"description": "Step 6 of the Reality Compiler will implement automatic tool similarity detection",
-			"features": []string{
-				"Find tools with similar transforms and purposes",
-				"Discover connections between tools you didn't know existed", 
-				"Improve tool reuse through semantic relationships",
-			},
-			"usage":      "port42 ls /similar/{tool-name} - will show tools similar to the specified tool",
-			"status":     "planned",
-			"step":       "Step 6: Semantic Tool Discovery",
-		}
-		entries = append(entries, entry)
+		// Root /similar path
+		return s.handleSimilarRootView()
 	} else if len(pathParts) >= 2 {
-		// Specific tool similarity path - show targeted notice  
+		// Specific tool similarity path
 		toolName := pathParts[1]
-		entry := map[string]interface{}{
-			"name":        fmt.Sprintf("🔍 Similarity detection for '%s'", toolName),
-			"type":        "notice", 
-			"description": fmt.Sprintf("Semantic analysis will find tools similar to '%s'", toolName),
-			"implementation": []string{
-				"Transform similarity analysis (shared capabilities)",
-				"Semantic naming pattern recognition", 
-				"Purpose and function relationship detection",
+		return s.handleSimilarToolView(toolName)
+	}
+	
+	return []map[string]interface{}{}
+}
+
+// handleSimilarRootView shows all tools that have similar tools available
+func (s *Storage) handleSimilarRootView() []map[string]interface{} {
+	calculator := s.getSimilarityCalculator()
+	if calculator == nil {
+		return []map[string]interface{}{
+			{
+				"name":        "⚠️ Similarity calculator unavailable",
+				"type":        "error",
+				"description": "RelationStore not initialized",
 			},
-			"expected": fmt.Sprintf("Tools with similar transforms to %s will appear here", toolName),
-			"status":   "Step 6 implementation in progress",
 		}
+	}
+	
+	// Load all tool relations
+	allRelations, err := s.relationStore.List()
+	if err != nil {
+		return []map[string]interface{}{
+			{
+				"name":        "⚠️ Failed to load tools",
+				"type":        "error", 
+				"description": fmt.Sprintf("Error: %v", err),
+			},
+		}
+	}
+	
+	entries := []map[string]interface{}{}
+	
+	// Find tools with similar tools (threshold 0.2 for directory listing)
+	for _, relation := range allRelations {
+		if relation.Type != "Tool" {
+			continue
+		}
+		
+		toolName, ok := relation.Properties["name"].(string)
+		if !ok {
+			continue
+		}
+		
+		// Find similar tools for this tool
+		similarTools, err := calculator.findSimilarTools(relation, 0.2)
+		if err != nil {
+			continue
+		}
+		
+		// Only include tools that have similar tools
+		if len(similarTools) > 0 {
+			entry := map[string]interface{}{
+				"name":             toolName,
+				"type":             "directory",
+				"similar_count":    len(similarTools),
+				"description":      fmt.Sprintf("Tool with %d similar tools", len(similarTools)),
+				"path":            fmt.Sprintf("/similar/%s", toolName),
+			}
+			entries = append(entries, entry)
+		}
+	}
+	
+	if len(entries) == 0 {
+		return []map[string]interface{}{
+			{
+				"name":        "🔍 No tools with similarities found",
+				"type":        "notice",
+				"description": "Either no tools exist or none have sufficient similarity (>20%)",
+			},
+		}
+	}
+	
+	return entries
+}
+
+// handleSimilarToolView shows tools similar to a specific target tool
+func (s *Storage) handleSimilarToolView(toolName string) []map[string]interface{} {
+	calculator := s.getSimilarityCalculator()
+	if calculator == nil {
+		return []map[string]interface{}{
+			{
+				"name":        "⚠️ Similarity calculator unavailable",
+				"type":        "error",
+				"description": "RelationStore not initialized",
+			},
+		}
+	}
+	
+	// Find similar tools using the calculator (threshold 0.2)
+	similarTools, err := calculator.GetSimilarToolsForTool(toolName, 0.2)
+	if err != nil {
+		return []map[string]interface{}{
+			{
+				"name":        fmt.Sprintf("⚠️ Error finding similar tools for '%s'", toolName),
+				"type":        "error",
+				"description": fmt.Sprintf("Error: %v", err),
+			},
+		}
+	}
+	
+	if len(similarTools) == 0 {
+		return []map[string]interface{}{
+			{
+				"name":        fmt.Sprintf("🔍 No similar tools found for '%s'", toolName),
+				"type":        "notice",
+				"description": "No tools found with similarity above 20% threshold",
+			},
+		}
+	}
+	
+	// Convert similar tools to virtual nodes
+	entries := []map[string]interface{}{}
+	for _, similarTool := range similarTools {
+		entry := s.similarToolToVirtualNode(similarTool)
 		entries = append(entries, entry)
 	}
 	
 	return entries
+}
+
+// similarToolToVirtualNode converts a SimilarTool to a virtual node for CLI display
+func (s *Storage) similarToolToVirtualNode(similarTool SimilarTool) map[string]interface{} {
+	toolName, ok := similarTool.Tool.Properties["name"].(string)
+	if !ok {
+		toolName = similarTool.Tool.ID
+	}
+	
+	// Build similarity description
+	similarityPercent := int(similarTool.Similarity * 100)
+	description := fmt.Sprintf("%d%% similarity", similarityPercent)
+	
+	if len(similarTool.Reason) > 0 {
+		description += " - " + strings.Join(similarTool.Reason, ", ")
+	}
+	
+	// Extract transforms for additional context
+	transforms := []string{}
+	if transformsRaw, exists := similarTool.Tool.Properties["transforms"]; exists {
+		if transformsInterface, ok := transformsRaw.([]interface{}); ok {
+			for _, t := range transformsInterface {
+				if tStr, ok := t.(string); ok {
+					transforms = append(transforms, tStr)
+				}
+			}
+		} else if transformsString, ok := transformsRaw.([]string); ok {
+			transforms = transformsString
+		}
+	}
+	
+	entry := map[string]interface{}{
+		"name":          toolName,
+		"type":          "tool",
+		"similarity":    similarityPercent,
+		"score":         similarTool.Similarity,
+		"description":   description,
+		"path":          fmt.Sprintf("/tools/%s", toolName),
+		"transforms":    transforms,
+		"reason":        similarTool.Reason,
+	}
+	
+	return entry
+}
+
+// getSimilarityCalculator creates a SimilarityCalculator instance for this storage
+func (s *Storage) getSimilarityCalculator() *SimilarityCalculator {
+	if s.relationStore == nil {
+		return nil
+	}
+	return NewSimilarityCalculator(s.relationStore)
 }
