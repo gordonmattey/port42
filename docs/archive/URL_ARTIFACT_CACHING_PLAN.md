@@ -660,22 +660,22 @@ This creates a **complete audit trail** from conversation → tool → URL fetch
   - [x] Error handling with Relations
   - [x] Enhanced logging with clear HIT/MISS/direct indicators
 
-- [ ] **Phase 4**: Relations storage implementation 🔄
-  - [ ] Fetch and store as URLArtifact Relations
-  - [ ] Rich metadata in Properties
-  - [ ] Content storage with References
+- [X] **Phase 4**: Relations storage implementation 🔄
+  - [x] Fetch and store as URLArtifact Relations
+  - [x] Rich metadata in Properties
+  - [x] Content storage with References
 
-- [ ] **Phase 5**: Result formatting 🔄
+- [LATER] **Phase 5**: Result formatting 🔄
   - [ ] Consistent formatting functions
   - [ ] Cache indicators (cached vs fresh)
   - [ ] Content processing
 
-- [ ] **Phase 6**: Logging & stats 🔄
+- [ LATER] **Phase 6**: Logging & stats 🔄
   - [ ] Enhanced resolution stats
   - [ ] Cache hit/miss tracking
   - [ ] Debug logging
 
-- [ ] **Testing**: Unit + integration tests 🔄
+- [X ] **Testing**: Unit + integration tests 🔄
 - [ ] **Documentation**: Update reference resolution docs 🔄
 
 ---
