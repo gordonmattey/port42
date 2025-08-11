@@ -1,8 +1,11 @@
 use super::{DaemonRequest, RequestBuilder, ResponseParser};
 use crate::display::{Displayable, OutputFormat};
 use crate::help_text;
+use crate::client::DaemonClient;
+use crate::types::Response;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use colored::*;
 
 #[derive(Debug, Serialize)]
@@ -110,4 +113,31 @@ impl Displayable for StatusResponse {
         }
         Ok(())
     }
+}
+
+// Watch request function for real-time monitoring
+pub fn send_watch_request(port: u16, target: &str) -> Result<serde_json::Value> {
+    let mut client = DaemonClient::new(port);
+    
+    let payload = json!({
+        "target": target
+    });
+    
+    let request = DaemonRequest {
+        request_type: "watch".to_string(),
+        id: format!("watch-{}", chrono::Utc::now().timestamp_millis()),
+        payload,
+        references: None,
+        session_context: None,
+    };
+    
+    let response = client.request(request)?;
+    
+    if !response.success {
+        let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
+        return Err(anyhow::anyhow!("Watch request failed: {}", error));
+    }
+    
+    let data = response.data.ok_or_else(|| anyhow::anyhow!("No data in watch response"))?;
+    Ok(data)
 }

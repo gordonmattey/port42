@@ -157,6 +157,12 @@ pub enum Commands {
         #[arg(long, short = 'n', default_value = "20")]
         limit: Option<usize>,
     },
+    
+    /// Watch real-time system activity
+    Watch {
+        /// What to watch (rules, sessions)
+        target: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -444,6 +450,18 @@ fn main() -> Result<()> {
                 search::handle_search_with_format(&mut client, query, path, type_filter, after, before, agent, tags, limit, display::OutputFormat::Json)?;
             } else {
                 search::handle_search(&mut client, query, path, type_filter, after, before, agent, tags, limit)?;
+            }
+        }
+        
+        Some(Commands::Watch { target }) => {
+            match target.as_str() {
+                "rules" => {
+                    commands::watch::watch_rules(port)?;
+                }
+                _ => {
+                    eprintln!("❌ Unsupported watch target: {}. Supported: rules", target);
+                    std::process::exit(1);
+                }
             }
         }
         

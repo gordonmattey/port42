@@ -15,10 +15,16 @@ type RealityCompiler struct {
 
 // NewRealityCompiler creates a new reality compiler
 func NewRealityCompiler(relationStore RelationStore, materializers []Materializer) *RealityCompiler {
-	return &RealityCompiler{
+	rc := &RealityCompiler{
 		relationStore: relationStore,
 		materializers: materializers,
 	}
+	
+	// Initialize rule engine with default rules
+	rc.ruleEngine = NewRuleEngine(rc, defaultRules())
+	log.Printf("🔧 Initialized rule engine with %d default rules", len(defaultRules()))
+	
+	return rc
 }
 
 // GetRelationStore returns the relation store (for similarity calculator access)
@@ -104,6 +110,7 @@ func (rc *RealityCompiler) shouldMaterialize(relation Relation) bool {
 	// Data-only relation types don't need physical materialization
 	dataOnlyTypes := map[string]bool{
 		"URLArtifact": true,
+		"Artifact":    true, // Documentation and other artifacts are metadata-only
 		// Add other data-only types as needed:
 		// "SearchResult": true,
 		// "MemoryContext": true,

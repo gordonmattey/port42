@@ -41,6 +41,7 @@ const (
 	RequestList    = "list"
 	RequestStatus  = "status"
 	RequestMemory  = "memory"
+	RequestWatch   = "watch"
 	RequestEnd     = "end"
 )
 
@@ -54,11 +55,27 @@ type PossessPayload struct {
 
 // StatusData for status responses
 type StatusData struct {
-	Status   string `json:"status"`
-	Port     string `json:"port"`
-	Sessions int    `json:"sessions"`
-	Uptime   string `json:"uptime"`
-	Dolphins string `json:"dolphins"`
+	Status    string `json:"status"`
+	Port      string `json:"port"`
+	Sessions  int    `json:"sessions"`
+	Uptime    string `json:"uptime"`
+	Dolphins  string `json:"dolphins"`
+	RuleCount int    `json:"rule_count,omitempty"`
+	Rules     string `json:"rules,omitempty"`
+}
+
+// WatchPayload for watch requests
+type WatchPayload struct {
+	Target string `json:"target"` // "rules", "sessions", etc.
+}
+
+// WatchData for watch responses - streams rule activity
+type WatchData struct {
+	Timestamp string `json:"timestamp"`
+	Type      string `json:"type"`    // "rule_triggered", "rule_completed", "rule_failed"
+	RuleID    string `json:"rule_id"`
+	RuleName  string `json:"rule_name"`
+	Details   string `json:"details,omitempty"`
 }
 
 // ListData for list responses

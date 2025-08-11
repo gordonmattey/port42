@@ -224,6 +224,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleList(req)
 	case RequestMemory:
 		return d.handleMemory(req)
+	case RequestWatch:
+		return d.handleWatch(req)
 	case RequestEnd:
 		return d.handleEnd(req)
 	case "ping":
@@ -846,15 +848,99 @@ func (d *Daemon) handleStatus(req Request) Response {
 	}
 	d.mu.RUnlock()
 	
+	// Get rule engine status
+	var ruleCount int
+	var ruleNames []string
+	if d.realityCompiler != nil && d.realityCompiler.ruleEngine != nil {
+		rules := d.realityCompiler.ruleEngine.ListRules()
+		ruleCount = len(rules)
+		for _, rule := range rules {
+			if rule.Enabled {
+				ruleNames = append(ruleNames, rule.Name)
+			}
+		}
+	}
+	
+	var rulesStatus string
+	if ruleCount > 0 {
+		rulesStatus = fmt.Sprintf("%d active rules: %s", len(ruleNames), strings.Join(ruleNames, ", "))
+	} else {
+		rulesStatus = "No rules loaded"
+	}
+
 	status := StatusData{
-		Status:   "swimming",
-		Port:     d.config.Port,
-		Sessions: activeSessions,
-		Uptime:   uptime,
-		Dolphins: "🐬🐬🐬 laughing in the digital waves",
+		Status:    "swimming",
+		Port:      d.config.Port,
+		Sessions:  activeSessions,
+		Uptime:    uptime,
+		Dolphins:  "🐬🐬🐬 laughing in the digital waves",
+		RuleCount: ruleCount,
+		Rules:     rulesStatus,
 	}
 	
 	resp.SetData(status)
+	return resp
+}
+
+// handleWatch handles watch requests for real-time monitoring
+func (d *Daemon) handleWatch(req Request) Response {
+	// Parse the watch payload
+	var payload WatchPayload
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		return NewErrorResponse(req.ID, fmt.Sprintf("Invalid watch payload: %v", err))
+	}
+	
+	resp := NewResponse(req.ID, true)
+	
+	// Handle different watch targets
+	switch payload.Target {
+	case "rules":
+		return d.handleWatchRules(req)
+	default:
+		return NewErrorResponse(req.ID, fmt.Sprintf("Unsupported watch target: %s", payload.Target))
+	}
+	
+	return resp
+}
+
+// handleWatchRules provides real-time rule engine activity monitoring
+func (d *Daemon) handleWatchRules(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	// For now, return current rule status since we don't have streaming yet
+	// This would be enhanced to stream real-time events in a full implementation
+	if d.realityCompiler == nil || d.realityCompiler.ruleEngine == nil {
+		data := WatchData{
+			Timestamp: time.Now().Format(time.RFC3339),
+			Type:      "status",
+			RuleID:    "system",
+			RuleName:  "Rule Engine Status",
+			Details:   "Rule engine not initialized",
+		}
+		resp.SetData(data)
+		return resp
+	}
+	
+	rules := d.realityCompiler.ruleEngine.ListRules()
+	var watchData []WatchData
+	
+	for _, rule := range rules {
+		status := "enabled"
+		if !rule.Enabled {
+			status = "disabled"
+		}
+		
+		data := WatchData{
+			Timestamp: time.Now().Format(time.RFC3339),
+			Type:      "rule_status",
+			RuleID:    rule.ID,
+			RuleName:  rule.Name,
+			Details:   fmt.Sprintf("Status: %s, Description: %s", status, rule.Description),
+		}
+		watchData = append(watchData, data)
+	}
+	
+	resp.SetData(watchData)
 	return resp
 }
 

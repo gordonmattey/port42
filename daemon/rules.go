@@ -150,6 +150,7 @@ func getRelationName(relation Relation) string {
 func defaultRules() []Rule {
 	return []Rule{
 		viewerRule(),
+		documentationRule(),
 	}
 }
 
@@ -208,6 +209,71 @@ func viewerRule() Rule {
 			}
 			
 			log.Printf("✅ Successfully spawned viewer tool: %s", viewerName)
+			return nil
+		},
+	}
+}
+
+// documentationRule creates a rule that auto-spawns documentation for complex tools
+func documentationRule() Rule {
+	return Rule{
+		ID:          "spawn-documentation",
+		Name:        "Auto-spawn documentation for complex tools",
+		Description: "When a tool with 3+ transforms is declared, automatically create documentation artifact",
+		Enabled:     true,
+		Condition: func(relation Relation) bool {
+			// Only process Tool relations
+			if relation.Type != "Tool" {
+				return false
+			}
+			
+			// Skip auto-spawned tools to prevent infinite recursion
+			if autoSpawned, exists := relation.Properties["auto_spawned"]; exists {
+				if spawned, ok := autoSpawned.(bool); ok && spawned {
+					return false
+				}
+			}
+			
+			// Check if tool has 3+ transforms (complex tool)
+			transforms := getTransforms(relation)
+			return len(transforms) >= 3
+		},
+		Action: func(relation Relation, compiler *RealityCompiler) error {
+			toolName := getRelationName(relation)
+			if toolName == "" {
+				return fmt.Errorf("tool relation missing name property")
+			}
+			
+			// Get transforms for documentation content
+			transforms := getTransforms(relation)
+			
+			// Create documentation relation
+			docsName := toolName + "-docs"
+			docsRelation := Relation{
+				ID:   generateRelationID("artifact", docsName),
+				Type: "Artifact",
+				Properties: map[string]interface{}{
+					"name":         docsName,
+					"type":         "documentation",
+					"format":       "markdown",
+					"documents":    toolName,
+					"spawned_by":   relation.ID,
+					"auto_spawned": true,
+					"transforms":   transforms, // Include original transforms for context
+					"description":  fmt.Sprintf("Auto-generated documentation for %s", toolName),
+				},
+				CreatedAt: time.Now(),
+			}
+			
+			log.Printf("📚 Auto-spawning documentation: %s", docsName)
+			
+			// Use the reality compiler to declare the documentation relation
+			_, err := compiler.DeclareRelation(docsRelation)
+			if err != nil {
+				return fmt.Errorf("failed to materialize documentation: %w", err)
+			}
+			
+			log.Printf("✅ Successfully spawned documentation: %s", docsName)
 			return nil
 		},
 	}
