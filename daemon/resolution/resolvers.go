@@ -158,8 +158,14 @@ func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedCont
 		}, nil
 	}
 	
-	// Generate artifact ID
+	// Generate artifact ID (deterministic for caching)
 	artifactID := NewURLArtifactID(target).Generate()
+	
+	// DEBUG: For now, force fresh artifacts to test cache behavior
+	// TODO: Remove this and fix Relations update behavior
+	if r.artifactManager != nil {
+		log.Printf("🔍 DEBUG: Checking cache for %s", artifactID)
+	}
 	
 	// Phase 3: Enhanced Resolution Flow - Cache-first with proper fallback logic
 	if r.artifactManager != nil {
@@ -238,6 +244,11 @@ func (r *urlResolver) fetchAndStore(ctx context.Context, target, artifactID stri
 	// Try to store as artifact if artifact manager is available
 	if r.artifactManager != nil {
 		now := time.Now()
+		
+		// CRITICAL FIX: Always use current timestamp for fresh fetches
+		// This ensures Relations updates don't preserve stale metadata
+		freshTimestamp := now.Unix()
+		
 		artifact := &URLArtifactRelation{
 			ID:        artifactID,
 			Type:      "URLArtifact",
@@ -249,8 +260,10 @@ func (r *urlResolver) fetchAndStore(ctx context.Context, target, artifactID stri
 				"content_type":   resp.Header.Get("Content-Type"),
 				"status_code":    resp.StatusCode,
 				"content_length": len(content),
-				"fetched_at":     now.Unix(),
-				"cache_version":  2,
+				"fetched_at":     freshTimestamp, // Always current time
+				"cache_version":  3,              // Increment for timestamp fix
+				"last_updated":   freshTimestamp, // Always current time
+				"debug_fetched":  now.Format("2006-01-02 15:04:05"), // Human readable debug
 			},
 		}
 		

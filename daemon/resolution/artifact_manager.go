@@ -34,9 +34,28 @@ func (am *ArtifactManager) LoadCached(artifactID string) (*URLArtifactRelation, 
 	
 	// Check if cache is expired
 	if am.IsExpired(relation) {
-		fetchedAt, _ := relation.Properties["fetched_at"].(int64)
+		// Get proper timestamp using the same logic as IsExpired
+		var fetchedAt int64
+		if val, exists := relation.Properties["fetched_at"]; exists {
+			switch v := val.(type) {
+			case int64:
+				fetchedAt = v
+			case float64:
+				fetchedAt = int64(v)
+			case int:
+				fetchedAt = int64(v)
+			}
+		}
 		age := time.Since(time.Unix(fetchedAt, 0))
+		
+		// DEBUG: Log all timestamp fields for debugging
 		log.Printf("🕐 Cache EXPIRED: %s (age: %v, TTL: %v)", artifactID, age.Truncate(time.Second), am.policy.DefaultTTL)
+		log.Printf("🔍 DEBUG Timestamps - fetched_at: %d (type: %T), UpdatedAt: %s, CreatedAt: %s", 
+			fetchedAt, relation.Properties["fetched_at"], relation.UpdatedAt.Format("2006-01-02 15:04:05"), relation.CreatedAt.Format("2006-01-02 15:04:05"))
+		if debugStr, exists := relation.Properties["debug_fetched"].(string); exists {
+			log.Printf("🔍 DEBUG debug_fetched: %s", debugStr)
+		}
+		
 		return nil, nil // Expired = cache miss
 	}
 	
@@ -44,7 +63,17 @@ func (am *ArtifactManager) LoadCached(artifactID string) (*URLArtifactRelation, 
 	am.updateLastAccessed(relation)
 	
 	// Log successful cache hit with age info
-	fetchedAt, _ := relation.Properties["fetched_at"].(int64)
+	var fetchedAt int64
+	if val, exists := relation.Properties["fetched_at"]; exists {
+		switch v := val.(type) {
+		case int64:
+			fetchedAt = v
+		case float64:
+			fetchedAt = int64(v)
+		case int:
+			fetchedAt = int64(v)
+		}
+	}
 	age := time.Since(time.Unix(fetchedAt, 0))
 	log.Printf("✅ Cache VALID: %s (age: %v, TTL: %v)", artifactID, age.Truncate(time.Second), am.policy.DefaultTTL)
 	return relation, nil
@@ -71,14 +100,32 @@ func (am *ArtifactManager) Store(artifact *URLArtifactRelation) error {
 	
 	sourceURL, _ := artifact.Properties["source_url"].(string)
 	contentLength, _ := artifact.Properties["content_length"].(int)
+	fetchedAt, _ := artifact.Properties["fetched_at"].(int64)
+	
+	// DEBUG: Log storing timestamp info
 	log.Printf("💾 Cached URL artifact: %s (%s, %d bytes)", artifact.ID, sourceURL, contentLength)
+	log.Printf("🔍 DEBUG Store - fetched_at: %d (%s), UpdatedAt: %s", 
+		fetchedAt, time.Unix(fetchedAt, 0).Format("2006-01-02 15:04:05"), artifact.UpdatedAt.Format("2006-01-02 15:04:05"))
 	return nil
 }
 
 // IsExpired checks if an artifact is expired according to cache policy
 func (am *ArtifactManager) IsExpired(artifact *URLArtifactRelation) bool {
-	fetchedAt, exists := artifact.Properties["fetched_at"].(int64)
-	if !exists {
+	// Handle both int64 and float64 types (JSON unmarshaling can produce either)
+	var fetchedAt int64
+	if val, exists := artifact.Properties["fetched_at"]; exists {
+		switch v := val.(type) {
+		case int64:
+			fetchedAt = v
+		case float64:
+			fetchedAt = int64(v)
+		case int:
+			fetchedAt = int64(v)
+		default:
+			log.Printf("⚠️ Invalid fetched_at type: %T, value: %v", v, v)
+			return true // Invalid timestamp means expired
+		}
+	} else {
 		return true // No timestamp means expired
 	}
 	

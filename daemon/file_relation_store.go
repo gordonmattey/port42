@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,16 @@ func (store *FileRelationStore) Save(relation Relation) error {
 	filename := fmt.Sprintf("relation-%s.json", relation.ID)
 	filePath := filepath.Join(store.baseDir, filename)
 	
+	// DEBUG: Log what we're saving for URLArtifacts
+	if relation.Type == "URLArtifact" {
+		fetchedAt, _ := relation.Properties["fetched_at"].(float64)
+		if fetchedAtInt, ok := relation.Properties["fetched_at"].(int64); ok {
+			fetchedAt = float64(fetchedAtInt)
+		}
+		log.Printf("🔍 [STORE] Saving URLArtifact %s: fetched_at=%v, UpdatedAt=%s", 
+			relation.ID, fetchedAt, relation.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+	
 	data, err := json.MarshalIndent(relation, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal relation: %w", err)
@@ -61,6 +72,16 @@ func (store *FileRelationStore) Load(id string) (*Relation, error) {
 	var relation Relation
 	if err := json.Unmarshal(data, &relation); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal relation: %w", err)
+	}
+	
+	// DEBUG: Log what we're loading for URLArtifacts
+	if relation.Type == "URLArtifact" {
+		fetchedAt, _ := relation.Properties["fetched_at"].(float64)
+		if fetchedAtInt, ok := relation.Properties["fetched_at"].(int64); ok {
+			fetchedAt = float64(fetchedAtInt)
+		}
+		log.Printf("🔍 [LOAD] Loading URLArtifact %s: fetched_at=%v, UpdatedAt=%s", 
+			relation.ID, fetchedAt, relation.UpdatedAt.Format("2006-01-02 15:04:05"))
 	}
 	
 	return &relation, nil
