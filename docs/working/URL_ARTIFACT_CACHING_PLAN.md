@@ -162,46 +162,50 @@ func (r *urlResolver) loadCachedContent(artifactID string) (*URLArtifactRelation
 }
 ```
 
-### Phase 3: Core Resolution Logic 🔄 
-**Goal**: Implement cache-first resolution with Relations fallback
+### Phase 3: Core Resolution Logic ✅ COMPLETE 
+**Goal**: Implement cache-first resolution with proper fallback logic
 
-#### 3.1 Updated Resolution Flow
+#### 3.1 Enhanced Resolution Flow ✅
 ```go
 func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedContext, error) {
     // Validate URL
-    if !isValidURL(target) {
+    if !IsValidURL(target) {
         return &ResolvedContext{
-            Type:    "url",
-            Target:  target,
-            Success: false,
+            Type:    "url", Target: target, Success: false,
             Error:   "Invalid URL format",
         }, nil
     }
     
     // Generate artifact ID
-    artifactID := generateURLArtifactID(target)
+    artifactID := NewURLArtifactID(target).Generate()
     
-    // Try cache first
-    if cached := r.loadCachedContent(artifactID); cached != nil {
-        log.Printf("🎯 URL cache hit: %s", target)
-        return r.formatCachedResult(target, cached), nil
+    // Phase 3: Enhanced Resolution Flow - Cache-first with proper fallback logic
+    if r.artifactManager != nil {
+        // Try cache first  
+        if cached, err := r.artifactManager.LoadCached(artifactID); err == nil && cached != nil {
+            // Cache hit - successful cache-first resolution
+            log.Printf("🎯 URL cache HIT: %s -> %s", target, artifactID)
+            content := r.formatCachedURLContent(cached.Content, cached.Properties, target)
+            return &ResolvedContext{Type: "url", Target: target, Content: content, Success: true}, nil
+        }
+        
+        // Cache miss - proceed to fetch with caching enabled
+        log.Printf("🌐 URL cache MISS: %s -> fetching fresh (will cache)", target)
+        return r.fetchAndStore(ctx, target, artifactID)
+    } else {
+        // No cache manager - direct fetch without caching (graceful degradation)
+        log.Printf("🌐 URL direct fetch: %s (no cache available)", target)
+        return r.fetchWithoutCaching(ctx, target)
     }
-    
-    // Cache miss - fetch fresh content
-    log.Printf("🌐 URL cache miss, fetching: %s", target)
-    content, metadata, err := r.fetchAndStoreURL(ctx, target, artifactID)
-    if err != nil {
-        return &ResolvedContext{
-            Type:    "url", 
-            Target:  target,
-            Success: false,
-            Error:   fmt.Sprintf("Fetch failed: %v", err),
-        }, nil
-    }
-    
-    return r.formatFreshResult(target, content, metadata), nil
 }
 ```
+
+**Key Features Implemented:**
+- **Cache-first logic**: Always check cache before HTTP requests
+- **Graceful degradation**: Works without caching infrastructure  
+- **Clear logging**: Distinct messages for cache HIT/MISS/unavailable
+- **Proper fallbacks**: Multiple fallback paths ensure reliability
+- **Performance optimization**: Eliminates duplicate HTTP requests
 
 ### Phase 4: Relations Storage Implementation 🔄
 **Goal**: Store fetched content as URL artifact Relations with **rich reference context**
@@ -556,9 +560,52 @@ This creates a **complete audit trail** from conversation → tool → URL fetch
 
 ## Future Enhancements
 
+### Rich Reference Context Integration
+**Pass ReferenceContext through resolution pipeline**
+- **Benefits**: Contextual Intelligence - each URL fetch knows "who asked, when, why, and what else was being researched"
+- **Implementation**: Modify resolution pipeline to carry ReferenceContext from tool generation through to URL artifact storage
+
+**Link URL artifacts to tool generation sessions**
+- **Benefits**: Complete provenance chain from conversation → tool → URLs → generated code. Reproducibility by restoring exact tool generation environment.
+- **Implementation**: Store tool relation IDs, session IDs, and agent context in URL artifact Properties
+
+**Cross-reference tracking (what other refs were resolved together)**
+- **Benefits**: Pattern Recognition - discover common URL combinations. "URLs A, B, and C are often used together for authentication tools"
+- **Implementation**: Store reference batch information in URL artifacts, build co-access analytics
+
+**Memory session and AI agent context preservation**
+- **Benefits**: Conversation continuity - URLs remain available even if external sites go down. Agent specialization tracking.
+- **Implementation**: Link URL artifacts to memory sessions and track agent attribution patterns
+
+### Advanced Metadata Enhancement
+**Tool genealogy: Which tools used this URL content**
+- **Benefits**: Impact Analysis - "This URL influenced 12 different tools - changes here have broad impact"
+- **Implementation**: Reverse indexing from URLs to tools, tool family clustering
+
+**Session correlation: URLs accessed together in conversations**  
+- **Benefits**: Research Pattern Mining - understand how complex technical problems require multiple information sources
+- **Implementation**: Conversation clustering by URL access patterns, expert path discovery
+
+**Content analysis: Title extraction, content classification**
+- **Benefits**: Semantic Search - find URLs by content topic, not just URL text. Auto-tagging by technical domain.
+- **Implementation**: HTML title parsing, content classification ML, semantic indexing
+
+**Usage patterns: Access frequency, last used timestamps**
+- **Benefits**: Predictive Caching - pre-fetch URLs likely to be needed. Cache lifecycle management based on actual usage.
+- **Implementation**: Usage analytics, predictive models, automated cache optimization
+
+### Result Formatting Enhancements  
+**Rich context display for debugging**
+- **Benefits**: Deep Diagnostics - see complete resolution chain when tools behave unexpectedly
+- **Implementation**: Detailed resolution logs, reference forensics, context reconstruction tools
+
+**Enhanced cache indicators**
+- **Benefits**: Cache confidence - users understand freshness and can make decisions about regeneration
+- **Implementation**: Detailed age/TTL displays, freshness warnings, quality indicators
+
 ### Enhanced Metadata & Content Analysis
 - **Title extraction from HTML `<title>` tag**
-- **Content summary or key topics** using AI analysis
+- **Content summary or key topics** using AI analysis  
 - **Content classification** (API response, documentation, blog post, etc.)
 - **Derived metadata** from content structure and semantics
 - **Content change detection** with diff tracking between fetches
@@ -572,7 +619,7 @@ This creates a **complete audit trail** from conversation → tool → URL fetch
 
 ### Cache Management
 - Manual cache refresh with `--refresh` flag
-- Bulk cache cleanup commands
+- Bulk cache cleanup commands  
 - Cache size limits and LRU eviction
 
 ### Advanced Features
@@ -586,6 +633,11 @@ This creates a **complete audit trail** from conversation → tool → URL fetch
 - Cache hit rate trends over time
 - **Content influence mapping**: Which URLs lead to successful tools
 - **Dead link detection** and automatic cleanup
+- **Recommendation Engine**: "Users who accessed this URL also found these resources helpful"
+- **Pattern Recognition Dashboard**: Common URL access sequences and clusters
+- **Predictive Analytics**: Automatic cache warming based on usage patterns
+- **Quality Metrics**: URLs that consistently produce successful tools
+- **Impact Analysis Tools**: Dependency mapping for URL changes
 
 ---
 
@@ -602,10 +654,11 @@ This creates a **complete audit trail** from conversation → tool → URL fetch
   - [ ] Add cache check logic via Relations queries
   - [ ] Handle cache expiration (24h default)
 
-- [ ] **Phase 3**: Core resolution 🔄
-  - [ ] Cache-first resolution flow
-  - [ ] Graceful fallback handling  
-  - [ ] Error handling with Relations
+- [x] **Phase 3**: Core resolution ✅ COMPLETE
+  - [x] Cache-first resolution flow
+  - [x] Graceful fallback handling (no cache available)  
+  - [x] Error handling with Relations
+  - [x] Enhanced logging with clear HIT/MISS/direct indicators
 
 - [ ] **Phase 4**: Relations storage implementation 🔄
   - [ ] Fetch and store as URLArtifact Relations

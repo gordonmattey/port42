@@ -161,10 +161,11 @@ func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedCont
 	// Generate artifact ID
 	artifactID := NewURLArtifactID(target).Generate()
 	
-	// Try cache first if artifact manager is available
+	// Phase 3: Enhanced Resolution Flow - Cache-first with proper fallback logic
 	if r.artifactManager != nil {
+		// Try cache first  
 		if cached, err := r.artifactManager.LoadCached(artifactID); err == nil && cached != nil {
-			// Cache hit - format cached result
+			// Cache hit - successful cache-first resolution
 			log.Printf("🎯 URL cache HIT: %s -> %s", target, artifactID)
 			content := r.formatCachedURLContent(cached.Content, cached.Properties, target)
 			return &ResolvedContext{
@@ -174,13 +175,15 @@ func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedCont
 				Success: true,
 			}, nil
 		}
+		
+		// Cache miss - proceed to fetch with caching enabled
+		log.Printf("🌐 URL cache MISS: %s -> fetching fresh (will cache)", target)
+		return r.fetchAndStore(ctx, target, artifactID)
+	} else {
+		// No cache manager - direct fetch without caching
+		log.Printf("🌐 URL direct fetch: %s (no cache available)", target)
+		return r.fetchWithoutCaching(ctx, target)
 	}
-	
-	// Cache miss - log for visibility
-	log.Printf("🌐 URL cache MISS: %s -> fetching fresh", target)
-	
-	// Cache miss - fetch fresh content
-	return r.fetchAndStore(ctx, target, artifactID)
 }
 
 // fetchAndStore fetches URL content and stores as artifact if possible
@@ -282,6 +285,65 @@ func (r *urlResolver) formatCachedURLContent(content string, properties map[stri
 	}
 	
 	return formattedContent
+}
+
+// fetchWithoutCaching performs direct HTTP fetch without any caching (graceful degradation)
+func (r *urlResolver) fetchWithoutCaching(ctx context.Context, target string) (*ResolvedContext, error) {
+	client := &http.Client{Timeout: 8 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+	if err != nil {
+		return &ResolvedContext{
+			Type:    "url",
+			Target:  target,
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create request: %v", err),
+		}, nil
+	}
+	
+	req.Header.Set("User-Agent", "Port42-ReferenceResolver/1.0")
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return &ResolvedContext{
+			Type:    "url",
+			Target:  target,
+			Success: false,
+			Error:   fmt.Sprintf("HTTP request failed: %v", err),
+		}, nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		return &ResolvedContext{
+			Type:    "url",
+			Target:  target,
+			Success: false,
+			Error:   fmt.Sprintf("HTTP %d: %s", resp.StatusCode, resp.Status),
+		}, nil
+	}
+	
+	// Read with size limit
+	limitedReader := io.LimitReader(resp.Body, 50*1024) // 50KB limit
+	bodyBytes, err := io.ReadAll(limitedReader)
+	if err != nil {
+		return &ResolvedContext{
+			Type:    "url",
+			Target:  target,
+			Success: false,
+			Error:   fmt.Sprintf("Failed to read response: %v", err),
+		}, nil
+	}
+	
+	content := string(bodyBytes)
+	formattedContent := formatURLContent(content, resp.Header.Get("Content-Type"), target)
+	formattedContent += "\n[Direct fetch - no caching]"
+	
+	return &ResolvedContext{
+		Type:    "url",
+		Target:  target,
+		Content: formattedContent,
+		Success: true,
+	}, nil
 }
 
 func (r *urlResolver) getTimeout() time.Duration {
