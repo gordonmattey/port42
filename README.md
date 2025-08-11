@@ -20,7 +20,7 @@ $ git-haiku
   of code changes here
 ```
 
-**2. AI-Assisted (Conversational Creation)**
+**2. AI-Assisted with Context (Conversational Creation)**
 ```bash
 $ port42 possess @ai-muse
 > Create a command that analyzes log files and shows patterns
@@ -29,6 +29,18 @@ $ port42 possess @ai-muse
 
 $ log-analyzer /var/log/nginx/access.log
 $ view-log-analyzer /tmp/analysis-output.json
+```
+
+**3. Enhanced with References (Context-Aware Creation)**
+```bash
+# Reference local files, VFS knowledge, and web content
+$ port42 declare tool config-processor --transforms config,validate,format \
+  --ref file:./app.json \
+  --ref p42:/tools/base-processor \
+  --ref url:https://json-schema.org/spec
+
+✨ Tool created with rich contextual knowledge!
+🔨 Now processing with understanding of your config structure
 ```
 
 ## 🚀 Quick Start (For Users)
@@ -53,6 +65,12 @@ port42 status
 
 # Create your first tool (instant)
 port42 declare tool hello-world --transforms greeting,demo
+
+# Create context-aware tools with references
+port42 declare tool smart-analyzer --transforms analyze,process \
+  --ref file:./config.json \
+  --ref p42:/tools/existing-analyzer \
+  --ref search:"error patterns"
 
 # Explore the unified filesystem
 port42 ls /                     # Root: tools/, commands/, memory/, by-date/
@@ -181,6 +199,75 @@ port42 declare tool git-summary --transforms git-log,analysis
 - Natural language: `port42 declare tool NAME --transforms X,Y`
 - Multiple perspectives: Same tool visible through different organizational schemes
 - Relationship intelligence: Spawning chains, capability grouping, temporal organization
+
+## 🔗 Universal Reference System - Context-Aware Tool Creation
+
+Port 42's reality compiler includes a **Universal Reference System** that allows you to create tools with rich contextual knowledge from multiple sources. Instead of creating tools from scratch, reference existing knowledge, files, and web content.
+
+### Reference Types
+
+**Local Files (`file:path`)**
+```bash
+# Reference project configuration, documentation, or code
+port42 declare tool config-validator --transforms validate,config \
+  --ref file:./app.json \
+  --ref file:./README.md
+```
+
+**Port 42 VFS (`p42:path`)**
+```bash
+# Reference existing tools and crystallized knowledge
+port42 declare tool enhanced-processor --transforms process,enhance \
+  --ref p42:/tools/base-processor \
+  --ref p42:/commands/utility-tool
+```
+
+**Web Content (`url:https://...`)**
+```bash
+# Reference API documentation, specifications, examples
+port42 declare tool api-client --transforms http,client \
+  --ref url:https://api.example.com/docs \
+  --ref url:https://github.com/example/api-examples
+```
+
+**Knowledge Search (`search:query`)**
+```bash
+# Reference crystallized knowledge from previous sessions
+port42 declare tool error-analyzer --transforms analyze,debug \
+  --ref search:"error handling patterns" \
+  --ref search:"debugging techniques"
+```
+
+**Tool Definitions (`tool:name`)**
+```bash
+# Reference existing tool capabilities and commands
+port42 declare tool super-analyzer --transforms analyze,extend \
+  --ref tool:log-parser \
+  --ref tool:data-processor
+```
+
+**Memory Sessions (`memory:session-id`)**
+```bash
+# Reference previous conversations and decisions
+port42 declare tool project-manager --transforms manage,track \
+  --ref memory:cli-1234 \
+  --ref file:./project-spec.md
+```
+
+### Multi-Reference Intelligence
+
+Combine multiple reference types for sophisticated context:
+
+```bash
+# The ultimate context-aware tool
+port42 declare tool intelligent-processor --transforms process,analyze,output \
+  --ref file:./data-schema.json \
+  --ref p42:/tools/base-processor \
+  --ref url:https://standards.org/spec \
+  --ref search:"processing patterns" \
+  --ref tool:existing-analyzer \
+  --ref memory:design-session-456
+```
 
 ## 🔍 Semantic Discovery - Search by What You Need
 
