@@ -1,12 +1,18 @@
 package resolution
 
+import "time"
+
 // ResolutionService provides the public interface for reference resolution
 type ResolutionService interface {
 	// ResolveForAI resolves references and formats for AI consumption
-	ResolveForAI(references []Reference) (string, error)
+	// Returns formatted string, resolved contexts, and error
+	ResolveForAI(references []Reference) (string, []*ResolvedContext, error)
 	
-	// GetResolutionStats returns statistics about resolution process
+	// GetResolutionStats returns statistics about resolution process (DEPRECATED)
 	GetResolutionStats(references []Reference) (*Stats, error)
+	
+	// ComputeStatsFromContexts computes stats from already resolved contexts
+	ComputeStatsFromContexts(references []Reference, contexts []*ResolvedContext) *Stats
 }
 
 // Reference represents a reference to resolve (from protocol)
@@ -37,10 +43,11 @@ type ResolvedContext struct {
 
 // Handlers are the interface points where daemon provides data access
 type Handlers struct {
-	SearchHandler func(query string, limit int) ([]SearchResult, error)
-	ToolHandler   func(toolName string) (*ToolDefinition, error)
-	MemoryHandler func(sessionID string) (*MemorySession, error)
-	FileHandler   func(path string) (*FileContent, error)
+	SearchHandler    func(query string, limit int) ([]SearchResult, error)
+	ToolHandler      func(toolName string) (*ToolDefinition, error)
+	MemoryHandler    func(sessionID string) (*MemorySession, error)
+	FileHandler      func(path string) (*FileContent, error)
+	RelationsHandler func() RelationsManager // NEW: For URL artifact Relations
 }
 
 // Data types for handlers (self-contained in this package)
@@ -85,6 +92,36 @@ type FileContent struct {
 	Size     int64                  `json:"size"`
 	Type     string                 `json:"type"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// RelationsManager interface defines operations needed for URL artifact Relations
+type RelationsManager interface {
+	DeclareRelation(relation *URLArtifactRelation) error
+	GetRelationByID(id string) (*URLArtifactRelation, error)
+	ListRelationsByType(relationType string) ([]*URLArtifactRelation, error)
+}
+
+// URLArtifactRelation represents a URL artifact stored as a Relation
+type URLArtifactRelation struct {
+	ID         string                 `json:"id"`
+	Type       string                 `json:"type"`       // "URLArtifact"
+	Properties map[string]interface{} `json:"properties"` // URL metadata
+	CreatedAt  time.Time              `json:"created_at"`
+	UpdatedAt  time.Time              `json:"updated_at"`
+	
+	// Content storage
+	ContentID  string `json:"content_id"`  // Object ID in storage
+	Content    string `json:"-"`           // Loaded content (not serialized)
+}
+
+// ReferenceContext captures the rich context of why a URL was fetched
+type ReferenceContext struct {
+	RelationID     string      `json:"relation_id,omitempty"`     // Tool/entity being created
+	RelationType   string      `json:"relation_type,omitempty"`   // "Tool", "Memory", etc.
+	SessionID      string      `json:"session_id,omitempty"`      // Memory session
+	Agent          string      `json:"agent,omitempty"`           // AI agent name
+	AllReferences  []Reference `json:"all_references,omitempty"`  // Full reference batch 
+	ResolvedAt     time.Time   `json:"resolved_at"`               // When resolution occurred
 }
 
 // NewResolutionService creates a new resolution service with provided handlers

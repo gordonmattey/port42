@@ -39,7 +39,32 @@ func (rc *RealityCompiler) DeclareRelation(relation Relation) (*MaterializedEnti
 	
 	log.Printf("✅ Relation stored: %s", relation.ID)
 	
-	// Find appropriate materializer
+	// Check if this relation type needs materialization
+	if !rc.shouldMaterialize(relation) {
+		log.Printf("📊 Data-only relation stored: %s (type: %s)", relation.ID, relation.Type)
+		// Return a virtual entity for data-only relations
+		entity := &MaterializedEntity{
+			RelationID:   relation.ID,
+			PhysicalPath: "", // No physical path for data relations
+			Metadata:     relation.Properties,
+			Status:       MaterializedSuccess,
+			CreatedAt:    time.Now(),
+		}
+		
+		// Still trigger rules for data relations
+		if rc.ruleEngine != nil {
+			spawned, err := rc.ruleEngine.ProcessRelation(relation)
+			if err != nil {
+				log.Printf("⚠️ Rule processing failed: %v", err)
+			} else if len(spawned) > 0 {
+				log.Printf("🌱 Auto-spawned %d entities from rules", len(spawned))
+			}
+		}
+		
+		return entity, nil
+	}
+	
+	// Find appropriate materializer for physical relations
 	materializer := rc.findMaterializer(relation)
 	if materializer == nil {
 		return nil, fmt.Errorf("no materializer found for relation type: %s", relation.Type)
@@ -55,7 +80,7 @@ func (rc *RealityCompiler) DeclareRelation(relation Relation) (*MaterializedEnti
 	
 	log.Printf("🎉 Relation materialized successfully: %s -> %s", relation.ID, entity.PhysicalPath)
 	
-	// Step 2: Trigger auto-spawning rules
+	// Step 2: Trigger auto-spawning rules (for materialized relations)
 	if rc.ruleEngine != nil {
 		spawned, err := rc.ruleEngine.ProcessRelation(relation)
 		if err != nil {
@@ -67,6 +92,18 @@ func (rc *RealityCompiler) DeclareRelation(relation Relation) (*MaterializedEnti
 	}
 	
 	return entity, nil
+}
+
+// shouldMaterialize determines if a relation type needs physical materialization
+func (rc *RealityCompiler) shouldMaterialize(relation Relation) bool {
+	// Data-only relation types don't need physical materialization
+	dataOnlyTypes := map[string]bool{
+		"URLArtifact": true,
+		// Add other data-only types as needed:
+		// "SearchResult": true,
+		// "MemoryContext": true,
+	}
+	return !dataOnlyTypes[relation.Type]
 }
 
 // findMaterializer finds the appropriate materializer for a relation

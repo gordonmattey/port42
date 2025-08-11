@@ -38,16 +38,26 @@ func newService(handlers Handlers) *service {
 	if handlers.FileHandler != nil {
 		s.resolvers["file"] = &fileResolver{handler: handlers.FileHandler}
 	}
-	s.resolvers["url"] = &urlResolver{} // No handler needed
+	
+	// URL resolver with artifact management
+	var relations RelationsManager
+	if handlers.RelationsHandler != nil {
+		relations = handlers.RelationsHandler()
+	}
+	artifactManager := NewArtifactManager(relations)
+	s.resolvers["url"] = &urlResolver{
+		relations:       relations,
+		artifactManager: artifactManager,
+	}
 	
 	log.Printf("🔗 Resolution service initialized with %d resolvers", len(s.resolvers))
 	return s
 }
 
-// ResolveForAI resolves references and formats for AI
-func (s *service) ResolveForAI(references []Reference) (string, error) {
+// ResolveForAI resolves references and formats for AI, returning both formatted string and contexts
+func (s *service) ResolveForAI(references []Reference) (string, []*ResolvedContext, error) {
 	if len(references) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 	
 	log.Printf("🔍 Resolving %d references for AI", len(references))
@@ -56,17 +66,23 @@ func (s *service) ResolveForAI(references []Reference) (string, error) {
 	contexts := s.resolveAll(references)
 	
 	// Format for AI consumption
-	return s.formatForAI(contexts), nil
+	formatted := s.formatForAI(contexts)
+	
+	return formatted, contexts, nil
 }
 
-// GetResolutionStats returns resolution statistics
+// GetResolutionStats returns resolution statistics (DEPRECATED: use ComputeStatsFromContexts)
 func (s *service) GetResolutionStats(references []Reference) (*Stats, error) {
 	if len(references) == 0 {
 		return &Stats{}, nil
 	}
 	
 	contexts := s.resolveAll(references)
-	
+	return s.ComputeStatsFromContexts(references, contexts), nil
+}
+
+// ComputeStatsFromContexts computes stats from already resolved contexts (avoids duplicate resolution)
+func (s *service) ComputeStatsFromContexts(references []Reference, contexts []*ResolvedContext) *Stats {
 	stats := &Stats{
 		TotalReferences: len(references),
 		TypeBreakdown:   make(map[string]int),
@@ -86,7 +102,7 @@ func (s *service) GetResolutionStats(references []Reference) (*Stats, error) {
 		stats.SuccessRate = float64(stats.ResolvedCount) / float64(stats.TotalReferences) * 100
 	}
 	
-	return stats, nil
+	return stats
 }
 
 // resolveAll resolves all references with timeouts and error handling

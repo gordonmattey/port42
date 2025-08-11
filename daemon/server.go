@@ -1129,7 +1129,7 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 				})
 			}
 			
-			contextStr, err := d.resolutionService.ResolveForAI(resolutionRefs)
+			contextStr, contexts, err := d.resolutionService.ResolveForAI(resolutionRefs)
 			if err != nil {
 				log.Printf("⚠️ Reference resolution failed: %v", err)
 				// Continue without context - graceful degradation
@@ -1138,11 +1138,10 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 				payload.Relation.Properties["resolved_context"] = contextStr
 				log.Printf("✨ Resolved context added (%d chars)", len(contextStr))
 				
-				// Log resolution stats
-				if stats, err := d.resolutionService.GetResolutionStats(resolutionRefs); err == nil {
-					log.Printf("📊 Resolution stats: %d/%d successful (%.1f%%)", 
-						stats.ResolvedCount, stats.TotalReferences, stats.SuccessRate)
-				}
+				// Log resolution stats (computed from existing contexts - no duplicate resolution)
+				stats := d.resolutionService.ComputeStatsFromContexts(resolutionRefs, contexts)
+				log.Printf("📊 Resolution stats: %d/%d successful (%.1f%%)", 
+					stats.ResolvedCount, stats.TotalReferences, stats.SuccessRate)
 			} else {
 				log.Printf("⚠️ No context resolved from references")
 			}
@@ -1310,6 +1309,96 @@ func (d *Daemon) initializeRealityCompiler() error {
 	return nil
 }
 
+// relationsAdapter adapts daemon's Relations system to resolution.RelationsManager interface
+type relationsAdapter struct {
+	realityCompiler *RealityCompiler
+	storage         *Storage
+}
+
+func (ra *relationsAdapter) DeclareRelation(relation *resolution.URLArtifactRelation) error {
+	// Store content in object storage first
+	contentID, err := ra.storage.Store([]byte(relation.Content))
+	if err != nil {
+		return fmt.Errorf("failed to store URL content: %w", err)
+	}
+	
+	// Create daemon Relation
+	daemonRelation := Relation{
+		ID:         relation.ID,
+		Type:       relation.Type,
+		Properties: relation.Properties,
+		CreatedAt:  relation.CreatedAt,
+		UpdatedAt:  relation.UpdatedAt,
+	}
+	
+	// Add content reference to properties
+	if daemonRelation.Properties == nil {
+		daemonRelation.Properties = make(map[string]interface{})
+	}
+	daemonRelation.Properties["content_id"] = contentID
+	
+	// Declare via reality compiler
+	_, err = ra.realityCompiler.DeclareRelation(daemonRelation)
+	return err
+}
+
+func (ra *relationsAdapter) GetRelationByID(id string) (*resolution.URLArtifactRelation, error) {
+	// Get relation from reality compiler
+	relation, err := ra.realityCompiler.GetRelation(id)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert to resolution type
+	urlRelation := &resolution.URLArtifactRelation{
+		ID:         relation.ID,
+		Type:       relation.Type,
+		Properties: relation.Properties,
+		CreatedAt:  relation.CreatedAt,
+		UpdatedAt:  relation.UpdatedAt,
+	}
+	
+	// Load content if available
+	if contentID, exists := relation.Properties["content_id"].(string); exists {
+		content, err := ra.storage.Read(contentID)
+		if err == nil {
+			urlRelation.Content = string(content)
+			urlRelation.ContentID = contentID
+		}
+	}
+	
+	return urlRelation, nil
+}
+
+func (ra *relationsAdapter) ListRelationsByType(relationType string) ([]*resolution.URLArtifactRelation, error) {
+	// Get relations from reality compiler
+	relations, err := ra.realityCompiler.ListRelationsByType(relationType)
+	if err != nil {
+		return nil, err
+	}
+	
+	var urlRelations []*resolution.URLArtifactRelation
+	for _, relation := range relations {
+		urlRelation := &resolution.URLArtifactRelation{
+			ID:         relation.ID,
+			Type:       relation.Type,
+			Properties: relation.Properties,
+			CreatedAt:  relation.CreatedAt,
+			UpdatedAt:  relation.UpdatedAt,
+		}
+		
+		// Load content if available (optional for listing)
+		if contentID, exists := relation.Properties["content_id"].(string); exists {
+			urlRelation.ContentID = contentID
+			// Don't load content for listings to save memory
+		}
+		
+		urlRelations = append(urlRelations, urlRelation)
+	}
+	
+	return urlRelations, nil
+}
+
 // initializeResolutionManager initializes the Phase 2 reference resolution system
 func (d *Daemon) initializeResolutionManager() error {
 	// Create handlers that bridge to daemon functionality
@@ -1363,14 +1452,14 @@ func (d *Daemon) initializeResolutionManager() error {
 			
 			if d.realityCompiler == nil {
 				log.Printf("⚠️ Reality compiler not available for tool lookup")
-				return nil, fmt.Errorf("reality compiler not available")
+				return nil, nil // Don't fail resolution, just return empty
 			}
 			
 			// Get all tool relations
 			toolRelations, err := d.realityCompiler.ListRelationsByType("Tool")
 			if err != nil {
 				log.Printf("❌ Failed to list tool relations: %v", err)
-				return nil, fmt.Errorf("failed to query tools: %v", err)
+				return nil, nil // Don't fail resolution, just return empty
 			}
 			
 			// Search for tool by name in relation ID or properties
@@ -1430,7 +1519,7 @@ func (d *Daemon) initializeResolutionManager() error {
 			}
 			
 			log.Printf("⚠️ Tool '%s' not found in %d tool relations", toolName, len(toolRelations))
-			return nil, fmt.Errorf("tool '%s' not found", toolName)
+			return nil, nil // Don't fail resolution, just return empty
 		},
 		
 		// Memory handler - simplified for now
@@ -1445,6 +1534,14 @@ func (d *Daemon) initializeResolutionManager() error {
 			log.Printf("📄 File handler called for: %s", path)
 			// Return not found for now - this would integrate with VFS
 			return nil, fmt.Errorf("file '%s' not found", path)
+		},
+		
+		// Relations handler - provides access to relations for URL artifact caching
+		RelationsHandler: func() resolution.RelationsManager {
+			return &relationsAdapter{
+				realityCompiler: d.realityCompiler,
+				storage:         d.storage,
+			}
 		},
 	}
 	

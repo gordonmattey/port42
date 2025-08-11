@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -53,6 +54,16 @@ func (r *toolResolver) resolve(ctx context.Context, target string) (*ResolvedCon
 			Target:  target,
 			Success: false,
 			Error:   err.Error(),
+		}, nil
+	}
+	
+	// Handle graceful degradation: (nil, nil) means tool not found but don't fail resolution
+	if toolDef == nil {
+		return &ResolvedContext{
+			Type:    "tool",
+			Target:  target,
+			Success: false,
+			Error:   "Tool not found",
 		}, nil
 	}
 	
@@ -130,11 +141,15 @@ func (r *fileResolver) getTimeout() time.Duration {
 	return 3 * time.Second
 }
 
-// urlResolver handles URL fetching
-type urlResolver struct{}
+// urlResolver handles URL fetching with artifact caching
+type urlResolver struct {
+	relations       RelationsManager // Relations for URL artifact caching
+	artifactManager *ArtifactManager // Artifact lifecycle management
+}
 
 func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedContext, error) {
-	if !isValidURL(target) {
+	// Validate URL using new validation
+	if !IsValidURL(target) {
 		return &ResolvedContext{
 			Type:    "url",
 			Target:  target,
@@ -143,6 +158,33 @@ func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedCont
 		}, nil
 	}
 	
+	// Generate artifact ID
+	artifactID := NewURLArtifactID(target).Generate()
+	
+	// Try cache first if artifact manager is available
+	if r.artifactManager != nil {
+		if cached, err := r.artifactManager.LoadCached(artifactID); err == nil && cached != nil {
+			// Cache hit - format cached result
+			log.Printf("🎯 URL cache HIT: %s -> %s", target, artifactID)
+			content := r.formatCachedURLContent(cached.Content, cached.Properties, target)
+			return &ResolvedContext{
+				Type:    "url",
+				Target:  target,
+				Content: content,
+				Success: true,
+			}, nil
+		}
+	}
+	
+	// Cache miss - log for visibility
+	log.Printf("🌐 URL cache MISS: %s -> fetching fresh", target)
+	
+	// Cache miss - fetch fresh content
+	return r.fetchAndStore(ctx, target, artifactID)
+}
+
+// fetchAndStore fetches URL content and stores as artifact if possible
+func (r *urlResolver) fetchAndStore(ctx context.Context, target, artifactID string) (*ResolvedContext, error) {
 	client := &http.Client{Timeout: 8 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
@@ -188,14 +230,58 @@ func (r *urlResolver) resolve(ctx context.Context, target string) (*ResolvedCont
 		}, nil
 	}
 	
-	content := formatURLContent(string(bodyBytes), resp.Header.Get("Content-Type"), target)
+	content := string(bodyBytes)
+	
+	// Try to store as artifact if artifact manager is available
+	if r.artifactManager != nil {
+		now := time.Now()
+		artifact := &URLArtifactRelation{
+			ID:        artifactID,
+			Type:      "URLArtifact",
+			Content:   content,
+			CreatedAt: now,
+			UpdatedAt: now,
+			Properties: map[string]interface{}{
+				"source_url":     target,
+				"content_type":   resp.Header.Get("Content-Type"),
+				"status_code":    resp.StatusCode,
+				"content_length": len(content),
+				"fetched_at":     now.Unix(),
+				"cache_version":  2,
+			},
+		}
+		
+		// Store artifact (errors are logged but don't fail resolution)
+		r.artifactManager.Store(artifact)
+	}
+	
+	formattedContent := formatURLContent(content, resp.Header.Get("Content-Type"), target)
+	formattedContent += "\n[Freshly fetched]"
 	
 	return &ResolvedContext{
 		Type:    "url",
 		Target:  target,
-		Content: content,
+		Content: formattedContent,
 		Success: true,
 	}, nil
+}
+
+// formatCachedURLContent formats cached URL content with cache indicator
+func (r *urlResolver) formatCachedURLContent(content string, properties map[string]interface{}, url string) string {
+	contentType, _ := properties["content_type"].(string)
+	fetchedAt, _ := properties["fetched_at"].(int64)
+	
+	formattedContent := formatURLContent(content, contentType, url)
+	
+	// Add cache indicator
+	if fetchedAt > 0 {
+		fetchTime := time.Unix(fetchedAt, 0)
+		formattedContent += fmt.Sprintf("\n[Cached from %s]", fetchTime.Format("2006-01-02 15:04:05"))
+	} else {
+		formattedContent += "\n[From cache]"
+	}
+	
+	return formattedContent
 }
 
 func (r *urlResolver) getTimeout() time.Duration {
@@ -316,10 +402,6 @@ func formatURLContent(body, contentType, url string) string {
 }
 
 // Utility functions
-func isValidURL(url string) bool {
-	urlPattern := regexp.MustCompile(`^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$`)
-	return urlPattern.MatchString(url)
-}
 
 func extractTextFromHTML(html string) string {
 	// Simple HTML text extraction
