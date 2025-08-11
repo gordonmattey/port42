@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	
+	"port42/daemon/resolution"
 )
 
 // Daemon represents the Port 42 daemon
@@ -24,6 +26,7 @@ type Daemon struct {
 	storage         *Storage
 	baseDir         string
 	realityCompiler *RealityCompiler // NEW: Reality compiler component
+	resolutionService resolution.ResolutionService // Phase 2: Reference resolution service
 }
 
 // Session represents an active possession session
@@ -105,6 +108,15 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 		log.Printf("💡 Declarative commands will not be available")
 	} else {
 		log.Printf("✅ Reality Compiler initialized successfully")
+	}
+	
+	// Initialize Reference Resolution Manager (Phase 2)
+	log.Printf("📎 Initializing Reference Resolution Manager...")
+	if err := daemon.initializeResolutionManager(); err != nil {
+		log.Printf("⚠️ Failed to initialize Resolution Manager: %v", err)
+		log.Printf("💡 Reference resolution will not be available")
+	} else {
+		log.Printf("✅ Resolution Manager initialized successfully")
 	}
 	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
@@ -1102,6 +1114,41 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 		for i, ref := range req.References {
 			log.Printf("  Reference %d: %s:%s", i, ref.Type, ref.Target)
 		}
+		
+		// Phase 2: Reference Resolution - Resolve references to context
+		if d.resolutionService != nil {
+			log.Printf("🔍 Phase 2: Resolving references to contextual information...")
+			
+			// Convert protocol references to resolution references
+			var resolutionRefs []resolution.Reference
+			for _, ref := range req.References {
+				resolutionRefs = append(resolutionRefs, resolution.Reference{
+					Type:    ref.Type,
+					Target:  ref.Target,
+					Context: ref.Context,
+				})
+			}
+			
+			contextStr, err := d.resolutionService.ResolveForAI(resolutionRefs)
+			if err != nil {
+				log.Printf("⚠️ Reference resolution failed: %v", err)
+				// Continue without context - graceful degradation
+			} else if contextStr != "" {
+				// Store resolved context for AI generation
+				payload.Relation.Properties["resolved_context"] = contextStr
+				log.Printf("✨ Resolved context added (%d chars)", len(contextStr))
+				
+				// Log resolution stats
+				if stats, err := d.resolutionService.GetResolutionStats(resolutionRefs); err == nil {
+					log.Printf("📊 Resolution stats: %d/%d successful (%.1f%%)", 
+						stats.ResolvedCount, stats.TotalReferences, stats.SuccessRate)
+				}
+			} else {
+				log.Printf("⚠️ No context resolved from references")
+			}
+		} else {
+			log.Printf("⚠️ Resolution service not available - references stored but not resolved")
+		}
 	}
 	
 	// Declare and materialize the relation
@@ -1260,6 +1307,80 @@ func (d *Daemon) initializeRealityCompiler() error {
 	
 	log.Printf("🎯 Reality compiler initialized with %d rules", len(ruleEngine.ListRules()))
 	
+	return nil
+}
+
+// initializeResolutionManager initializes the Phase 2 reference resolution system
+func (d *Daemon) initializeResolutionManager() error {
+	// Create handlers that bridge to daemon functionality
+	handlers := resolution.Handlers{
+		// Search handler - queries the storage system
+		SearchHandler: func(query string, limit int) ([]resolution.SearchResult, error) {
+			log.Printf("🔍 Search handler called for: %s (limit: %d)", query, limit)
+			
+			if d.storage == nil {
+				log.Printf("⚠️ Storage not available for search")
+				return []resolution.SearchResult{}, nil
+			}
+			
+			// Create search filters
+			filters := SearchFilters{
+				Limit: limit,
+			}
+			
+			// Execute search using storage system
+			results, err := d.storage.SearchObjects(query, filters)
+			if err != nil {
+				log.Printf("❌ Search failed: %v", err)
+				return []resolution.SearchResult{}, nil // Return empty results, don't fail resolution
+			}
+			
+			// Convert daemon SearchResult to resolution SearchResult
+			var resolverResults []resolution.SearchResult
+			for _, result := range results {
+				resolverResults = append(resolverResults, resolution.SearchResult{
+					Path:       result.Path,
+					Type:       result.Type,
+					Score:      result.Score,
+					Title:      result.Metadata.Title,
+					Summary:    result.Snippet,
+					Properties: map[string]interface{}{
+						"object_id":    result.ObjectID,
+						"match_fields": result.MatchFields,
+						"created":      result.Metadata.Created,
+						"tags":         result.Metadata.Tags,
+					},
+				})
+			}
+			
+			log.Printf("✅ Search completed: %d results found", len(resolverResults))
+			return resolverResults, nil
+		},
+		
+		// Tool handler - simplified for now
+		ToolHandler: func(toolName string) (*resolution.ToolDefinition, error) {
+			log.Printf("🔧 Tool handler called for: %s", toolName)
+			// Return not found for now - this would integrate with relations
+			return nil, fmt.Errorf("tool '%s' not found", toolName)
+		},
+		
+		// Memory handler - simplified for now
+		MemoryHandler: func(sessionID string) (*resolution.MemorySession, error) {
+			log.Printf("🧠 Memory handler called for: %s", sessionID)
+			// Return not found for now - this would integrate with storage
+			return nil, fmt.Errorf("memory session '%s' not found", sessionID)
+		},
+		
+		// File handler - simplified for now
+		FileHandler: func(path string) (*resolution.FileContent, error) {
+			log.Printf("📄 File handler called for: %s", path)
+			// Return not found for now - this would integrate with VFS
+			return nil, fmt.Errorf("file '%s' not found", path)
+		},
+	}
+	
+	d.resolutionService = resolution.NewResolutionService(handlers)
+	log.Printf("🔗 Resolution service initialized")
 	return nil
 }
 

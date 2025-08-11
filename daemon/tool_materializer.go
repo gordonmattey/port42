@@ -55,7 +55,7 @@ func (tm *ToolMaterializer) Materialize(relation Relation) (*MaterializedEntity,
 	log.Printf("🔨 Generating code for tool: %s with transforms: %v", name, transforms)
 	
 	// Generate tool code using AI - this returns a CommandSpec 
-	spec, code, err := tm.generateToolCode(name, transforms, relation.ID)
+	spec, code, err := tm.generateToolCode(name, transforms, relation.ID, relation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tool code: %w", err)
 	}
@@ -112,9 +112,17 @@ func (tm *ToolMaterializer) Dematerialize(entity *MaterializedEntity) error {
 }
 
 // generateToolCode creates executable code for a tool using AI (reusing existing command crystallization approach)
-func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, relationID string) (*CommandSpec, string, error) {
+func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, relationID string, relation Relation) (*CommandSpec, string, error) {
 	// Build prompt based on tool name and transforms
 	prompt := tm.buildToolPrompt(name, transforms)
+	
+	// Phase 2: Add resolved context from references to enhance AI generation
+	if resolvedContext, exists := relation.Properties["resolved_context"]; exists {
+		if contextStr, ok := resolvedContext.(string); ok && contextStr != "" {
+			log.Printf("🔗 Enhancing AI prompt with resolved context (%d chars)", len(contextStr))
+			prompt = prompt + "\n\n" + contextStr
+		}
+	}
 	
 	// Use existing AI client to generate code
 	messages := []Message{
