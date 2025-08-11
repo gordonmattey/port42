@@ -1357,10 +1357,79 @@ func (d *Daemon) initializeResolutionManager() error {
 			return resolverResults, nil
 		},
 		
-		// Tool handler - simplified for now
+		// Tool handler - queries relations store for existing tools
 		ToolHandler: func(toolName string) (*resolution.ToolDefinition, error) {
 			log.Printf("🔧 Tool handler called for: %s", toolName)
-			// Return not found for now - this would integrate with relations
+			
+			if d.realityCompiler == nil {
+				log.Printf("⚠️ Reality compiler not available for tool lookup")
+				return nil, fmt.Errorf("reality compiler not available")
+			}
+			
+			// Get all tool relations
+			toolRelations, err := d.realityCompiler.ListRelationsByType("Tool")
+			if err != nil {
+				log.Printf("❌ Failed to list tool relations: %v", err)
+				return nil, fmt.Errorf("failed to query tools: %v", err)
+			}
+			
+			// Search for tool by name in relation ID or properties
+			for _, relation := range toolRelations {
+				// Check if relation ID contains the tool name
+				if strings.Contains(strings.ToLower(relation.ID), strings.ToLower(toolName)) {
+					// Found matching tool relation
+					var transforms []string
+					var commands []string
+					
+					// Extract transforms from properties
+					if transformsVal, exists := relation.Properties["transforms"]; exists {
+						if transformsList, ok := transformsVal.([]interface{}); ok {
+							for _, t := range transformsList {
+								if tStr, ok := t.(string); ok {
+									transforms = append(transforms, tStr)
+								}
+							}
+						} else if transformsStr, ok := transformsVal.(string); ok {
+							transforms = []string{transformsStr}
+						}
+					}
+					
+					// Check for generated commands in properties
+					if commandsVal, exists := relation.Properties["generated_commands"]; exists {
+						if commandsList, ok := commandsVal.([]interface{}); ok {
+							for _, cmd := range commandsList {
+								if cmdStr, ok := cmd.(string); ok {
+									commands = append(commands, cmdStr)
+								}
+							}
+						}
+					}
+					
+					// Extract agent from properties if available
+					agent := ""
+					if agentVal, exists := relation.Properties["agent"]; exists {
+						if agentStr, ok := agentVal.(string); ok {
+							agent = agentStr
+						}
+					}
+					
+					toolDef := &resolution.ToolDefinition{
+						ID:         relation.ID,
+						Name:       toolName,
+						Type:       relation.Type,
+						Transforms: transforms,
+						Commands:   commands,
+						Properties: relation.Properties,
+						Created:    relation.CreatedAt.Format("2006-01-02T15:04:05Z"),
+						Agent:      agent,
+					}
+					
+					log.Printf("✅ Tool found: %s (ID: %s)", toolName, relation.ID)
+					return toolDef, nil
+				}
+			}
+			
+			log.Printf("⚠️ Tool '%s' not found in %d tool relations", toolName, len(toolRelations))
 			return nil, fmt.Errorf("tool '%s' not found", toolName)
 		},
 		
