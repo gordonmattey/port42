@@ -22,7 +22,7 @@ type SessionContext struct {
 
 // Reference represents a contextual reference to enhance tool generation
 type Reference struct {
-	Type    string `json:"type"`              // "search", "tool", "memory", "file", "url"
+	Type    string `json:"type"`              // "search", "tool", "memory", "file", "p42", "url"
 	Target  string `json:"target"`            // The thing being referenced
 	Context string `json:"context,omitempty"` // Optional additional context
 }
@@ -102,6 +102,7 @@ func ValidateReference(ref Reference) error {
 		"tool":   true,
 		"memory": true,
 		"file":   true,
+		"p42":    true,
 		"url":    true,
 	}
 	

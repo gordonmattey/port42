@@ -141,6 +141,36 @@ func (r *fileResolver) getTimeout() time.Duration {
 	return 3 * time.Second
 }
 
+// p42Resolver handles Port 42 VFS (Virtual File System) access
+type p42Resolver struct {
+	handler func(p42Path string) (*FileContent, error)
+}
+
+func (r *p42Resolver) resolve(ctx context.Context, target string) (*ResolvedContext, error) {
+	fileContent, err := r.handler(target)
+	if err != nil {
+		return &ResolvedContext{
+			Type:    "p42",
+			Target:  target,
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+	
+	content := formatP42Content(fileContent)
+	
+	return &ResolvedContext{
+		Type:    "p42",
+		Target:  target,
+		Content: content,
+		Success: true,
+	}, nil
+}
+
+func (r *p42Resolver) getTimeout() time.Duration {
+	return 5 * time.Second // Slightly longer for VFS operations
+}
+
 // urlResolver handles URL fetching with artifact caching
 type urlResolver struct {
 	relations       RelationsManager // Relations for URL artifact caching
@@ -444,12 +474,53 @@ func formatMemorySession(session *MemorySession) string {
 
 func formatFileContent(file *FileContent) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("File: %s", file.Path))
+	parts = append(parts, fmt.Sprintf("Local File: %s", file.Path))
+	parts = append(parts, fmt.Sprintf("Type: %s", file.Type))
 	parts = append(parts, fmt.Sprintf("Size: %d bytes", file.Size))
+	
+	// Add file metadata if available
+	if file.Metadata != nil {
+		if modified, exists := file.Metadata["modified"]; exists {
+			parts = append(parts, fmt.Sprintf("Modified: %v", modified))
+		}
+	}
 	
 	content := strings.TrimSpace(file.Content)
 	if len(content) > 1000 {
-		content = content[:1000] + "\n[Content truncated]"
+		content = content[:1000] + "\n[Content truncated - showing first 1000 chars]"
+	}
+	
+	parts = append(parts, fmt.Sprintf("Content:\n%s", content))
+	
+	return strings.Join(parts, "\n")
+}
+
+// formatP42Content formats Port 42 VFS content
+func formatP42Content(file *FileContent) string {
+	var parts []string
+	parts = append(parts, fmt.Sprintf("Port 42 VFS: %s", file.Path))
+	parts = append(parts, fmt.Sprintf("Type: %s", file.Type))
+	parts = append(parts, fmt.Sprintf("Size: %d bytes", file.Size))
+	
+	// Add P42-specific metadata if available
+	if file.Metadata != nil {
+		if relationID, exists := file.Metadata["relation_id"]; exists {
+			parts = append(parts, fmt.Sprintf("Relation ID: %v", relationID))
+		}
+		if storagePath, exists := file.Metadata["storage_path"]; exists {
+			parts = append(parts, fmt.Sprintf("Storage Path: %v", storagePath))
+		}
+		if score, exists := file.Metadata["score"]; exists {
+			parts = append(parts, fmt.Sprintf("Match Score: %.2f", score))
+		}
+		if created, exists := file.Metadata["created"]; exists {
+			parts = append(parts, fmt.Sprintf("Created: %v", created))
+		}
+	}
+	
+	content := strings.TrimSpace(file.Content)
+	if len(content) > 800 {
+		content = content[:800] + "\n[Content truncated - showing first 800 chars]"
 	}
 	
 	parts = append(parts, fmt.Sprintf("Content:\n%s", content))

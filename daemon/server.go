@@ -1529,11 +1529,16 @@ func (d *Daemon) initializeResolutionManager() error {
 			return nil, fmt.Errorf("memory session '%s' not found", sessionID)
 		},
 		
-		// File handler - simplified for now
+		// File handler - local filesystem with security boundaries
 		FileHandler: func(path string) (*resolution.FileContent, error) {
 			log.Printf("📄 File handler called for: %s", path)
-			// Return not found for now - this would integrate with VFS
-			return nil, fmt.Errorf("file '%s' not found", path)
+			return d.handleLocalFile(path)
+		},
+		
+		// P42 handler - Port 42 VFS and crystallized knowledge access
+		P42Handler: func(p42Path string) (*resolution.FileContent, error) {
+			log.Printf("🏗️ P42 handler called for: %s", p42Path)
+			return d.handleP42File(p42Path)
 		},
 		
 		// Relations handler - provides access to relations for URL artifact caching
@@ -1909,4 +1914,373 @@ func (d *Daemon) logCommandGeneration(spec *CommandSpec) {
 	if data, err := json.MarshalIndent(history, "", "  "); err == nil {
 		os.WriteFile(logPath, data, 0644)
 	}
+}
+
+// handleLocalFile implements secure local file access for file: references
+func (d *Daemon) handleLocalFile(path string) (*resolution.FileContent, error) {
+	// Security: Clean path and prevent directory traversal
+	cleanPath := filepath.Clean(path)
+	if strings.Contains(cleanPath, "..") {
+		log.Printf("🚨 SECURITY WARNING: Path traversal attempt blocked - %s", path)
+		return nil, fmt.Errorf("path traversal not allowed: %s", path)
+	}
+	
+	// Security: Convert relative paths to absolute to check boundaries
+	var absPath string
+	var err error
+	if filepath.IsAbs(cleanPath) {
+		// For absolute paths, use as-is but be restrictive
+		absPath = cleanPath
+	} else {
+		// For relative paths, resolve against current working directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+		absPath = filepath.Join(cwd, cleanPath)
+	}
+	
+	// Security: Only allow files within reasonable boundaries
+	if !d.isFileAccessAllowed(absPath) {
+		log.Printf("🚨 SECURITY WARNING: File access boundary violation blocked - %s", path)
+		return nil, fmt.Errorf("file access not allowed: %s", path)
+	}
+	
+	// Check if file exists and get info
+	fileInfo, err := os.Stat(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("file not found: %s", path)
+		}
+		return nil, fmt.Errorf("failed to access file: %w", err)
+	}
+	
+	// Security: Check file size (prevent memory exhaustion)
+	const maxFileSize = 1 * 1024 * 1024 // 1MB
+	if fileInfo.Size() > maxFileSize {
+		log.Printf("🚨 SECURITY WARNING: Large file access attempt blocked - %s (%d bytes > %d bytes)", 
+			path, fileInfo.Size(), maxFileSize)
+		return nil, fmt.Errorf("file too large: %s (size: %d bytes, max: %d bytes)", 
+			path, fileInfo.Size(), maxFileSize)
+	}
+	
+	// Security: Only allow certain file types
+	if !d.isFileTypeAllowed(absPath) {
+		log.Printf("🚨 SECURITY WARNING: Disallowed file type access attempt blocked - %s", path)
+		return nil, fmt.Errorf("file type not allowed: %s", path)
+	}
+	
+	// Read file content
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	
+	// Detect content type
+	contentType := d.detectFileType(absPath, content)
+	
+	log.Printf("✅ Local file accessed: %s (%d bytes, type: %s)", path, len(content), contentType)
+	
+	return &resolution.FileContent{
+		Path:    path, // Return original path requested
+		Content: string(content),
+		Size:    fileInfo.Size(),
+		Type:    contentType,
+		Metadata: map[string]interface{}{
+			"absolute_path": absPath,
+			"modified":      fileInfo.ModTime(),
+			"permissions":   fileInfo.Mode().String(),
+			"is_dir":        fileInfo.IsDir(),
+		},
+	}, nil
+}
+
+// isFileAccessAllowed checks if file access is within security boundaries
+func (d *Daemon) isFileAccessAllowed(absPath string) bool {
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("⚠️ Failed to get working directory for security check: %v", err)
+		return false
+	}
+	
+	// Allow files within current working directory tree
+	if strings.HasPrefix(absPath, cwd) {
+		return true
+	}
+	
+	// Allow common config directories relative to home
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		// Allow .port42 directory
+		port42Dir := filepath.Join(homeDir, ".port42")
+		if strings.HasPrefix(absPath, port42Dir) {
+			return true
+		}
+	}
+	
+	// Deny access to system directories and files outside project
+	systemPaths := []string{"/etc", "/usr", "/var", "/bin", "/sbin", "/sys", "/proc"}
+	for _, sysPath := range systemPaths {
+		if strings.HasPrefix(absPath, sysPath) {
+			return false
+		}
+	}
+	
+	log.Printf("⚠️ File access denied for security: %s (not within working directory: %s)", absPath, cwd)
+	return false
+}
+
+// isFileTypeAllowed checks if file extension/type is allowed
+func (d *Daemon) isFileTypeAllowed(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	
+	allowedExtensions := map[string]bool{
+		// Text files
+		".txt": true, ".md": true, ".rst": true,
+		// Config files  
+		".json": true, ".yaml": true, ".yml": true, ".toml": true, ".ini": true,
+		// Code files
+		".go": true, ".py": true, ".js": true, ".ts": true, ".sh": true, ".bash": true,
+		".php": true, ".rb": true, ".java": true, ".c": true, ".cpp": true, ".h": true,
+		// Log files
+		".log": true, ".out": true,
+		// Data files
+		".csv": true, ".xml": true,
+		// Files without extensions (often config files)
+		"": true,
+	}
+	
+	return allowedExtensions[ext]
+}
+
+// detectFileType determines file content type
+func (d *Daemon) detectFileType(path string, content []byte) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	
+	// Detect by extension first
+	switch ext {
+	case ".json":
+		return "application/json"
+	case ".yaml", ".yml":
+		return "application/yaml"  
+	case ".xml":
+		return "application/xml"
+	case ".csv":
+		return "text/csv"
+	case ".md":
+		return "text/markdown"
+	case ".log", ".out":
+		return "text/log"
+	case ".go", ".py", ".js", ".ts", ".sh", ".bash", ".php", ".rb", ".java", ".c", ".cpp", ".h":
+		return "text/code"
+	}
+	
+	// Detect by content if no clear extension
+	contentStr := string(content)
+	if len(contentStr) > 0 {
+		// Check for JSON
+		if strings.HasPrefix(strings.TrimSpace(contentStr), "{") || strings.HasPrefix(strings.TrimSpace(contentStr), "[") {
+			return "application/json"
+		}
+		// Check for YAML
+		if strings.Contains(contentStr, ":") && (strings.Contains(contentStr, "\n") || strings.Contains(contentStr, " ")) {
+			return "application/yaml"
+		}
+	}
+	
+	return "text/plain"
+}
+
+// handleP42File implements Port 42 VFS access for p42: references
+func (d *Daemon) handleP42File(p42Path string) (*resolution.FileContent, error) {
+	// Clean the path
+	cleanPath := strings.TrimPrefix(p42Path, "/")
+	if cleanPath == "" {
+		return nil, fmt.Errorf("empty P42 path: %s", p42Path)
+	}
+	
+	log.Printf("🔍 P42 VFS access: %s", p42Path)
+	
+	// Method 1: Handle /tools/ paths via Relations store
+	if strings.HasPrefix(p42Path, "/tools/") {
+		return d.handleP42ToolPath(p42Path)
+	}
+	
+	// Method 2: Handle /commands/ paths via direct storage lookup
+	if strings.HasPrefix(p42Path, "/commands/") {
+		return d.handleP42CommandPath(p42Path)  
+	}
+	
+	// Method 3: General path resolution via search
+	return d.handleP42SearchPath(p42Path)
+}
+
+// handleP42ToolPath resolves /tools/name paths via Relations store
+func (d *Daemon) handleP42ToolPath(p42Path string) (*resolution.FileContent, error) {
+	toolName := strings.TrimPrefix(p42Path, "/tools/")
+	if toolName == "" {
+		return nil, fmt.Errorf("invalid tool path: %s", p42Path)
+	}
+	
+	if d.realityCompiler == nil {
+		return nil, fmt.Errorf("reality compiler not available for tool lookup")
+	}
+	
+	// Get all tool relations
+	toolRelations, err := d.realityCompiler.ListRelationsByType("Tool")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tool relations: %w", err)
+	}
+	
+	// Search for tool by name in relation ID
+	for _, relation := range toolRelations {
+		if strings.Contains(strings.ToLower(relation.ID), strings.ToLower(toolName)) {
+			// Build content from tool relation
+			content := d.formatToolRelationAsP42Content(relation)
+			
+			log.Printf("✅ P42 tool found: %s -> %s", toolName, relation.ID)
+			return &resolution.FileContent{
+				Path:    p42Path,
+				Content: content,
+				Size:    int64(len(content)),
+				Type:    "application/port42-tool",
+				Metadata: map[string]interface{}{
+					"relation_id": relation.ID,
+					"relation_type": relation.Type,
+					"created": relation.CreatedAt,
+					"updated": relation.UpdatedAt,
+					"properties": relation.Properties,
+				},
+			}, nil
+		}
+	}
+	
+	return nil, fmt.Errorf("tool not found: %s", toolName)
+}
+
+// handleP42CommandPath resolves /commands/name paths via storage lookup
+func (d *Daemon) handleP42CommandPath(p42Path string) (*resolution.FileContent, error) {
+	commandName := strings.TrimPrefix(p42Path, "/commands/")
+	if commandName == "" {
+		return nil, fmt.Errorf("invalid command path: %s", p42Path)
+	}
+	
+	if d.storage == nil {
+		return nil, fmt.Errorf("storage not available for command lookup")
+	}
+	
+	// Search for command in storage
+	results, err := d.storage.SearchObjects(commandName, SearchFilters{
+		Limit: 5,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search for command: %w", err)
+	}
+	
+	// Look for exact command match in commands
+	for _, result := range results {
+		if strings.HasPrefix(result.Path, "/commands/") && 
+		   strings.Contains(result.Path, commandName) {
+			// Read command content from storage
+			content, err := d.storage.Read(result.ObjectID)
+			if err != nil {
+				continue // Try next result
+			}
+			
+			log.Printf("✅ P42 command found: %s -> %s", commandName, result.Path)
+			return &resolution.FileContent{
+				Path:    p42Path,
+				Content: string(content),
+				Size:    int64(len(content)),
+				Type:    "application/port42-command",
+				Metadata: map[string]interface{}{
+					"object_id": result.ObjectID,
+					"storage_path": result.Path,
+					"score": result.Score,
+					"created": result.Metadata.Created,
+					"title": result.Metadata.Title,
+					"tags": result.Metadata.Tags,
+				},
+			}, nil
+		}
+	}
+	
+	return nil, fmt.Errorf("command not found: %s", commandName)
+}
+
+// handleP42SearchPath resolves general paths via search
+func (d *Daemon) handleP42SearchPath(p42Path string) (*resolution.FileContent, error) {
+	if d.storage == nil {
+		return nil, fmt.Errorf("storage not available for P42 path resolution")
+	}
+	
+	// Extract search term from path
+	searchTerm := strings.Trim(p42Path, "/")
+	searchTerm = strings.ReplaceAll(searchTerm, "/", " ")
+	
+	// Search for content
+	results, err := d.storage.SearchObjects(searchTerm, SearchFilters{
+		Limit: 3,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search P42 path: %w", err)
+	}
+	
+	if len(results) == 0 {
+		return nil, fmt.Errorf("P42 path not found: %s", p42Path)
+	}
+	
+	// Use best match
+	bestResult := results[0]
+	content, err := d.storage.Read(bestResult.ObjectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read P42 content: %w", err)
+	}
+	
+	log.Printf("✅ P42 path resolved via search: %s -> %s (score: %.2f)", 
+		p42Path, bestResult.Path, bestResult.Score)
+	
+	return &resolution.FileContent{
+		Path:    p42Path,
+		Content: string(content),
+		Size:    int64(len(content)),
+		Type:    "application/port42-knowledge",
+		Metadata: map[string]interface{}{
+			"object_id": bestResult.ObjectID,
+			"storage_path": bestResult.Path,
+			"score": bestResult.Score,
+			"search_term": searchTerm,
+			"created": bestResult.Metadata.Created,
+			"title": bestResult.Metadata.Title,
+		},
+	}, nil
+}
+
+// formatToolRelationAsP42Content formats a tool relation as readable content
+func (d *Daemon) formatToolRelationAsP42Content(relation Relation) string {
+	var parts []string
+	parts = append(parts, fmt.Sprintf("Port 42 Tool: %s", relation.ID))
+	parts = append(parts, fmt.Sprintf("Type: %s", relation.Type))
+	
+	if transforms, exists := relation.Properties["transforms"]; exists {
+		parts = append(parts, fmt.Sprintf("Transforms: %v", transforms))
+	}
+	
+	if agent, exists := relation.Properties["agent"]; exists {
+		parts = append(parts, fmt.Sprintf("Agent: %v", agent))
+	}
+	
+	if description, exists := relation.Properties["description"]; exists {
+		parts = append(parts, fmt.Sprintf("Description: %v", description))
+	}
+	
+	// Add generated commands if available
+	if commands, exists := relation.Properties["generated_commands"]; exists {
+		parts = append(parts, fmt.Sprintf("Generated Commands: %v", commands))
+	}
+	
+	parts = append(parts, fmt.Sprintf("Created: %s", relation.CreatedAt.Format("2006-01-02 15:04:05")))
+	parts = append(parts, fmt.Sprintf("Updated: %s", relation.UpdatedAt.Format("2006-01-02 15:04:05")))
+	
+	return strings.Join(parts, "\n")
 }

@@ -38,6 +38,9 @@ func newService(handlers Handlers) *service {
 	if handlers.FileHandler != nil {
 		s.resolvers["file"] = &fileResolver{handler: handlers.FileHandler}
 	}
+	if handlers.P42Handler != nil {
+		s.resolvers["p42"] = &p42Resolver{handler: handlers.P42Handler}
+	}
 	
 	// URL resolver with artifact management
 	var relations RelationsManager

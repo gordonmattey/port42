@@ -47,6 +47,7 @@ type Handlers struct {
 	ToolHandler      func(toolName string) (*ToolDefinition, error)
 	MemoryHandler    func(sessionID string) (*MemorySession, error)
 	FileHandler      func(path string) (*FileContent, error)
+	P42Handler       func(p42Path string) (*FileContent, error) // Port 42 VFS access
 	RelationsHandler func() RelationsManager // NEW: For URL artifact Relations
 }
 
