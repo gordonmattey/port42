@@ -32,6 +32,7 @@ impl RequestBuilder for PossessRequest {
             payload,
             references: None,
             session_context: None,
+            user_prompt: None, // Will be populated when CLI adds --prompt parameter
         })
     }
 }

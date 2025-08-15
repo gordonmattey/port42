@@ -23,6 +23,7 @@ impl RequestBuilder for CatRequest {
             }),
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }
@@ -210,6 +211,7 @@ impl RequestBuilder for InfoRequest {
             }),
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }

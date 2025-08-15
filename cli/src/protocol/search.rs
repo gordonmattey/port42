@@ -57,6 +57,7 @@ impl RequestBuilder for SearchRequest {
             }),
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }

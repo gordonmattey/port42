@@ -11,7 +11,7 @@ use crate::display::{Displayable, OutputFormat};
 use crate::common::generate_id;
 
 /// Handle declaring a new tool relation
-pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, references: Option<Vec<String>>) -> Result<()> {
+pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, references: Option<Vec<String>>, prompt: Option<String>) -> Result<()> {
     println!("{}", format!("🌟 Declaring tool: {}", name).bright_blue());
     
     if !transforms.is_empty() {
@@ -44,12 +44,12 @@ pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, refer
     let relation = Relation::new_tool(name, transforms);
     
     // Create request
-    let request = DeclareRelationRequest { relation, references: parsed_refs };
+    let request = DeclareRelationRequest { relation, references: parsed_refs, user_prompt: prompt };
     
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request_timeout(daemon_request, Duration::from_secs(120))?; // 2 minutes for AI
+    let response = client.request_timeout(daemon_request, Duration::from_secs(180))?; // 3 minutes for AI
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
@@ -67,7 +67,7 @@ pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, refer
 }
 
 /// Handle declaring a new artifact relation
-pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_type: &str) -> Result<()> {
+pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_type: &str, prompt: Option<String>) -> Result<()> {
     println!("{}", format!("🌟 Declaring artifact: {}", name).bright_blue());
     println!("  {}: {}", "Type".bright_cyan(), artifact_type.bright_green());
     println!("  {}: {}", "File Type".bright_cyan(), file_type.bright_green());
@@ -76,12 +76,12 @@ pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_
     let relation = Relation::new_artifact(name, artifact_type, file_type);
     
     // Create request
-    let request = DeclareRelationRequest { relation, references: None };
+    let request = DeclareRelationRequest { relation, references: None, user_prompt: prompt };
     
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request_timeout(daemon_request, Duration::from_secs(120))?; // 2 minutes for AI
+    let response = client.request_timeout(daemon_request, Duration::from_secs(180))?; // 3 minutes for AI
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());

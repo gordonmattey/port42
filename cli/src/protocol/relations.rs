@@ -32,6 +32,7 @@ pub struct Reference {
 pub struct DeclareRelationRequest {
     pub relation: Relation,
     pub references: Option<Vec<Reference>>,
+    pub user_prompt: Option<String>,
 }
 
 // Response from declaring a relation
@@ -173,6 +174,7 @@ impl RequestBuilder for DeclareRelationRequest {
             payload: serde_json::to_value(self)?,
             references: self.references.clone(),
             session_context,
+            user_prompt: self.user_prompt.clone(),
         })
     }
 }
@@ -185,6 +187,7 @@ impl RequestBuilder for GetRelationRequest {
             payload: serde_json::to_value(self)?,
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }
@@ -197,6 +200,7 @@ impl RequestBuilder for ListRelationsRequest {
             payload: serde_json::to_value(self)?,
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }
@@ -209,6 +213,7 @@ impl RequestBuilder for DeleteRelationRequest {
             payload: serde_json::to_value(self)?,
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }

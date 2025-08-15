@@ -25,6 +25,7 @@ impl RequestBuilder for MemoryListRequest {
             payload: serde_json::Value::Null,
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }
@@ -39,6 +40,7 @@ impl RequestBuilder for MemoryDetailRequest {
             }),
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }

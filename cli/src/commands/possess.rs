@@ -17,6 +17,23 @@ pub fn handle_possess(
     handle_possess_with_search(port, agent, message, session, None, true)
 }
 
+pub fn handle_possess_with_references(
+    port: u16, 
+    agent: String, 
+    message: Option<String>, 
+    session: Option<String>,
+    search_query: Option<String>,
+    references: Option<Vec<String>>,
+    show_boot: bool
+) -> Result<()> {
+    // For now, just delegate to existing search handling
+    // TODO: In Step 4, we'll add proper reference resolution and context integration
+    if let Some(refs) = references {
+        println!("{}", format!("🔗 References provided: {}", refs.join(", ")).bright_cyan());
+    }
+    handle_possess_with_search(port, agent, message, session, search_query, show_boot)
+}
+
 pub fn handle_possess_with_search(
     port: u16, 
     agent: String, 
@@ -225,6 +242,7 @@ fn end_session(port: u16, session_id: &str) -> Result<()> {
         }),
         references: None,
         session_context: None,
+        user_prompt: None,
     };
     
     if let Err(e) = client.request(request) {
@@ -263,6 +281,7 @@ fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<
         payload: serde_json::Value::Null,
         references: None,
         session_context: None,
+        user_prompt: None,
     };
     
     if std::env::var("PORT42_DEBUG").is_ok() {
@@ -393,6 +412,7 @@ fn load_memory_content(client: &mut DaemonClient, memory_path: &str) -> Result<S
         }),
         references: None,
         session_context: None,
+        user_prompt: None,
     };
     
     eprintln!("DEBUG: load_memory_content - sending request: {:?}", request);

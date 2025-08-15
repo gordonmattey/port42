@@ -21,6 +21,8 @@ pub struct DaemonRequest {
     pub references: Option<Vec<crate::protocol::relations::Reference>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_context: Option<SessionContext>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_prompt: Option<String>,
 }
 
 // Base response from daemon

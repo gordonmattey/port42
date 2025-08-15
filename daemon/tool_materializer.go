@@ -113,14 +113,22 @@ func (tm *ToolMaterializer) Dematerialize(entity *MaterializedEntity) error {
 
 // generateToolCode creates executable code for a tool using AI (reusing existing command crystallization approach)
 func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, relationID string, relation Relation) (*CommandSpec, string, error) {
-	// Build prompt based on tool name and transforms
+	// Build base prompt based on tool name and transforms
 	prompt := tm.buildToolPrompt(name, transforms)
 	
 	// Phase 2: Add resolved context from references to enhance AI generation
 	if resolvedContext, exists := relation.Properties["resolved_context"]; exists {
 		if contextStr, ok := resolvedContext.(string); ok && contextStr != "" {
 			log.Printf("🔗 Enhancing AI prompt with resolved context (%d chars)", len(contextStr))
-			prompt = prompt + "\n\n" + contextStr
+			prompt = prompt + "\n\nAdditional Context from References:\n" + contextStr
+		}
+	}
+	
+	// Phase 3: Add user prompt requirements to customize generation
+	if userPrompt, exists := relation.Properties["user_prompt"]; exists {
+		if promptStr, ok := userPrompt.(string); ok && promptStr != "" {
+			log.Printf("💬 Enhancing AI prompt with user requirements (%d chars)", len(promptStr))
+			prompt = prompt + "\n\nUser Requirements:\n" + promptStr + "\n\nPlease incorporate these specific requirements into the tool implementation."
 		}
 	}
 	

@@ -112,7 +112,7 @@ func NewAnthropicClient() *AnthropicClient {
 	return &AnthropicClient{
 		apiKey:     apiKey,
 		apiURL:     "https://api.anthropic.com/v1/messages",
-		httpClient: &http.Client{Timeout: 120 * time.Second}, // Increased timeout for Claude Opus
+		httpClient: &http.Client{Timeout: 180 * time.Second}, // Increased timeout for Claude Opus (3 minutes)
 	}
 }
 

@@ -1236,6 +1236,17 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 		}
 	}
 	
+	// Phase 3: Universal User Prompt - Store user prompt if provided
+	if req.UserPrompt != "" {
+		if payload.Relation.Properties == nil {
+			payload.Relation.Properties = make(map[string]interface{})
+		}
+		payload.Relation.Properties["user_prompt"] = req.UserPrompt
+		
+		log.Printf("💬 User prompt stored for %s: %.100s...", 
+			payload.Relation.ID, req.UserPrompt)
+	}
+	
 	// Declare and materialize the relation
 	entity, err := d.realityCompiler.DeclareRelation(payload.Relation)
 	if err != nil {

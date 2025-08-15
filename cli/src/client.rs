@@ -39,7 +39,7 @@ impl DaemonClient {
             stream: None,
             reader: None,
             connection_timeout: Duration::from_secs(2),
-            request_timeout: Duration::from_secs(30), // Longer for AI requests
+            request_timeout: Duration::from_secs(180), // 3 minutes for AI requests
         }
     }
     
@@ -219,6 +219,7 @@ impl DaemonClient {
             payload: serde_json::Value::Null,
             references: None,
             session_context: None,
+            user_prompt: None,
         };
         
         // Don't use request_timeout as it might cause recursion

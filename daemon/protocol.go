@@ -12,6 +12,7 @@ type Request struct {
 	Payload        json.RawMessage `json:"payload"`
 	SessionContext *SessionContext `json:"session_context,omitempty"` // Optional session info
 	References     []Reference     `json:"references,omitempty"`      // Universal references
+	UserPrompt     string          `json:"user_prompt,omitempty"`     // Universal user prompt
 }
 
 // SessionContext provides memory session information for relation tracking

@@ -22,6 +22,7 @@ impl RequestBuilder for LsRequest {
             }),
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }

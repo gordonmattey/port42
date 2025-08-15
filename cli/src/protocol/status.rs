@@ -19,6 +19,7 @@ impl RequestBuilder for StatusRequest {
             payload: serde_json::Value::Null,
             references: None,
             session_context: None,
+            user_prompt: None,
         })
     }
 }
@@ -129,6 +130,7 @@ pub fn send_watch_request(port: u16, target: &str) -> Result<serde_json::Value> 
         payload,
         references: None,
         session_context: None,
+        user_prompt: None,
     };
     
     let response = client.request(request)?;

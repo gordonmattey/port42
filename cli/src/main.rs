@@ -83,6 +83,11 @@ pub enum Commands {
         #[arg(short, long)]
         search: Option<String>,
         
+        /// Reference other entities for context (can be used multiple times)
+        /// Format: type:target (e.g., search:"nginx errors", tool:log-parser)
+        #[arg(long = "ref", action = clap::ArgAction::Append)]
+        references: Option<Vec<String>>,
+        
         /// Memory ID or initial message
         /// (If it looks like an ID, continues that session; otherwise treats as message)
         args: Vec<String>,
@@ -234,6 +239,10 @@ enum DeclareCommand {
         /// Format: type:target (e.g., search:"nginx errors", tool:log-parser)
         #[arg(long = "ref", action = clap::ArgAction::Append)]
         references: Option<Vec<String>>,
+        
+        /// Additional prompt to guide AI generation
+        #[arg(long)]
+        prompt: Option<String>,
     },
     
     /// Declare that an artifact should exist
@@ -248,6 +257,10 @@ enum DeclareCommand {
         /// File type/extension
         #[arg(long, default_value = ".md")]
         file_type: String,
+        
+        /// Additional prompt to guide AI generation
+        #[arg(long)]
+        prompt: Option<String>,
     },
 }
 
@@ -318,7 +331,7 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Possess { agent, search, args }) => {
+        Some(Commands::Possess { agent, search, references, args }) => {
             // Parse args to determine if it's a memory ID or message
             let (session, message) = match args.len() {
                 0 => (None, None),
@@ -360,22 +373,22 @@ fn main() -> Result<()> {
                 }
             };
             if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG possess: agent={}, search={:?}, session={:?}, message={:?}", agent, search, session, message);
+                eprintln!("DEBUG possess: agent={}, search={:?}, references={:?}, session={:?}, message={:?}", agent, search, references, session, message);
             }
-            commands::possess::handle_possess_with_search(port, agent, message, session, search, true)?;
+            commands::possess::handle_possess_with_references(port, agent, message, session, search, references, true)?;
         }
         
         Some(Commands::Declare { command }) => {
             match command {
-                DeclareCommand::Tool { name, transforms, references } => {
+                DeclareCommand::Tool { name, transforms, references, prompt } => {
                     let transforms_vec = transforms.as_ref()
                         .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                         .unwrap_or_default();
                     
-                    commands::declare::handle_declare_tool(port, &name, transforms_vec, references.clone())?;
+                    commands::declare::handle_declare_tool(port, &name, transforms_vec, references.clone(), prompt.clone())?;
                 }
-                DeclareCommand::Artifact { name, artifact_type, file_type } => {
-                    commands::declare::handle_declare_artifact(port, &name, &artifact_type, &file_type)?;
+                DeclareCommand::Artifact { name, artifact_type, file_type, prompt } => {
+                    commands::declare::handle_declare_artifact(port, &name, &artifact_type, &file_type, prompt.clone())?;
                 }
             }
         }
