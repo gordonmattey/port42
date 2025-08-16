@@ -83,9 +83,8 @@ pub enum Commands {
         #[arg(short, long)]
         search: Option<String>,
         
-        /// Reference other entities for context (can be used multiple times)
-        /// Format: type:target (e.g., search:"nginx errors", tool:log-parser)
-        #[arg(long = "ref", action = clap::ArgAction::Append)]
+        /// Reference entities for context (file:path, p42:/tools/name, url:https://, search:"query")
+        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/tools/name        - Reference existing tool or artifact\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref p42:/tools/analyzer")]
         references: Option<Vec<String>>,
         
         /// Memory ID or initial message
@@ -235,13 +234,12 @@ enum DeclareCommand {
         #[arg(long)]
         transforms: Option<String>,
         
-        /// Reference other entities for context (can be used multiple times)
-        /// Format: type:target (e.g., search:"nginx errors", tool:log-parser)
-        #[arg(long = "ref", action = clap::ArgAction::Append)]
+        /// Reference entities for context (file:path, p42:/tools/name, url:https://, search:"query")
+        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Local file reference\n• p42:/tools/name        - Port 42 VFS reference\n• url:https://api.docs   - Web URL reference\n• search:\"query terms\"   - Search-based reference\n\nExample: --ref file:./config.json --ref search:\"error patterns\"")]
         references: Option<Vec<String>>,
         
-        /// Additional prompt to guide AI generation
-        #[arg(long)]
+        /// Custom prompt to guide AI tool generation  
+        #[arg(long, help = "Custom prompt to guide AI tool generation\n\nProvide specific instructions for how the tool should work.\nCombined with references to create contextually-aware tools.\n\nExample: --prompt \"Create a tool that analyzes logs and highlights errors\"")]
         prompt: Option<String>,
     },
     
@@ -258,8 +256,8 @@ enum DeclareCommand {
         #[arg(long, default_value = ".md")]
         file_type: String,
         
-        /// Additional prompt to guide AI generation
-        #[arg(long)]
+        /// Custom prompt to guide AI artifact generation
+        #[arg(long, help = "Custom prompt to guide AI artifact generation\n\nProvide specific instructions for the artifact content and structure.\nWorks with references to create contextually-aware documentation.\n\nExample: --prompt \"Create API documentation with examples and error codes\"")]
         prompt: Option<String>,
     },
 }

@@ -2,7 +2,6 @@ package validation
 
 import (
 	"fmt"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -43,20 +42,8 @@ func (pv *PromptValidator) ValidatePrompt(prompt string) ValidationError {
 		}
 	}
 
-	// Check for potentially problematic content
-	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(lowerPrompt, "ignore previous") ||
-		strings.Contains(lowerPrompt, "system:") ||
-		strings.Contains(lowerPrompt, "disregard") ||
-		strings.Contains(lowerPrompt, "override") {
-		return ValidationError{
-			Field:      "user_prompt",
-			Message:    "Prompt contains potentially problematic content",
-			Code:       "SUSPICIOUS_PROMPT_CONTENT",
-			Suggestion: "Use straightforward instructions for tool generation",
-			Example:    "Focus on what the tool should do, not system instructions",
-		}
-	}
+	// Note: Removed suspicious content detection to avoid false positives
+	// Users should be able to create tools with any legitimate requirements
 
 	return ValidationError{} // No error
 }
