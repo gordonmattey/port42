@@ -1,0 +1,8 @@
+TEST REFERENCE FILE FOR STEP 4 VERIFICATION
+
+Requirements for any tool that references this file:
+1. Must include the comment "# STEP4_REFERENCE_SUCCESS - This tool was created with reference context"
+2. Must print the message "Reference integration working!" when executed
+3. Must have a function called verify_reference_integration()
+
+This file confirms that reference resolution is working in Step 4 implementation.

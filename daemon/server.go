@@ -13,6 +13,7 @@ import (
 	"time"
 	
 	"port42/daemon/resolution"
+	"port42/daemon/validation"
 )
 
 // Daemon represents the Port 42 daemon
@@ -27,6 +28,7 @@ type Daemon struct {
 	baseDir         string
 	realityCompiler *RealityCompiler // NEW: Reality compiler component
 	resolutionService resolution.ResolutionService // Phase 2: Reference resolution service
+	validator       *validation.RequestValidator // Step 5: Request validation
 }
 
 // Session represents an active possession session
@@ -118,6 +120,11 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	} else {
 		log.Printf("✅ Resolution Manager initialized successfully")
 	}
+	
+	// Initialize Request Validator (Step 5)
+	log.Printf("🛡️ Initializing Request Validator...")
+	daemon.validator = validation.NewRequestValidator()
+	log.Printf("✅ Request Validator initialized successfully")
 	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
 	return daemon
@@ -1145,6 +1152,21 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 // handleDeclareRelation declares a new relation and materializes it
 func (d *Daemon) handleDeclareRelation(req Request) Response {
 	resp := NewResponse(req.ID, true)
+	
+	// Step 5: Early validation - fail fast with helpful messages
+	if d.validator != nil {
+		// Create validation request from raw request data
+		validationReq := map[string]interface{}{
+			"user_prompt": req.UserPrompt,
+			"references":  req.References,
+		}
+		
+		if validationResult := d.validator.ValidateRequest(validationReq); validationResult.HasErrors() {
+			userFriendlyError := d.validator.FormatErrors(validationResult.Errors)
+			resp.SetError(userFriendlyError)
+			return resp
+		}
+	}
 	
 	if d.realityCompiler == nil {
 		resp.SetError("Reality compiler not initialized")
