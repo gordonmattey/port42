@@ -345,6 +345,19 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	// Get agent prompt
 	agentPrompt := getAgentPrompt(payload.Agent)
 	
+	// Process references using common reference handler
+	if len(req.References) > 0 && d.referenceHandler != nil {
+		result := d.referenceHandler.ResolveReferences(req.References, "possess")
+		if result.Success {
+			// Inject resolved references into system prompt
+			referenceSection := d.referenceHandler.FormatForPossess(result.ResolvedText)
+			agentPrompt = agentPrompt + referenceSection
+		} else if result.Error != nil {
+			log.Printf("⚠️ Reference resolution failed, continuing without context: %v", result.Error)
+			// Continue with graceful degradation - don't fail the request
+		}
+	}
+	
 	// Inject memory contexts into system prompt if provided
 	if len(payload.MemoryContext) > 0 {
 		log.Printf("🧠 Injecting %d memory contexts into system prompt", len(payload.MemoryContext))

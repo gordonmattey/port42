@@ -29,6 +29,7 @@ type Daemon struct {
 	realityCompiler *RealityCompiler // NEW: Reality compiler component
 	resolutionService resolution.ResolutionService // Phase 2: Reference resolution service
 	validator       *validation.RequestValidator // Step 5: Request validation
+	referenceHandler *ReferenceHandler // Common reference resolution logic
 }
 
 // Session represents an active possession session
@@ -125,6 +126,11 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	log.Printf("🛡️ Initializing Request Validator...")
 	daemon.validator = validation.NewRequestValidator()
 	log.Printf("✅ Request Validator initialized successfully")
+	
+	// Initialize Reference Handler (common reference resolution logic)
+	log.Printf("🔗 Initializing Reference Handler...")
+	daemon.referenceHandler = NewReferenceHandler(daemon.resolutionService)
+	log.Printf("✅ Reference Handler initialized successfully")
 	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
 	return daemon
@@ -1203,58 +1209,31 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 			payload.Relation.ID, req.SessionContext.SessionID)
 	}
 	
-	// Phase 1: Universal References - Validate and store references
+	// Phase 1: Universal References - Validate, store, and resolve references
 	if len(req.References) > 0 {
-		if err := ValidateReferences(req.References); err != nil {
-			resp.SetError("Invalid references: " + err.Error())
-			return resp
-		}
-		
+		// Store original references in relation properties
 		if payload.Relation.Properties == nil {
 			payload.Relation.Properties = make(map[string]interface{})
 		}
 		payload.Relation.Properties["references"] = req.References
-		
 		log.Printf("📎 References stored for %s: %d references", 
 			payload.Relation.ID, len(req.References))
 		
-		// Log each reference for debugging
-		for i, ref := range req.References {
-			log.Printf("  Reference %d: %s:%s", i, ref.Type, ref.Target)
-		}
-		
-		// Phase 2: Reference Resolution - Resolve references to context
-		if d.resolutionService != nil {
-			log.Printf("🔍 Phase 2: Resolving references to contextual information...")
-			
-			// Convert protocol references to resolution references
-			var resolutionRefs []resolution.Reference
-			for _, ref := range req.References {
-				resolutionRefs = append(resolutionRefs, resolution.Reference{
-					Type:    ref.Type,
-					Target:  ref.Target,
-					Context: ref.Context,
-				})
-			}
-			
-			contextStr, contexts, err := d.resolutionService.ResolveForAI(resolutionRefs)
-			if err != nil {
-				log.Printf("⚠️ Reference resolution failed: %v", err)
-				// Continue without context - graceful degradation
-			} else if contextStr != "" {
+		// Use common reference handler for resolution
+		if d.referenceHandler != nil {
+			result := d.referenceHandler.ResolveReferences(req.References, "declare")
+			if result.Success {
 				// Store resolved context for AI generation
+				contextStr := d.referenceHandler.FormatForDeclare(result.ResolvedText)
 				payload.Relation.Properties["resolved_context"] = contextStr
-				log.Printf("✨ Resolved context added (%d chars)", len(contextStr))
-				
-				// Log resolution stats (computed from existing contexts - no duplicate resolution)
-				stats := d.resolutionService.ComputeStatsFromContexts(resolutionRefs, contexts)
-				log.Printf("📊 Resolution stats: %d/%d successful (%.1f%%)", 
-					stats.ResolvedCount, stats.TotalReferences, stats.SuccessRate)
-			} else {
-				log.Printf("⚠️ No context resolved from references")
+				log.Printf("✨ Resolved context stored (%d chars)", len(contextStr))
+			} else if result.Error != nil {
+				log.Printf("⚠️ Reference resolution failed: %v", result.Error)
+				// For declare mode, we could fail the request or continue with graceful degradation
+				// Continuing with graceful degradation for consistency
 			}
 		} else {
-			log.Printf("⚠️ Resolution service not available - references stored but not resolved")
+			log.Printf("⚠️ No reference handler available - skipping reference resolution")
 		}
 	}
 	

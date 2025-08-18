@@ -533,31 +533,82 @@ fn resolve_references_for_context(
             eprintln!("DEBUG: Resolving reference: {}", reference);
         }
         
-        // Convert p42: references to daemon paths (strip p42: prefix)
-        let daemon_path = if reference.starts_with("p42:") {
-            reference.strip_prefix("p42:").unwrap_or(&reference)
+        // Handle different reference types
+        let request = if reference.starts_with("search:") {
+            // Extract search query from search:query format
+            let search_query = reference.strip_prefix("search:").unwrap_or(&reference);
+            
+            if std::env::var("PORT42_DEBUG").is_ok() {
+                eprintln!("DEBUG: Executing search for: {}", search_query);
+            }
+            
+            DaemonRequest {
+                request_type: "search".to_string(),
+                id: format!("search-resolve-{}", 
+                    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                payload: serde_json::json!({
+                    "query": search_query,
+                    "filters": {}
+                }),
+                references: None,
+                session_context: None,
+                user_prompt: None,
+            }
         } else {
-            &reference
-        };
-        
-        // Use VFS read_path command to resolve references
-        let request = DaemonRequest {
-            request_type: "read_path".to_string(),
-            id: format!("ref-resolve-{}", 
-                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
-            payload: serde_json::json!({
-                "path": daemon_path
-            }),
-            references: None,
-            session_context: None,
-            user_prompt: None,
+            // Convert p42: references to daemon paths (strip p42: prefix)
+            let daemon_path = if reference.starts_with("p42:") {
+                reference.strip_prefix("p42:").unwrap_or(&reference)
+            } else {
+                &reference
+            };
+            
+            // Use VFS read_path command to resolve file/path references
+            DaemonRequest {
+                request_type: "read_path".to_string(),
+                id: format!("ref-resolve-{}", 
+                    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                payload: serde_json::json!({
+                    "path": daemon_path
+                }),
+                references: None,
+                session_context: None,
+                user_prompt: None,
+            }
         };
         
         match client.request(request) {
             Ok(response) => {
                 if response.success {
                     if let Some(data) = response.data {
-                        if let Some(content) = data.get("content").and_then(|c| c.as_str()) {
+                        if reference.starts_with("search:") {
+                            // Handle search response format
+                            if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
+                                let mut search_context = format!("=== Search Results: {} ===\n", reference);
+                                search_context.push_str(&format!("Found {} results:\n\n", results.len()));
+                                
+                                for (i, result) in results.iter().take(10).enumerate() { // Limit to top 10 results
+                                    if let (Some(path), Some(snippet)) = (
+                                        result.get("path").and_then(|p| p.as_str()),
+                                        result.get("snippet").and_then(|s| s.as_str())
+                                    ) {
+                                        search_context.push_str(&format!("{}. {}\n", i + 1, path));
+                                        if !snippet.is_empty() {
+                                            search_context.push_str(&format!("   {}\n", snippet));
+                                        }
+                                        search_context.push('\n');
+                                    }
+                                }
+                                
+                                contexts.push(search_context);
+                                
+                                if std::env::var("PORT42_DEBUG").is_ok() {
+                                    eprintln!("DEBUG: Resolved search reference {} ({} results)", reference, results.len());
+                                }
+                            } else {
+                                eprintln!("⚠️ Search reference {} resolved but no results found", reference);
+                            }
+                        } else if let Some(content) = data.get("content").and_then(|c| c.as_str()) {
+                            // Handle file/path response format
                             // Decode base64 content if it appears to be encoded
                             let decoded_content = if content.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=') {
                                 // Likely base64 encoded

@@ -1,0 +1,9 @@
+{
+  "api_url": "https://api.example.com",
+  "timeout": 30,
+  "retry_count": 3,
+  "security": {
+    "require_auth": true,
+    "rate_limit": 100
+  }
+}
