@@ -65,6 +65,31 @@ func (tm *ToolMaterializer) Materialize(relation Relation) (*MaterializedEntity,
 		return nil, fmt.Errorf("failed to store tool in object store: %w", err)
 	}
 	
+	// Get the canonical object ID for the executable
+	executableID, err := tm.storage.Store([]byte(code))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object ID for executable: %w", err)
+	}
+	
+	// Update the relation to store the canonical object ID instead of content
+	if relation.Properties == nil {
+		relation.Properties = make(map[string]interface{})
+	}
+	relation.Properties["executable_id"] = executableID
+	
+	// Remove legacy executable content if it exists to save memory
+	delete(relation.Properties, "executable")
+	
+	// Save the updated relation with the object ID
+	relationStore := tm.storage.relationStore
+	if relationStore != nil {
+		if err := relationStore.Save(relation); err != nil {
+			log.Printf("⚠️ Failed to update relation with executable_id: %v", err)
+		} else {
+			log.Printf("✅ Updated relation %s with executable_id: %s", relation.ID, executableID[:12]+"...")
+		}
+	}
+	
 	// Get the symlink path for the materialized entity
 	homeDir, _ := os.UserHomeDir()
 	toolPath := filepath.Join(homeDir, ".port42", "commands", name)

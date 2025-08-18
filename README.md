@@ -36,7 +36,7 @@ $ view-log-analyzer /tmp/analysis-output.json
 # Reference local files, VFS knowledge, and web content
 $ port42 declare tool config-processor --transforms config,validate,format \
   --ref file:./app.json \
-  --ref p42:/tools/base-processor \
+  --ref p42:/commands/base-processor \
   --ref url:https://json-schema.org/spec
 
 ✨ Tool created with rich contextual knowledge!
@@ -66,11 +66,12 @@ port42 status
 # Create your first tool (instant)
 port42 declare tool hello-world --transforms greeting,demo
 
-# Create context-aware tools with references
+# Create context-aware tools with references and custom prompts
 port42 declare tool smart-analyzer --transforms analyze,process \
   --ref file:./config.json \
-  --ref p42:/tools/existing-analyzer \
-  --ref search:"error patterns"
+  --ref p42:/commands/existing-analyzer \
+  --ref search:"error patterns" \
+  --prompt "Build an intelligent analyzer that detects anomalies and provides actionable recommendations"
 
 # Explore the unified filesystem
 port42 ls /                     # Root: tools/, commands/, memory/, by-date/, similar/
@@ -210,9 +211,37 @@ port42 declare tool git-summary --transforms git-log,analysis
 - Multiple perspectives: Same tool visible through different organizational schemes
 - Relationship intelligence: Spawning chains, capability grouping, temporal organization
 
-## 🔗 Universal Reference System - Context-Aware Tool Creation
+## 🔗 Universal Prompt & Reference System - Context-Aware Tool Creation
 
-Port 42's reality compiler includes a **Universal Reference System** that allows you to create tools with rich contextual knowledge from multiple sources. Instead of creating tools from scratch, reference existing knowledge, files, and web content.
+Port 42's reality compiler includes a **Universal Prompt & Reference System** that allows you to create tools with rich contextual knowledge from multiple sources and custom instructions. Instead of creating tools from scratch, provide specific guidance and reference existing knowledge, files, and web content.
+
+### Custom AI Generation with Prompts
+
+**Direct Instructions (`--prompt "instructions"`)**
+```bash
+# Guide the AI with specific instructions for tool generation
+port42 declare tool log-analyzer --transforms analyze,logs \
+  --prompt "Create a tool that analyzes web server logs and highlights errors, security threats, and performance issues"
+
+# Combine prompts with references for context-aware generation
+port42 declare tool config-validator --transforms validate,config \
+  --ref file:./app.json \
+  --prompt "Build a validator that checks the referenced config for security vulnerabilities and best practices"
+```
+
+**Advanced AI Artifact Generation**
+```bash
+# Create context-aware documentation
+port42 declare artifact api-docs --artifact-type documentation \
+  --ref p42:/commands/api-server \
+  --ref url:https://api.example.com \
+  --prompt "Generate comprehensive API documentation with examples, error codes, and authentication details"
+
+# Build specialized configurations
+port42 declare artifact deployment-config --artifact-type config --file-type .yaml \
+  --ref file:./kubernetes-base.yaml \
+  --prompt "Create a production-ready Kubernetes deployment with auto-scaling, health checks, and security policies"
+```
 
 ### Reference Types
 
@@ -228,7 +257,7 @@ port42 declare tool config-validator --transforms validate,config \
 ```bash
 # Reference existing tools and crystallized knowledge
 port42 declare tool enhanced-processor --transforms process,enhance \
-  --ref p42:/tools/base-processor \
+  --ref p42:/commands/base-processor \
   --ref p42:/commands/utility-tool
 ```
 
@@ -264,19 +293,24 @@ port42 declare tool project-manager --transforms manage,track \
   --ref file:./project-spec.md
 ```
 
-### Multi-Reference Intelligence
+### Multi-Reference Intelligence with Custom Prompts
 
-Combine multiple reference types for sophisticated context:
+Combine multiple reference types with custom instructions for sophisticated context-aware generation:
 
 ```bash
-# The ultimate context-aware tool
+# The ultimate context-aware tool with AI guidance
 port42 declare tool intelligent-processor --transforms process,analyze,output \
   --ref file:./data-schema.json \
-  --ref p42:/tools/base-processor \
+  --ref p42:/commands/base-processor \
   --ref url:https://standards.org/spec \
   --ref search:"processing patterns" \
-  --ref tool:existing-analyzer \
-  --ref p42:/memory/design-session-456
+  --prompt "Create a sophisticated data processor that validates against the schema, follows industry standards, and includes error handling with detailed logging"
+
+# AI-driven conversation with context
+port42 possess @ai-engineer \
+  --ref file:./project-requirements.md \
+  --ref p42:/commands/existing-codebase \
+  "Help me design a microservice architecture for this project"
 ```
 
 ## 🔍 Semantic Tool Discovery - Find Tools by What They Do

@@ -83,8 +83,8 @@ pub enum Commands {
         #[arg(short, long)]
         search: Option<String>,
         
-        /// Reference entities for context (file:path, p42:/tools/name, url:https://, search:"query")
-        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/tools/name        - Reference existing tool or artifact\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref p42:/tools/analyzer")]
+        /// Reference entities for context (file:path, p42:/commands/name, url:https://, search:"query")
+        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/commands/name     - Reference existing command or tool\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref p42:/commands/analyzer")]
         references: Option<Vec<String>>,
         
         /// Memory ID or initial message
@@ -234,8 +234,8 @@ enum DeclareCommand {
         #[arg(long)]
         transforms: Option<String>,
         
-        /// Reference entities for context (file:path, p42:/tools/name, url:https://, search:"query")
-        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Local file reference\n• p42:/tools/name        - Port 42 VFS reference\n• url:https://api.docs   - Web URL reference\n• search:\"query terms\"   - Search-based reference\n\nExample: --ref file:./config.json --ref search:\"error patterns\"")]
+        /// Reference entities for context (file:path, p42:/commands/name, url:https://, search:"query")
+        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Local file reference\n• p42:/commands/name     - Port 42 VFS reference\n• url:https://api.docs   - Web URL reference\n• search:\"query terms\"   - Search-based reference\n\nExample: --ref file:./config.json --ref search:\"error patterns\"")]
         references: Option<Vec<String>>,
         
         /// Custom prompt to guide AI tool generation  

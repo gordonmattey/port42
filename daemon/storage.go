@@ -695,7 +695,15 @@ func (s *Storage) resolveToolsPath(path string) string {
 								// Return the relation as JSON
 								return "relation:" + relation.ID
 							case "executable":
-								// Look for executable content in properties
+								// Look for executable object ID in properties
+								if executableID, exists := relation.Properties["executable_id"]; exists {
+									if objID, ok := executableID.(string); ok && objID != "" {
+										// Return the canonical object ID directly
+										return objID
+									}
+								}
+								
+								// Fallback: if only executable content is stored (legacy), convert it
 								if executable, exists := relation.Properties["executable"]; exists {
 									if execStr, ok := executable.(string); ok && execStr != "" {
 										// Store the executable content and return its ID
@@ -718,9 +726,8 @@ func (s *Storage) resolveToolsPath(path string) string {
 	return "" // Path not found
 }
 
-// resolveCommandPath resolves /commands/ paths to relation-backed tools
+// resolveCommandPath resolves /commands/ paths to the actual symlink target
 func (s *Storage) resolveCommandPath(path string) string {
-	// Convert /commands/tool-name to /tools/tool-name/executable
 	commandPath := strings.TrimPrefix(path, "/commands/")
 	if commandPath == "" || commandPath == "/" {
 		return "" // Root commands directory - no specific object
@@ -729,7 +736,26 @@ func (s *Storage) resolveCommandPath(path string) string {
 	// Remove any trailing slash
 	commandPath = strings.TrimSuffix(commandPath, "/")
 	
-	// Redirect to tools path for executable
+	// Check if there's a symlink in the commands directory
+	homeDir, _ := os.UserHomeDir()
+	symlinkPath := filepath.Join(homeDir, ".port42", "commands", commandPath)
+	
+	// Follow the symlink to get the actual object path
+	if targetPath, err := os.Readlink(symlinkPath); err == nil {
+		// Extract object ID from the target path
+		// Path format: /Users/.../objects/ab/cd/efgh... -> abcdefgh...
+		if strings.Contains(targetPath, "/objects/") {
+			parts := strings.Split(targetPath, "/objects/")
+			if len(parts) == 2 {
+				objectPath := parts[1]
+				// Remove directory structure: "ab/cd/efgh..." -> "abcdefgh..."
+				objectID := strings.ReplaceAll(objectPath, "/", "")
+				return objectID
+			}
+		}
+	}
+	
+	// Fallback to tools path for backward compatibility
 	toolsPath := "/tools/" + commandPath + "/executable"
 	return s.resolveToolsPath(toolsPath)
 }

@@ -160,12 +160,12 @@ port42 declare tool base-processor --transforms data,process,transform
 
 # Reference existing tools to build on them
 port42 declare tool enhanced-processor --transforms process,enhance,optimize \
-  --ref p42:/tools/base-processor
+  --ref p42:/commands/base-processor
 
 # Reference commands from the VFS
 port42 declare tool super-tool --transforms analyze,process,output \
   --ref p42:/commands/existing-analyzer \
-  --ref p42:/tools/data-processor
+  --ref p42:/commands/data-processor
 
 # Search for tools in the knowledge base
 port42 declare tool smart-analyzer --transforms analyze,intelligent \
@@ -196,7 +196,57 @@ smart-api-client --endpoint /users --format jsonapi
 
 **💡 Key Insight**: Web references let tools understand external APIs, standards, and documentation.
 
-### Level 7: Multi-Reference Intelligence (40 minutes)
+### Level 7: Custom AI Instructions with Prompts (35 minutes)
+
+Guide AI generation with specific instructions using the `--prompt` parameter:
+
+```bash
+# Basic prompt usage
+port42 declare tool smart-log-analyzer --transforms analyze,logs,security \
+  --prompt "Create a log analyzer that focuses on security threats, extracts IP addresses, detects brute force attacks, and generates security alerts"
+
+# Test the focused generation
+smart-log-analyzer /var/log/auth.log
+# Will specifically look for security-related patterns
+
+# Combine prompts with references for context-aware instructions
+port42 declare tool project-validator --transforms validate,lint,security \
+  --ref file:./eslint.config.js \
+  --ref file:./security-policy.md \
+  --prompt "Build a comprehensive validator that enforces our ESLint rules, checks for security vulnerabilities mentioned in our policy, and provides actionable fix suggestions"
+
+# Advanced prompt with artifact generation
+port42 declare artifact deployment-guide --artifact-type documentation \
+  --ref file:./docker-compose.yml \
+  --ref file:./README.md \
+  --prompt "Generate a complete deployment guide that explains our Docker setup, includes troubleshooting steps, environment configuration, and scaling recommendations"
+```
+
+**AI-Assisted Conversations with Context:**
+
+```bash
+# Start conversation with references and ask specific questions
+port42 possess @ai-engineer \
+  --ref file:./architecture.md \
+  --ref p42:/commands/existing-microservice \
+  "Help me design a new authentication service that integrates with our existing architecture"
+
+# Creative work with brand context
+port42 possess @ai-muse \
+  --ref file:./brand-guidelines.pdf \
+  --ref file:./previous-campaigns.md \
+  "Create a product announcement that follows our brand voice and builds on our previous messaging"
+```
+
+**🎯 Prompt Best Practices:**
+- Be specific about what you want the tool to do
+- Include quality criteria (e.g., "with detailed error messages")
+- Specify output format when relevant
+- Combine with references for maximum context
+
+**💡 Key Insight**: Prompts let you provide specific AI guidance while references provide contextual knowledge.
+
+### Level 8: Multi-Reference Intelligence (40 minutes)
 
 Combine all reference types for maximum context:
 
@@ -204,7 +254,7 @@ Combine all reference types for maximum context:
 # The ultimate context-aware tool
 port42 declare tool intelligent-data-processor --transforms data,process,analyze,output \
   --ref file:./data-schema.json \
-  --ref p42:/tools/base-processor \
+  --ref p42:/commands/base-processor \
   --ref url:https://json-schema.org/specification.html \
   --ref search:"data processing patterns" \
   --ref tool:existing-validator
@@ -428,7 +478,7 @@ port42 declare tool service-monitor --transforms monitor,microservice,alert \
   --ref p42:/memory/architecture-session \
   --ref file:./docker-compose.yml \
   --ref url:https://prometheus.io/docs/concepts/ \
-  --ref p42:/tools/base-monitor \
+  --ref p42:/commands/base-monitor \
   --ref search:"monitoring best practices"
 
 # 3. Continuous Evolution Pattern
