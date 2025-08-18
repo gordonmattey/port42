@@ -501,6 +501,11 @@ func (s *Storage) ResolvePath(path string) string {
 		return s.resolveCommandPath(path)
 	}
 	
+	// Handle memory paths - resolve to session objects
+	if strings.HasPrefix(path, "/memory/") {
+		return s.resolveMemoryPath(path)
+	}
+	
 	// List all objects and check their metadata
 	ids, err := s.List()
 	if err != nil {
@@ -758,6 +763,50 @@ func (s *Storage) resolveCommandPath(path string) string {
 	// Fallback to tools path for backward compatibility
 	toolsPath := "/tools/" + commandPath + "/executable"
 	return s.resolveToolsPath(toolsPath)
+}
+
+// resolveMemoryPath resolves memory session paths to object IDs
+func (s *Storage) resolveMemoryPath(path string) string {
+	// Extract session ID from path: "/memory/session-123" -> "session-123"
+	sessionID := strings.TrimPrefix(path, "/memory/")
+	if sessionID == "" || sessionID == "/" {
+		return "" // Root memory directory - no specific object
+	}
+	
+	// Remove any trailing slash and sub-paths
+	sessionID = strings.TrimSuffix(sessionID, "/")
+	if strings.Contains(sessionID, "/") {
+		// Handle sub-paths like "/memory/session-123/generated"
+		sessionID = strings.Split(sessionID, "/")[0]
+	}
+	
+	// Search for objects with this session ID in their metadata
+	ids, err := s.List()
+	if err != nil {
+		log.Printf("Error listing objects for memory resolution: %v", err)
+		return ""
+	}
+	
+	for _, id := range ids {
+		meta, err := s.LoadMetadata(id)
+		if err != nil {
+			continue
+		}
+		
+		// Check if this object is a session with matching ID
+		if meta.Type == "session" && meta.Session == sessionID {
+			return id
+		}
+		
+		// Also check paths for exact match (for sub-paths like /memory/session/generated/tool)
+		for _, p := range meta.Paths {
+			if p == path {
+				return id
+			}
+		}
+	}
+	
+	return ""
 }
 
 // ==================== Utilities ====================
