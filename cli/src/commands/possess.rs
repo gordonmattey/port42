@@ -1,12 +1,11 @@
 use anyhow::{Result, bail};
 use colored::*;
-use base64::{Engine as _, engine::general_purpose};
 use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
 use crate::boot::{show_boot_sequence, show_connection_progress};
 use crate::help_text;
 use crate::possess::{SessionHandler, determine_session_id};
-use crate::common::errors::Port42Error;
+use crate::common::{errors::Port42Error, references::parse_references};
 use crate::commands::search;
 
 pub fn handle_possess(
@@ -57,17 +56,22 @@ pub fn handle_possess_with_references(
         println!();
     }
     
-    // Resolve references if provided
-    if let Some(refs) = references {
-        println!("{}", format!("🔗 Resolving {} references for AI context...", refs.len()).bright_cyan());
-        
-        let mut client = DaemonClient::new(port);
-        let reference_contexts = resolve_references_for_context(&mut client, refs)?;
-        let context_count = reference_contexts.len();
-        memory_context.extend(reference_contexts);
-        
-        println!("{}", format!("✅ Resolved {} reference contexts", context_count).green());
-    }
+    // Parse references if provided - daemon will resolve them server-side
+    let parsed_refs = if let Some(ref_strings) = references {
+        println!("{}", format!("🔗 Preparing {} references for AI context...", ref_strings.len()).bright_cyan());
+        match parse_references(ref_strings, true) {
+            Ok(refs) => {
+                println!("{}", format!("✅ Parsed {} references", refs.len()).green());
+                Some(refs)
+            },
+            Err(e) => {
+                eprintln!("{} {}", "❌ Invalid reference:".red(), e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
     
     if memory_context.is_empty() && search_query.is_some() {
         println!("{}", "No memories found to load into session context.".yellow());
@@ -76,8 +80,8 @@ pub fn handle_possess_with_references(
     }
     println!();
     
-    // Use unified flow with all context
-    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, memory_context)
+    // Use unified flow with all context and references
+    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, memory_context, parsed_refs)
 }
 
 pub fn handle_possess_with_search(
@@ -126,7 +130,7 @@ pub fn handle_possess_with_search(
         println!();
         
         // Use unified flow with memory context
-        handle_possess_with_boot_and_context(port, agent, message, session, false, memory_context)
+        handle_possess_with_boot_and_context(port, agent, message, session, false, memory_context, None)
     } else {
         handle_possess_with_boot(port, agent, message, session, show_boot)
     }
@@ -148,7 +152,7 @@ fn handle_possess_with_boot(
     session: Option<String>,
     show_boot: bool
 ) -> Result<()> {
-    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, Vec::new())
+    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, Vec::new(), None)
 }
 
 fn handle_possess_with_boot_and_context(
@@ -157,7 +161,8 @@ fn handle_possess_with_boot_and_context(
     message: Option<String>, 
     session: Option<String>,
     show_boot: bool,
-    memory_context: Vec<String>
+    memory_context: Vec<String>,
+    references: Option<Vec<crate::protocol::relations::Reference>>
 ) -> Result<()> {
     // Validate agent
     validate_agent(&agent)?;
@@ -219,9 +224,9 @@ fn handle_possess_with_boot_and_context(
             println!();
         }
         
-        // Send message with memory context
+        // Send message with memory context and references
         let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
-        let response = handler.send_message_with_context(&session_id, &agent, &msg, memory_ctx)?;
+        let response = handler.send_message_with_context(&session_id, &agent, &msg, memory_ctx, references)?;
         
         // Show actual session ID from daemon
         println!("\n{}", help_text::format_new_session(&response.session_id).dimmed());
@@ -520,131 +525,6 @@ fn load_memory_content(client: &mut DaemonClient, memory_path: &str) -> Result<S
     bail!("No conversation content found for memory {}", session_id)
 }
 
-fn resolve_references_for_context(
-    client: &mut DaemonClient, 
-    references: Vec<String>
-) -> Result<Vec<String>> {
-    use crate::protocol::DaemonRequest;
-    
-    let mut contexts = Vec::new();
-    
-    for reference in references {
-        if std::env::var("PORT42_DEBUG").is_ok() {
-            eprintln!("DEBUG: Resolving reference: {}", reference);
-        }
-        
-        // Handle different reference types
-        let request = if reference.starts_with("search:") {
-            // Extract search query from search:query format
-            let search_query = reference.strip_prefix("search:").unwrap_or(&reference);
-            
-            if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG: Executing search for: {}", search_query);
-            }
-            
-            DaemonRequest {
-                request_type: "search".to_string(),
-                id: format!("search-resolve-{}", 
-                    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
-                payload: serde_json::json!({
-                    "query": search_query,
-                    "filters": {}
-                }),
-                references: None,
-                session_context: None,
-                user_prompt: None,
-            }
-        } else {
-            // Convert p42: references to daemon paths (strip p42: prefix)
-            let daemon_path = if reference.starts_with("p42:") {
-                reference.strip_prefix("p42:").unwrap_or(&reference)
-            } else {
-                &reference
-            };
-            
-            // Use VFS read_path command to resolve file/path references
-            DaemonRequest {
-                request_type: "read_path".to_string(),
-                id: format!("ref-resolve-{}", 
-                    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
-                payload: serde_json::json!({
-                    "path": daemon_path
-                }),
-                references: None,
-                session_context: None,
-                user_prompt: None,
-            }
-        };
-        
-        match client.request(request) {
-            Ok(response) => {
-                if response.success {
-                    if let Some(data) = response.data {
-                        if reference.starts_with("search:") {
-                            // Handle search response format
-                            if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
-                                let mut search_context = format!("=== Search Results: {} ===\n", reference);
-                                search_context.push_str(&format!("Found {} results:\n\n", results.len()));
-                                
-                                for (i, result) in results.iter().take(10).enumerate() { // Limit to top 10 results
-                                    if let (Some(path), Some(snippet)) = (
-                                        result.get("path").and_then(|p| p.as_str()),
-                                        result.get("snippet").and_then(|s| s.as_str())
-                                    ) {
-                                        search_context.push_str(&format!("{}. {}\n", i + 1, path));
-                                        if !snippet.is_empty() {
-                                            search_context.push_str(&format!("   {}\n", snippet));
-                                        }
-                                        search_context.push('\n');
-                                    }
-                                }
-                                
-                                contexts.push(search_context);
-                                
-                                if std::env::var("PORT42_DEBUG").is_ok() {
-                                    eprintln!("DEBUG: Resolved search reference {} ({} results)", reference, results.len());
-                                }
-                            } else {
-                                eprintln!("⚠️ Search reference {} resolved but no results found", reference);
-                            }
-                        } else if let Some(content) = data.get("content").and_then(|c| c.as_str()) {
-                            // Handle file/path response format
-                            // Decode base64 content if it appears to be encoded
-                            let decoded_content = if content.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=') {
-                                // Likely base64 encoded
-                                match general_purpose::STANDARD.decode(content) {
-                                    Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
-                                    Err(_) => content.to_string(), // Fall back to original if decode fails
-                                }
-                            } else {
-                                content.to_string()
-                            };
-                            
-                            let context = format!("=== Reference: {} ===\n{}\n", reference, decoded_content);
-                            contexts.push(context);
-                            
-                            if std::env::var("PORT42_DEBUG").is_ok() {
-                                eprintln!("DEBUG: Resolved reference {} ({} chars)", reference, content.len());
-                            }
-                        } else {
-                            eprintln!("⚠️ Reference {} resolved but no content found", reference);
-                        }
-                    } else {
-                        eprintln!("⚠️ Reference {} resolved but no data returned", reference);
-                    }
-                } else {
-                    eprintln!("⚠️ Failed to resolve reference {}: {}", reference, 
-                        response.error.unwrap_or_else(|| "Unknown error".to_string()));
-                }
-            }
-            Err(e) => {
-                eprintln!("⚠️ Error resolving reference {}: {}", reference, e);
-            }
-        }
-    }
-    
-    Ok(contexts)
-}
 
 fn start_session_with_context(session: InteractiveSession, memory_contexts: Vec<String>) -> Result<()> {
     // For now, we'll just display the loaded context and start the session

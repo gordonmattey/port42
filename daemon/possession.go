@@ -390,7 +390,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	if aiClient.apiKey == "" {
 		// No API key - return error
 		log.Printf("❌ No API key available - cannot process AI request")
-		resp.SetError("ANTHROPIC_API_KEY not set. Please set the API key and restart the daemon with: sudo -E ./bin/port42d")
+		resp.SetError("API_KEY_ERROR: ANTHROPIC_API_KEY not set. Please set the API key and restart the daemon with: sudo -E ./bin/port42d")
 		return resp
 	}
 	
@@ -400,7 +400,18 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	aiResp, err := aiClient.Send(messages, agentPrompt, payload.Agent)
 	if err != nil {
 		log.Printf("AI error: %v", err)
-		resp.SetError(fmt.Sprintf("AI connection failed: %v", err))
+		
+		// Classify error by source for better user messaging
+		errorMsg := err.Error()
+		if strings.Contains(errorMsg, "api_error") || strings.Contains(errorMsg, "Overloaded") || strings.Contains(errorMsg, "rate_limit") {
+			resp.SetError(fmt.Sprintf("CLAUDE_API_ERROR: %v", err))
+		} else if strings.Contains(errorMsg, "ANTHROPIC_API_KEY") || strings.Contains(errorMsg, "authentication") || strings.Contains(errorMsg, "invalid_api_key") {
+			resp.SetError(fmt.Sprintf("API_KEY_ERROR: %v", err))
+		} else if strings.Contains(errorMsg, "timeout") || strings.Contains(errorMsg, "connection") || strings.Contains(errorMsg, "network") {
+			resp.SetError(fmt.Sprintf("NETWORK_ERROR: %v", err))
+		} else {
+			resp.SetError(fmt.Sprintf("AI_CONNECTION_ERROR: %v", err))
+		}
 		return resp
 	}
 	log.Printf("🔍 Got AI response")

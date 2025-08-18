@@ -11,6 +11,18 @@ pub enum Port42Error {
     
     #[error("Parse error: {0}")]
     Parse(String),
+    
+    #[error("Claude API error: {0}")]
+    ClaudeApi(String),
+    
+    #[error("API key error: {0}")]
+    ApiKey(String),
+    
+    #[error("Network error: {0}")]
+    Network(String),
+    
+    #[error("External service error: {0}")]
+    ExternalService(String),
 }
 
 impl Port42Error {

@@ -1,4 +1,5 @@
 use super::{DaemonRequest, RequestBuilder, ResponseParser};
+use crate::protocol::relations::Reference;
 use crate::display::{Displayable, OutputFormat, StatusIndicator};
 use crate::help_text;
 use anyhow::{Result, anyhow};
@@ -12,6 +13,8 @@ pub struct PossessRequest {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_context: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub references: Option<Vec<Reference>>,
 }
 
 impl RequestBuilder for PossessRequest {
@@ -30,7 +33,7 @@ impl RequestBuilder for PossessRequest {
             request_type: "possess".to_string(),
             id,
             payload,
-            references: None,
+            references: self.references.clone(),
             session_context: None,
             user_prompt: None, // Will be populated when CLI adds --prompt parameter
         })

@@ -7,6 +7,7 @@ use crate::display::{OutputFormat, Displayable};
 use crate::ui::SpinnerGuard;
 use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
+use colored::*;
 
 pub struct SessionHandler {
     pub(crate) client: DaemonClient,
@@ -43,15 +44,16 @@ impl SessionHandler {
     }
     
     pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<PossessResponse> {
-        self.send_message_with_context(session_id, agent, message, None)
+        self.send_message_with_context(session_id, agent, message, None, None)
     }
     
-    pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>) -> Result<PossessResponse> {
+    pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>, references: Option<Vec<crate::protocol::relations::Reference>>) -> Result<PossessResponse> {
         // Build request using protocol traits
         let possess_req = PossessRequest {
             agent: agent.to_string(),
             message: message.to_string(),
             memory_context,
+            references,
         };
         
         let request_id = generate_id();
@@ -73,8 +75,25 @@ impl SessionHandler {
         
         if !response.success {
             let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
-            self.display.show_error(&error);
-            return Err(Port42Error::Daemon(error).into());
+            
+            // Classify error and show appropriate message
+            let classified_error = classify_error(&error);
+            match &classified_error {
+                Port42Error::ClaudeApi(_) => {
+                    eprintln!("{} Claude API is currently experiencing issues. Please try again in a moment.", "🤖".bright_blue());
+                },
+                Port42Error::ApiKey(_) => {
+                    eprintln!("{} API key issue. Please check your ANTHROPIC_API_KEY configuration.", "🔑".bright_yellow());
+                },
+                Port42Error::Network(_) => {
+                    eprintln!("{} Network connection issue. Please check your internet connection.", "🌐".bright_red());
+                },
+                _ => {
+                    self.display.show_error(&error);
+                }
+            }
+            
+            return Err(classified_error.into());
         }
         
         // Parse response using protocol trait
@@ -106,6 +125,26 @@ impl SessionHandler {
     
     pub fn display_session_info(&self, session_id: &str, is_new: bool) {
         self.display.show_session_info(session_id, is_new);
+    }
+}
+
+/// Classify daemon errors by source for better user messaging
+fn classify_error(error: &str) -> Port42Error {
+    if error.starts_with("CLAUDE_API_ERROR:") {
+        let msg = error.strip_prefix("CLAUDE_API_ERROR:").unwrap_or(error).trim();
+        Port42Error::ClaudeApi(msg.to_string())
+    } else if error.starts_with("API_KEY_ERROR:") {
+        let msg = error.strip_prefix("API_KEY_ERROR:").unwrap_or(error).trim();
+        Port42Error::ApiKey(msg.to_string())
+    } else if error.starts_with("NETWORK_ERROR:") {
+        let msg = error.strip_prefix("NETWORK_ERROR:").unwrap_or(error).trim();
+        Port42Error::Network(msg.to_string())
+    } else if error.starts_with("AI_CONNECTION_ERROR:") {
+        let msg = error.strip_prefix("AI_CONNECTION_ERROR:").unwrap_or(error).trim();
+        Port42Error::ExternalService(msg.to_string())
+    } else {
+        // Fallback to daemon error for unclassified errors
+        Port42Error::Daemon(error.to_string())
     }
 }
 

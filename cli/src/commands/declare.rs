@@ -8,7 +8,7 @@ use crate::protocol::{
     Relation, Reference, RequestBuilder, ResponseParser
 };
 use crate::display::{Displayable, OutputFormat};
-use crate::common::generate_id;
+use crate::common::{generate_id, references::parse_references};
 
 /// Handle declaring a new tool relation
 pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, references: Option<Vec<String>>, prompt: Option<String>) -> Result<()> {
@@ -18,24 +18,15 @@ pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, refer
         println!("  {}: {}", "Transforms".bright_cyan(), transforms.join(", ").bright_green());
     }
     
-    // Parse references if provided
+    // Parse references if provided using common logic
     let parsed_refs = if let Some(ref_strings) = references {
-        let mut refs = Vec::new();
-        for ref_str in ref_strings {
-            match Reference::from_string(&ref_str) {
-                Ok(reference) => {
-                    println!("  {}: {} → {}", "Reference".bright_cyan(), 
-                           reference.ref_type.bright_yellow(), 
-                           reference.target.bright_white());
-                    refs.push(reference);
-                }
-                Err(e) => {
-                    eprintln!("{} {}: {}", "❌ Invalid reference".red(), ref_str.bright_white(), e);
-                    std::process::exit(1);
-                }
+        match parse_references(ref_strings, true) {
+            Ok(refs) => Some(refs),
+            Err(e) => {
+                eprintln!("{} {}", "❌ Invalid reference:".red(), e);
+                std::process::exit(1);
             }
         }
-        Some(refs)
     } else {
         None
     };
