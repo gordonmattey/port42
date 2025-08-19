@@ -133,49 +133,76 @@ impl Port42Shell {
                 }
                 
                 let agent = parts[1].to_string();
-                let (session, message) = match parts.len() {
-                    2 => (None, None), // Just agent
-                    3 => {
+                
+                // Parse --ref arguments first
+                let mut references = Vec::new();
+                let mut remaining_parts = Vec::new();
+                let mut i = 2; // Start after agent
+                
+                while i < parts.len() {
+                    if parts[i] == "--ref" && i + 1 < parts.len() {
+                        // Found --ref with a value
+                        references.push(parts[i + 1].to_string());
+                        i += 2; // Skip both --ref and its value
+                    } else {
+                        remaining_parts.push(parts[i]);
+                        i += 1;
+                    }
+                }
+                
+                // Convert references to Option
+                let ref_option = if references.is_empty() { None } else { Some(references) };
+                
+                // Parse session/message from remaining parts (after removing --ref arguments)
+                let (session, message) = match remaining_parts.len() {
+                    0 => (None, None), // Just agent (and possibly refs)
+                    1 => {
                         // Could be memory ID or message
-                        let second_arg = parts[2];
-                        let looks_like_id = second_arg.len() <= 20 && 
-                            !second_arg.contains(' ') && 
-                            (second_arg.contains(char::is_numeric) || 
-                             second_arg.starts_with("cli-") || 
-                             second_arg.contains('-') ||
-                             second_arg.contains('_'));
+                        let arg = remaining_parts[0];
+                        let looks_like_id = arg.len() <= 20 && 
+                            !arg.contains(' ') && 
+                            (arg.contains(char::is_numeric) || 
+                             arg.starts_with("cli-") || 
+                             arg.contains('-') ||
+                             arg.contains('_'));
                         
                         if looks_like_id {
                             // Looks like a memory ID
-                            (Some(second_arg.to_string()), None)
+                            (Some(arg.to_string()), None)
                         } else {
                             // It's a message
-                            (None, Some(second_arg.to_string()))
+                            (None, Some(arg.to_string()))
                         }
                     }
                     _ => {
-                        // 4+ parts: check if second is memory ID
-                        let second_arg = parts[2];
-                        let looks_like_id = second_arg.len() <= 20 && 
-                            !second_arg.contains(' ') && 
-                            (second_arg.contains(char::is_numeric) || 
-                             second_arg.starts_with("cli-") || 
-                             second_arg.contains('-') ||
-                             second_arg.contains('_'));
+                        // 2+ remaining parts: check if first is memory ID
+                        let first_arg = remaining_parts[0];
+                        let looks_like_id = first_arg.len() <= 20 && 
+                            !first_arg.contains(' ') && 
+                            (first_arg.contains(char::is_numeric) || 
+                             first_arg.starts_with("cli-") || 
+                             first_arg.contains('-') ||
+                             first_arg.contains('_'));
                         
                         if looks_like_id {
                             // Memory ID + message
-                            (Some(second_arg.to_string()), Some(parts[3..].join(" ")))
+                            (Some(first_arg.to_string()), Some(remaining_parts[1..].join(" ")))
                         } else {
                             // All message
-                            (None, Some(parts[2..].join(" ")))
+                            (None, Some(remaining_parts.join(" ")))
                         }
                     }
                 };
                 
                 // Show connection progress since we're entering a session
                 show_connection_progress(&agent)?;
-                possess::handle_possess_no_boot(self.port, agent, message, session)?;
+                
+                // Use the reference-aware handler if we have references
+                if ref_option.is_some() {
+                    possess::handle_possess_with_references(self.port, agent, message, session, None, ref_option, false)?;
+                } else {
+                    possess::handle_possess_no_boot(self.port, agent, message, session)?;
+                }
             }
             "memory" => {
                 use crate::MemoryAction;

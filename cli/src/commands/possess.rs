@@ -243,7 +243,8 @@ fn handle_possess_with_boot_and_context(
         
         if is_tty && has_term {
             // Full immersive interactive mode
-            let mut session = InteractiveSession::new(client, agent, session_id.clone());
+            let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
+            let mut session = InteractiveSession::with_context(client, agent, session_id.clone(), memory_ctx, references);
             session.run()?;
         } else {
             // Fallback to simple interactive mode
@@ -259,7 +260,7 @@ fn handle_possess_with_boot_and_context(
             handler.display_session_info(&session_id, is_new);
             println!();
             
-            simple_interactive_mode(&mut handler, &session_id, &agent)?;
+            simple_interactive_mode_with_context(&mut handler, &session_id, &agent, memory_context, references)?;
         }
         
         // End session
@@ -269,11 +270,20 @@ fn handle_possess_with_boot_and_context(
     Ok(())
 }
 
-fn simple_interactive_mode(handler: &mut SessionHandler, session_id: &str, agent: &str) -> Result<()> {
+fn simple_interactive_mode_with_context(
+    handler: &mut SessionHandler, 
+    session_id: &str, 
+    agent: &str,
+    memory_context: Vec<String>,
+    references: Option<Vec<crate::protocol::relations::Reference>>
+) -> Result<()> {
     use std::io::{self, Write};
     
     println!("{}", "Entering interactive mode. Type '/end' to finish.".dimmed());
     println!();
+    
+    // Convert memory_context to Option for consistency
+    let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
     
     loop {
         // Prompt
@@ -290,8 +300,8 @@ fn simple_interactive_mode(handler: &mut SessionHandler, session_id: &str, agent
             break;
         }
         
-        // Send message using handler
-        handler.send_message(session_id, agent, input)?;
+        // Send message with session context
+        handler.send_message_with_context(session_id, agent, input, memory_ctx.clone(), references.clone())?;
     }
     
     Ok(())

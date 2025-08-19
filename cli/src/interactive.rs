@@ -26,6 +26,8 @@ pub struct InteractiveSession {
     agent: String,
     session_id: String,
     actual_session_id: Option<String>, // Track daemon's actual session ID
+    memory_context: Option<Vec<String>>,
+    references: Option<Vec<crate::protocol::relations::Reference>>,
     depth: u32,
     start_time: Instant,
     commands_generated: Vec<String>,
@@ -34,6 +36,16 @@ pub struct InteractiveSession {
 
 impl InteractiveSession {
     pub fn new(client: DaemonClient, agent: String, session_id: String) -> Self {
+        Self::with_context(client, agent, session_id, None, None)
+    }
+    
+    pub fn with_context(
+        client: DaemonClient,
+        agent: String,
+        session_id: String,
+        memory_context: Option<Vec<String>>,
+        references: Option<Vec<crate::protocol::relations::Reference>>
+    ) -> Self {
         // Create handler with animated display for interactive mode
         let display = Box::new(AnimatedDisplay::new());
         let handler = SessionHandler::with_display(client, display);
@@ -43,6 +55,8 @@ impl InteractiveSession {
             agent,
             session_id,
             actual_session_id: None,
+            memory_context,
+            references,
             depth: 0,
             start_time: Instant::now(),
             commands_generated: Vec::new(),
@@ -342,8 +356,14 @@ impl InteractiveSession {
                       self.session_id, self.agent, self.depth);
         }
         
-        // Use the handler to send the message
-        self.handler.send_message(&self.session_id, &self.agent, message)
+        // Send message with stored session context (memory and references)
+        self.handler.send_message_with_context(
+            &self.session_id,
+            &self.agent,
+            message,
+            self.memory_context.clone(),
+            self.references.clone()
+        )
     }
     
     fn show_session_memory(&self) -> Result<()> {
