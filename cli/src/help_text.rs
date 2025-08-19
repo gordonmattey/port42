@@ -47,7 +47,6 @@ pub fn possess_help() -> String {
   {}  - {}
 
 {}
-  {}   Search for and load matching memories before sending message
   {}     Reference other entities for context (file:path, p42:/commands/name, url:https://, search:"query")
 
 {}
@@ -55,22 +54,20 @@ pub fn possess_help() -> String {
   possess @ai-muse cli-1754170150                 # Continue memory thread
   possess @ai-growth "viral CLI ideas"             # New session with message
   possess @ai-founder mem-123 "pivot?"             # Continue memory with question
-  possess @ai-engineer --search "docker" "How to scale containers?"  # Load docker memories and ask question
-  possess @ai-muse --search "poetry" "Write a poem about memory"     # Load poetry memories and request poem
+  possess @ai-engineer --ref search:"docker" "How to scale containers?"  # Load docker memories and ask question
+  possess @ai-muse --ref search:"poetry" "Write a poem about memory"     # Load poetry memories and request poem
   possess @ai-engineer --ref file:./config.json "Analyze this config"       # Include file context
   possess @ai-muse --ref p42:/commands/analyzer --ref search:"poetry" "Help me improve this tool"  # Multiple references
 
-Memory IDs are quantum addresses in consciousness space.
-Search loads relevant memory context before processing your message."#,
+Memory IDs are quantum addresses in consciousness space."#,
         "Channel an AI agent's consciousness to crystallize thoughts into reality.".bright_blue().bold(),
-        "Usage: possess <agent> [memory-id | --search <query>] [--ref <reference>] [message]".yellow(),
+        "Usage: possess <agent> [memory-id] [--ref <reference>] [message]".yellow(),
         "Agents:".bright_cyan(),
         "@ai-engineer".bright_green(), AGENT_ENGINEER_DESC,
         "@ai-muse".bright_green(), AGENT_MUSE_DESC,
         "@ai-growth".bright_green(), AGENT_GROWTH_DESC,
         "@ai-founder".bright_green(), AGENT_FOUNDER_DESC,
         "Options:".bright_cyan(),
-        "--search <query>".bright_green(),
         "--ref <reference>".bright_green(),
         "Examples:".bright_cyan()
     )

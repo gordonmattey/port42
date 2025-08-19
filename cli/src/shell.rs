@@ -199,7 +199,7 @@ impl Port42Shell {
                 
                 // Use the reference-aware handler if we have references
                 if ref_option.is_some() {
-                    possess::handle_possess_with_references(self.port, agent, message, session, None, ref_option, false)?;
+                    possess::handle_possess_with_references(self.port, agent, message, session, ref_option, false)?;
                 } else {
                     possess::handle_possess_no_boot(self.port, agent, message, session)?;
                 }

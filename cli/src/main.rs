@@ -79,12 +79,8 @@ pub enum Commands {
         /// AI agent to possess (@ai-engineer, @ai-muse, @ai-growth, @ai-founder)
         agent: String,
         
-        /// Search memories and load matches into session context
-        #[arg(short, long)]
-        search: Option<String>,
-        
         /// Reference entities for context (file:path, p42:/commands/name, url:https://, search:"query")
-        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/commands/name     - Reference existing command or tool\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref p42:/commands/analyzer")]
+        #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/commands/name     - Reference existing command or tool\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref search:\"error patterns\"")]
         references: Option<Vec<String>>,
         
         /// Memory ID or initial message
@@ -329,7 +325,7 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Possess { agent, search, references, args }) => {
+        Some(Commands::Possess { agent, references, args }) => {
             // Parse args to determine if it's a memory ID or message
             let (session, message) = match args.len() {
                 0 => (None, None),
@@ -371,9 +367,9 @@ fn main() -> Result<()> {
                 }
             };
             if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG possess: agent={}, search={:?}, references={:?}, session={:?}, message={:?}", agent, search, references, session, message);
+                eprintln!("DEBUG possess: agent={}, references={:?}, session={:?}, message={:?}", agent, references, session, message);
             }
-            commands::possess::handle_possess_with_references(port, agent, message, session, search, references, true)?;
+            commands::possess::handle_possess_with_references(port, agent, message, session, references, true)?;
         }
         
         Some(Commands::Declare { command }) => {
