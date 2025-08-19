@@ -11,13 +11,22 @@ import (
 	"time"
 )
 
+// Search filtering constants
+const (
+	SearchScoreThreshold = 2.0   // Minimum score for including results
+	SearchMaxResults     = 5     // Maximum number of results to load full content
+	SearchContentLimit   = 20000 // Maximum content size before truncation
+)
+
 // searchResolver handles search queries
 type searchResolver struct {
-	handler func(query string, limit int) ([]SearchResult, error)
+	handler    func(query string, limit int) ([]SearchResult, error)
+	p42Handler func(p42Path string) (*FileContent, error) // For loading full content
 }
 
 func (r *searchResolver) resolve(ctx context.Context, target string) (*ResolvedContext, error) {
-	results, err := r.handler(target, 5)
+	// Get search results with higher limit for filtering
+	results, err := r.handler(target, 20)
 	if err != nil {
 		return &ResolvedContext{
 			Type:    "search",
@@ -27,7 +36,8 @@ func (r *searchResolver) resolve(ctx context.Context, target string) (*ResolvedC
 		}, nil // Return successful response with error details
 	}
 	
-	content := formatSearchResults(target, results)
+	// Apply score filtering and content loading
+	content := r.formatSearchResultsWithContent(target, results)
 	
 	return &ResolvedContext{
 		Type:    "search",
@@ -391,6 +401,85 @@ func formatSearchResults(query string, results []SearchResult) string {
 	}
 	
 	return strings.Join(parts, "")
+}
+
+// formatSearchResultsWithContent applies score filtering and loads full content
+func (r *searchResolver) formatSearchResultsWithContent(query string, results []SearchResult) string {
+	if len(results) == 0 {
+		return fmt.Sprintf("No results found for search query: '%s'", query)
+	}
+	
+	// Filter by score threshold
+	var filteredResults []SearchResult
+	for _, result := range results {
+		if result.Score >= SearchScoreThreshold {
+			filteredResults = append(filteredResults, result)
+		}
+	}
+	
+	// Apply limit
+	if len(filteredResults) > SearchMaxResults {
+		filteredResults = filteredResults[:SearchMaxResults]
+	}
+	
+	if len(filteredResults) == 0 {
+		return fmt.Sprintf("Search results for '%s': Found %d results, but none met the relevance threshold (score ≥ %.1f)", 
+			query, len(results), SearchScoreThreshold)
+	}
+	
+	var parts []string
+	parts = append(parts, fmt.Sprintf("=== Search Results: search:%s ===", query))
+	parts = append(parts, fmt.Sprintf("Found %d high-relevance results:", len(filteredResults)))
+	parts = append(parts, "")
+	
+	for i, result := range filteredResults {
+		// Add result header
+		parts = append(parts, fmt.Sprintf("%d. %s (score: %.2f)", i+1, result.Path, result.Score))
+		
+		// Load full content if P42Handler is available
+		if r.p42Handler != nil {
+			if fileContent, err := r.p42Handler(result.Path); err == nil {
+				// Add full content with appropriate formatting
+				if result.Type == "tool" {
+					parts = append(parts, "[FULL TOOL DEFINITION]")
+				} else if result.Type == "memory" || result.Type == "session" {
+					parts = append(parts, "[FULL CONVERSATION TRANSCRIPT]")
+				} else {
+					parts = append(parts, "[FULL CONTENT]")
+				}
+				
+				// Add the actual content (truncate if too large)
+				content := fileContent.Content
+				if len(content) > SearchContentLimit {
+					content = content[:SearchContentLimit] + fmt.Sprintf("\n\n[Content truncated - full content exceeds %d characters]", SearchContentLimit)
+				}
+				parts = append(parts, content)
+			} else {
+				// Fallback to summary if content loading fails
+				parts = append(parts, "[Content loading failed, showing summary]")
+				if result.Summary != "" {
+					summary := result.Summary
+					if len(summary) > 150 {
+						summary = summary[:150] + "..."
+					}
+					parts = append(parts, fmt.Sprintf("Summary: %s", summary))
+				}
+			}
+		} else {
+			// Fallback to summary if no P42Handler available
+			if result.Summary != "" {
+				summary := result.Summary
+				if len(summary) > 150 {
+					summary = summary[:150] + "..."
+				}
+				parts = append(parts, fmt.Sprintf("Summary: %s", summary))
+			}
+		}
+		
+		parts = append(parts, "") // Add blank line between results
+	}
+	
+	return strings.Join(parts, "\n")
 }
 
 func formatToolDefinition(tool *ToolDefinition) string {

@@ -27,7 +27,10 @@ func newService(handlers Handlers) *service {
 	
 	// Register resolvers with handlers
 	if handlers.SearchHandler != nil {
-		s.resolvers["search"] = &searchResolver{handler: handlers.SearchHandler}
+		s.resolvers["search"] = &searchResolver{
+			handler:    handlers.SearchHandler,
+			p42Handler: handlers.P42Handler,
+		}
 	}
 	if handlers.ToolHandler != nil {
 		s.resolvers["tool"] = &toolResolver{handler: handlers.ToolHandler}
