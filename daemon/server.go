@@ -2232,7 +2232,12 @@ func (d *Daemon) handleP42File(p42Path string) (*resolution.FileContent, error) 
 		return d.handleP42CommandPath(p42Path)  
 	}
 	
-	// Method 3: General path resolution via search
+	// Method 3: Handle /memory/ paths via session lookup
+	if strings.HasPrefix(p42Path, "/memory/") {
+		return d.handleP42MemoryPath(p42Path)
+	}
+	
+	// Method 4: General path resolution via search
 	return d.handleP42SearchPath(p42Path)
 }
 
@@ -2327,6 +2332,62 @@ func (d *Daemon) handleP42CommandPath(p42Path string) (*resolution.FileContent, 
 	}
 	
 	return nil, fmt.Errorf("command not found: %s", commandName)
+}
+
+// handleP42MemoryPath resolves /memory/session-id paths via session lookup
+func (d *Daemon) handleP42MemoryPath(p42Path string) (*resolution.FileContent, error) {
+	sessionID := strings.TrimPrefix(p42Path, "/memory/")
+	if sessionID == "" {
+		return nil, fmt.Errorf("invalid memory path: %s", p42Path)
+	}
+	
+	// Remove any sub-paths (e.g., "/memory/session-123/generated" -> "session-123")
+	if strings.Contains(sessionID, "/") {
+		sessionID = strings.Split(sessionID, "/")[0]
+	}
+	
+	if d.storage == nil {
+		return nil, fmt.Errorf("storage not available for memory lookup")
+	}
+	
+	// Load session from storage
+	session, err := d.storage.LoadSession(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load session %s: %w", sessionID, err)
+	}
+	
+	log.Printf("✅ P42 memory found: %s -> session with %d messages", sessionID, len(session.Messages))
+	
+	// Format session as conversation transcript
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("=== Session: %s ===\n", sessionID))
+	content.WriteString(fmt.Sprintf("Agent: %s\n", session.Agent))
+	content.WriteString(fmt.Sprintf("Created: %s\n", session.CreatedAt.Format("2006-01-02 15:04:05")))
+	content.WriteString(fmt.Sprintf("Last Activity: %s\n", session.LastActivity.Format("2006-01-02 15:04:05")))
+	content.WriteString(fmt.Sprintf("Messages: %d\n\n", len(session.Messages)))
+	
+	// Add conversation transcript
+	for i, msg := range session.Messages {
+		timestamp := ""
+		if !msg.Timestamp.IsZero() {
+			timestamp = fmt.Sprintf(" [%s]", msg.Timestamp.Format("15:04:05"))
+		}
+		content.WriteString(fmt.Sprintf("%d. %s%s:\n%s\n\n", i+1, strings.ToUpper(msg.Role), timestamp, msg.Content))
+	}
+	
+	return &resolution.FileContent{
+		Path:    p42Path,
+		Content: content.String(),
+		Size:    int64(content.Len()),
+		Type:    "session",
+		Metadata: map[string]interface{}{
+			"session_id":    sessionID,
+			"agent":         session.Agent,
+			"message_count": len(session.Messages),
+			"created":       session.CreatedAt.Format("2006-01-02 15:04:05"),
+			"last_activity": session.LastActivity.Format("2006-01-02 15:04:05"),
+		},
+	}, nil
 }
 
 // handleP42SearchPath resolves general paths via search
