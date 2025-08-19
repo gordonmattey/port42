@@ -138,8 +138,9 @@ fn handle_possess_with_boot_and_context(
         let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
         let response = handler.send_message_with_context(&session_id, &agent, &msg, memory_ctx, references)?;
         
-        // Show actual session ID from daemon
-        println!("\n{}", help_text::format_new_session(&response.session_id).dimmed());
+        // Show session completion with actual daemon session ID
+        println!();
+        handler.display_session_complete(&response.session_id);
         println!("{}", "Use 'memory' to review this thread".dimmed());
     } else {
         // Interactive mode (no need to repeat "Channeling" message if boot was shown)
@@ -194,6 +195,7 @@ fn simple_interactive_mode_with_context(
     
     // Convert memory_context to Option for consistency
     let memory_ctx = if memory_context.is_empty() { None } else { Some(memory_context) };
+    let mut actual_session_id = session_id.to_string();
     
     loop {
         // Prompt
@@ -211,8 +213,16 @@ fn simple_interactive_mode_with_context(
         }
         
         // Send message with session context
-        handler.send_message_with_context(session_id, agent, input, memory_ctx.clone(), references.clone())?;
+        let response = handler.send_message_with_context(session_id, agent, input, memory_ctx.clone(), references.clone())?;
+        
+        // Track the actual session ID from daemon response
+        actual_session_id = response.session_id;
     }
+    
+    // Show session completion with actual session ID
+    println!();
+    handler.display_session_complete(&actual_session_id);
+    println!("{}", "Use 'memory' to review this thread".dimmed());
     
     Ok(())
 }

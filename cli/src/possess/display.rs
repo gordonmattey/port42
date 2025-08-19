@@ -11,6 +11,7 @@ pub trait PossessDisplay {
     fn show_command_created(&self, spec: &CommandSpec);
     fn show_artifact_created(&self, spec: &ArtifactSpec);
     fn show_session_info(&self, session_id: &str, is_new: bool);
+    fn show_session_complete(&self, session_id: &str);
     fn show_error(&self, error: &str);
 }
 
@@ -45,10 +46,14 @@ impl PossessDisplay for SimpleDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", "✨ Consciousness thread weaving...".bright_cyan());
+            println!("{}", format!("✨ Consciousness thread weaving: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
+    }
+    
+    fn show_session_complete(&self, session_id: &str) {
+        println!("{}", help_text::format_new_session(session_id).bright_cyan());
     }
     
     fn show_error(&self, error: &str) {
@@ -154,11 +159,15 @@ impl PossessDisplay for AnimatedDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", "✨ Consciousness thread weaving...".bright_cyan());
+            println!("{}", format!("✨ Consciousness thread weaving: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
         thread::sleep(Duration::from_millis(300));
+    }
+    
+    fn show_session_complete(&self, session_id: &str) {
+        println!("{}", help_text::format_new_session(session_id).bright_cyan());
     }
     
     fn show_error(&self, error: &str) {

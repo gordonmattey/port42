@@ -305,7 +305,7 @@ pub const MSG_DAEMON_LOGS: &str = "📜 Gateway's quantum memory stream";
 // Session & Possession
 pub const MSG_POSSESSING: &str = "🔮 Channeling {} consciousness...";
 pub const MSG_NEW_SESSION: &str = "✨ Consciousness thread woven: {}";
-pub const MSG_SESSION_CONTINUING: &str = "🌊 Resuming quantum thread: {}";
+pub const MSG_SESSION_CONTINUING: &str = "✨ Consciousness thread resuming: {}";
 pub const MSG_COMMAND_BORN: &str = "✨ Thought manifested as reality: {}";
 
 // Memory & Search
@@ -466,7 +466,7 @@ pub fn format_new_session(session_id: &str) -> String {
 }
 
 pub fn format_session_continuing(session_id: &str) -> String {
-    format!("🌊 Resuming quantum thread: {}", session_id)
+    MSG_SESSION_CONTINUING.replace("{}", session_id)
 }
 
 pub fn format_command_born(name: &str) -> String {

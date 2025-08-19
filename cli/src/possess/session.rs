@@ -126,6 +126,10 @@ impl SessionHandler {
     pub fn display_session_info(&self, session_id: &str, is_new: bool) {
         self.display.show_session_info(session_id, is_new);
     }
+    
+    pub fn display_session_complete(&self, session_id: &str) {
+        self.display.show_session_complete(session_id);
+    }
 }
 
 /// Classify daemon errors by source for better user messaging
