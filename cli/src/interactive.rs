@@ -98,7 +98,7 @@ impl InteractiveSession {
         println!("{}", "  /crystallize command - Create executable tools".white());
         println!("{}", "  /crystallize artifact - Create documents & assets".white());
         println!("{}", "  /search <query>     - Search through your memories".white());
-        println!("{}", "  /import <session>   - Import a memory into this session".white());
+        println!("{}", "  /ref <reference>    - Add a reference to this session".white());
         println!("{}", "  /surface            - Return to your world".white());
         println!();
         println!("{}", "Input Options:".bright_yellow());
@@ -320,13 +320,14 @@ impl InteractiveSession {
                 self.request_crystallization(CrystallizeType::Artifact)?;
                 Ok(true)
             }
-            _ if input.starts_with("/import ") => {
-                let session_id = input[8..].trim();
-                if session_id.is_empty() {
-                    println!("\n{}", "Usage: /import <session_id>".red());
-                    println!("{}", "Import a specific memory into current session context".dimmed());
+            _ if input.starts_with("/ref ") => {
+                let ref_str = input[5..].trim();
+                if ref_str.is_empty() {
+                    println!("\n{}", "Usage: /ref <reference_uri>".red());
+                    println!("{}", "Add a reference to this session context".dimmed());
+                    println!("{}", "Examples: /ref file:./config.json, /ref p42:/memory/cli-123, /ref search:\"errors\"".dimmed());
                 } else {
-                    self.import_memory(session_id)?;
+                    self.add_reference(ref_str)?;
                 }
                 Ok(true)
             }
@@ -343,7 +344,7 @@ impl InteractiveSession {
             _ if input.starts_with('/') => {
                 println!("\n{}", format!("Unknown command: {}", input).dimmed());
                 println!("{}", "Available: /surface, /deeper, /memory, /reality, /crystallize [command|artifact]".dimmed());
-                println!("{}", "          /import <session_id>, /search <query>".dimmed());
+                println!("{}", "          /ref <reference_uri>, /search <query>".dimmed());
                 Ok(true)
             }
             _ => Ok(false)
@@ -440,18 +441,25 @@ impl InteractiveSession {
         Ok(())
     }
     
-    fn import_memory(&self, session_id: &str) -> Result<()> {
-        println!("\n{}", format!("🔄 Importing memory {} into consciousness stream...", session_id.bright_cyan()).blue().italic());
+    fn add_reference(&mut self, ref_str: &str) -> Result<()> {
+        use crate::protocol::relations::Reference;
         
-        // For now, show that this feature is being developed
-        println!("{}", "Memory import feature is crystallizing...".yellow());
-        println!("{}", "This sacred power will soon allow memories to merge with current session.".dimmed());
+        // Parse the reference string
+        let reference = Reference::from_string(ref_str)?;
         
-        // TODO: Implement actual memory import
-        // This would require:
-        // 1. Fetching the memory content from daemon
-        // 2. Adding it to current session context
-        // 3. Possibly sending a message to AI with the imported context
+        // Add to session references (or create vec if None)
+        match &mut self.references {
+            Some(refs) => refs.push(reference),
+            None => self.references = Some(vec![reference]),
+        }
+        
+        // Show confirmation with current count
+        let count = self.references.as_ref().map(|r| r.len()).unwrap_or(0);
+        println!("\n{} {}", "📎 Reference added:".bright_green(), ref_str.bright_cyan());
+        println!("{} {} reference{} active in this session", 
+                "🔗".bright_blue(), 
+                count.to_string().bright_white(),
+                if count == 1 { "" } else { "s" });
         
         Ok(())
     }
