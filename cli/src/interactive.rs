@@ -483,7 +483,7 @@ impl InteractiveSession {
             crate::display::OutputFormat::Plain,
         ) {
             Ok(()) => {
-                println!("\n{}", "💡 Use /import <session_id> to pull any of these memories into current session".dimmed());
+                println!("\n{}", "💡 Use /ref p42:/memory/<session_id> to add any of these memories as references".dimmed());
             }
             Err(e) => {
                 println!("\n{}", format!("Search failed: {}", e).red());
