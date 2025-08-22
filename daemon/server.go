@@ -1744,6 +1744,45 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 		return fmt.Errorf("failed to store command: %v", err)
 	}
 	
+	// Create a relation for VFS integration (same pattern as declare tool)
+	if d.realityCompiler != nil {
+		relation := Relation{
+			ID:   fmt.Sprintf("tool-%s-%d", spec.Name, time.Now().Unix()),
+			Type: "Tool",
+			Properties: map[string]interface{}{
+				"name":        spec.Name,
+				"description": spec.Description,
+				"language":    spec.Language,
+				"source":      "possess", // Track creation method
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		
+		// Add dependencies if present
+		if len(spec.Dependencies) > 0 {
+			relation.Properties["dependencies"] = spec.Dependencies
+		}
+		
+		// Add session info if present
+		if spec.SessionID != "" {
+			relation.Properties["session_id"] = spec.SessionID
+		}
+		
+		// Add agent info if present  
+		if spec.Agent != "" {
+			relation.Properties["agent"] = spec.Agent
+		}
+		
+		log.Printf("🔗 Creating relation for possess-generated command: %s", relation.ID)
+		if _, err := d.realityCompiler.DeclareRelation(relation); err != nil {
+			log.Printf("⚠️ Failed to create relation for command %s: %v", spec.Name, err)
+			// Don't fail the command generation, just log the issue
+		} else {
+			log.Printf("✅ Relation created for possess-generated command: %s", spec.Name)
+		}
+	}
+	
 	// Log to memory (simple for now)
 	d.logCommandGeneration(spec)
 	

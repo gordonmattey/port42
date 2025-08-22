@@ -832,6 +832,9 @@ func extractArtifactSpecFromToolCall(toolInput json.RawMessage) (*ArtifactSpec, 
 
 // executeCommand safely executes a Port 42 command
 func executeCommand(input json.RawMessage) (string, error) {
+	// DEBUG: Log the raw JSON input to see what Claude is sending
+	log.Printf("🔍 [DEBUG] executeCommand received JSON: %s", string(input))
+	
 	var params struct {
 		Command string   `json:"command"`
 		Args    []string `json:"args"`
@@ -839,7 +842,16 @@ func executeCommand(input json.RawMessage) (string, error) {
 	}
 	
 	if err := json.Unmarshal(input, &params); err != nil {
+		log.Printf("❌ [DEBUG] JSON unmarshal failed. Expected: {\"command\":\"string\",\"args\":[\"array\"],\"stdin\":\"string\"}")
+		log.Printf("❌ [DEBUG] Received JSON: %s", string(input))
 		return "", fmt.Errorf("invalid parameters: %v", err)
+	}
+	
+	log.Printf("✅ [DEBUG] Successfully parsed command: %s, args: %v", params.Command, params.Args)
+	
+	// Special case: Allow Claude to call port42 CLI directly
+	if params.Command == "port42" {
+		return executePort42Command(params.Args, params.Stdin)
 	}
 	
 	// Security: verify command exists in Port 42 commands directory
@@ -877,6 +889,55 @@ func executeCommand(input json.RawMessage) (string, error) {
 	}
 	
 	return string(output), nil
+}
+
+// executePort42Command allows Claude to call the port42 CLI directly
+func executePort42Command(args []string, stdin string) (string, error) {
+	log.Printf("🔧 [PORT42_CLI] Claude calling port42 with args: %v", args)
+	
+	// Find the port42 CLI binary
+	cliPath, err := exec.LookPath("port42")
+	if err != nil {
+		// Try local development path
+		if _, err := os.Stat("../cli/target/release/port42"); err == nil {
+			cliPath = "../cli/target/release/port42"
+		} else if _, err := os.Stat("./cli/target/release/port42"); err == nil {
+			cliPath = "./cli/target/release/port42"
+		} else {
+			return "", fmt.Errorf("port42 CLI not found in PATH or local development paths")
+		}
+	}
+	
+	// Create command with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Longer timeout for port42 operations
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, cliPath, args...)
+	
+	// Set up stdin if provided
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
+	
+	// Capture both stdout and stderr
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Include output even on error for better debugging
+		if len(output) > 0 {
+			return string(output), fmt.Errorf("port42 command failed: %v", err)
+		}
+		return "", fmt.Errorf("port42 command failed: %v", err)
+	}
+	
+	log.Printf("✅ [PORT42_CLI] Command completed successfully")
+	
+	// Limit output size to prevent huge responses
+	result := string(output)
+	if len(result) > 10000 {
+		result = result[:10000] + "\n... (output truncated)"
+	}
+	
+	return strings.TrimSpace(result), nil
 }
 
 // Update the handlePossess in server.go to use the AI version
