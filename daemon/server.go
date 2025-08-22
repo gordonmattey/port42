@@ -506,6 +506,11 @@ func (d *Daemon) handleGetMetadata(req Request) Response {
 		return NewErrorResponse(req.ID, fmt.Sprintf("Path not found: %s", payload.Path))
 	}
 
+	// Special handling for relation IDs - extract data directly from relation
+	if strings.HasPrefix(objID, "relation:") {
+		return d.handleRelationInfo(req.ID, payload.Path, objID)
+	}
+
 	// Load metadata
 	metadata, err := d.storage.LoadMetadata(objID)
 	if err != nil {
@@ -2504,4 +2509,69 @@ func (d *Daemon) formatToolRelationAsP42Content(relation Relation) string {
 	parts = append(parts, fmt.Sprintf("Updated: %s", relation.UpdatedAt.Format("2006-01-02 15:04:05")))
 	
 	return strings.Join(parts, "\n")
+}
+
+// handleRelationInfo handles info requests for relation objects
+func (d *Daemon) handleRelationInfo(requestID, path, objID string) Response {
+	resp := NewResponse(requestID, true)
+	
+	// Extract relation ID from objID (remove "relation:" prefix)
+	relationID := strings.TrimPrefix(objID, "relation:")
+	
+	// Load relation from relation store
+	if d.realityCompiler == nil || d.realityCompiler.relationStore == nil {
+		return NewErrorResponse(requestID, "Relation store not available")
+	}
+	
+	relation, err := d.realityCompiler.relationStore.Load(relationID)
+	if err != nil {
+		return NewErrorResponse(requestID, fmt.Sprintf("Failed to load relation: %v", err))
+	}
+	
+	// Extract data from relation properties
+	var objectType, title, description, agent string
+	var size int64
+	
+	// Type from relation.Type
+	objectType = strings.ToLower(relation.Type)  // "Tool" -> "tool"
+	
+	// Extract properties
+	if name, ok := relation.Properties["name"].(string); ok {
+		title = name
+	}
+	if desc, ok := relation.Properties["description"].(string); ok {
+		description = desc
+	}
+	if ag, ok := relation.Properties["agent"].(string); ok {
+		agent = ag
+	}
+	
+	// Calculate size from relation JSON
+	if relationData, err := json.Marshal(relation); err == nil {
+		size = int64(len(relationData))
+	}
+	
+	// Prepare response data
+	responseData := map[string]interface{}{
+		"path":      path,
+		"object_id": objID,
+		"type":      objectType,
+		"created":   relation.CreatedAt,
+		"modified":  relation.UpdatedAt,
+		"size":      size,
+		
+		// Content info from relation
+		"title":       title,
+		"description": description,
+		
+		// Context
+		"agent":       agent,
+		"session":     relation.Properties["session_id"],
+		"source":      relation.Properties["source"], // "declare" or "possess"
+		"language":    relation.Properties["language"],
+		"transforms":  relation.Properties["transforms"],
+	}
+	
+	resp.SetData(responseData)
+	return resp
 }
