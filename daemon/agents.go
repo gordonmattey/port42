@@ -26,6 +26,7 @@ type BaseGuidance struct {
 	FormatTemplate      string `json:"format_template"`
 	ArtifactGuidance    string `json:"artifact_guidance"`
 	ConversationContext string `json:"conversation_context"`
+	ToolUsageGuidance   string `json:"tool_usage_guidance"`
 }
 
 // CommandMetadata represents basic info about a Port 42 command
@@ -199,6 +200,11 @@ func GetAgentPrompt(agentName string) string {
 	// Add conversation context guidance for all agents
 	prompt.WriteString("\n\n")
 	prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
+	
+	// Add tool usage guidance for all agents
+	prompt.WriteString("\n\n")
+	log.Printf("🔍 [DEBUG] ToolUsageGuidance length: %d", len(agentConfig.BaseGuidance.ToolUsageGuidance))
+	prompt.WriteString(agentConfig.BaseGuidance.ToolUsageGuidance)
 	
 	// Add artifact guidance for all agents
 	prompt.WriteString("\n\n")
