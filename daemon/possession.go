@@ -184,10 +184,9 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 				// Full implementation agent - gets all tools
 				tools = []AnthropicTool{
 					getCommandRunnerTool(),
-					getCommandGenerationTool(),
 					getArtifactGenerationTool(),
 				}
-				log.Printf("🔧 Agent %s will use all tools (command runner, generation, and artifacts)", agentName)
+				log.Printf("🔧 Agent %s will use all tools (command runner and artifacts)", agentName)
 			}
 		} else {
 			log.Printf("⚠️ Agent %s not found in config", cleanName)
@@ -418,24 +417,12 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Extract response text and check for tool calls
 	var responseText string
-	var commandSpec *CommandSpec
 	var artifactSpec *ArtifactSpec
 	
 	if len(aiResp.Content) > 0 {
 		// Check if response contains tool calls
-		hasToolCall := false
 		for _, content := range aiResp.Content {
-			if content.Type == "tool_use" && content.Name == "generate_command" {
-				hasToolCall = true
-				// Extract command spec from tool call
-				if spec, err := extractCommandSpecFromToolCall(content.Input); err == nil {
-					commandSpec = spec
-					log.Printf("🔧 Extracted command spec from tool call: %s", spec.Name)
-				} else {
-					log.Printf("❌ Failed to extract command spec from tool call: %v", err)
-				}
-			} else if content.Type == "tool_use" && content.Name == "generate_artifact" {
-				hasToolCall = true
+			if content.Type == "tool_use" && content.Name == "generate_artifact" {
 				// Extract artifact spec from tool call
 				if spec, err := extractArtifactSpecFromToolCall(content.Input); err == nil {
 					artifactSpec = spec
@@ -444,7 +431,6 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 					log.Printf("❌ Failed to extract artifact spec from tool call: %v", err)
 				}
 			} else if content.Type == "tool_use" && content.Name == "run_command" {
-				hasToolCall = true
 				// Execute command and capture output
 				log.Printf("🏃 AI is executing a Port 42 command")
 				if output, err := executeCommand(content.Input); err != nil {
@@ -461,13 +447,6 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 			}
 		}
 		
-		// If no tool call, try to extract from text (backward compatibility)
-		if !hasToolCall && responseText != "" {
-			if spec := extractCommandSpec(responseText); spec != nil {
-				commandSpec = spec
-				log.Printf("📄 Extracted command spec from text response: %s", spec.Name)
-			}
-		}
 	}
 	
 	// Add AI response to session
@@ -478,21 +457,6 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		Timestamp: time.Now(),
 	})
 	session.LastActivity = time.Now()
-	
-	// Check if we have a command spec to generate
-	if commandSpec != nil {
-		// Add session and agent info to command spec
-		commandSpec.SessionID = session.ID
-		commandSpec.Agent = session.Agent
-		
-		// Store command info in session
-		session.CommandGenerated = commandSpec
-		session.State = SessionCompleted
-		log.Printf("🎉 Command generated in session %s: %s", session.ID, commandSpec.Name)
-		
-		// Generate the command!
-		go d.generateCommand(commandSpec)
-	}
 	
 	// Check if we have an artifact spec to generate
 	if artifactSpec != nil {
@@ -529,15 +493,6 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 		"session_id": session.ID,
 	}
 	
-	if commandSpec != nil {
-		// Only send essential info, not full implementation
-		data["command_spec"] = map[string]interface{}{
-			"name":        commandSpec.Name,
-			"description": commandSpec.Description,
-			"language":    commandSpec.Language,
-		}
-		data["command_generated"] = true
-	}
 	
 	if artifactSpec != nil {
 		// Build the full path with extension
@@ -638,44 +593,6 @@ func (d *Daemon) buildConversationContext(session *Session, agent string) []Mess
 func getAgentPrompt(agent string) string {
 	// Use the new configuration system
 	return GetAgentPrompt(agent)
-}
-
-// getCommandGenerationTool returns the tool definition for command generation
-func getCommandGenerationTool() AnthropicTool {
-	return AnthropicTool{
-		Name:        "generate_command",
-		Description: "Generate a Port 42 command implementation",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"name": map[string]interface{}{
-					"type":        "string",
-					"description": "Command name (lowercase, hyphens allowed)",
-				},
-				"description": map[string]interface{}{
-					"type":        "string",
-					"description": "What this command does",
-				},
-				"implementation": map[string]interface{}{
-					"type":        "string",
-					"description": "Complete implementation code WITHOUT shebang",
-				},
-				"language": map[string]interface{}{
-					"type":        "string",
-					"enum":        []string{"bash", "python", "javascript"},
-					"description": "Programming language",
-				},
-				"dependencies": map[string]interface{}{
-					"type": "array",
-					"items": map[string]interface{}{
-						"type": "string",
-					},
-					"description": "External commands required (e.g., git, jq)",
-				},
-			},
-			"required": []string{"name", "description", "implementation", "language"},
-		},
-	}
 }
 
 // getArtifactGenerationTool returns the tool definition for artifact generation
@@ -909,7 +826,7 @@ func executePort42Command(args []string, stdin string) (string, error) {
 	}
 	
 	// Create command with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Longer timeout for port42 operations
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) // 5 minutes - enough for Claude API calls + auto-spawn rules
 	defer cancel()
 	
 	cmd := exec.CommandContext(ctx, cliPath, args...)

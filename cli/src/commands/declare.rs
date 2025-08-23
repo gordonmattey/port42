@@ -40,7 +40,7 @@ pub fn handle_declare_tool(port: u16, name: &str, transforms: Vec<String>, refer
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request_timeout(daemon_request, Duration::from_secs(180))?; // 3 minutes for AI
+    let response = client.request_timeout(daemon_request, Duration::from_secs(300))?; // 5 minutes for AI - matches daemon timeout
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
@@ -72,7 +72,7 @@ pub fn handle_declare_artifact(port: u16, name: &str, artifact_type: &str, file_
     // Send to daemon with extended timeout for AI generation
     let mut client = DaemonClient::new(port);
     let daemon_request = request.build_request(generate_id())?;
-    let response = client.request_timeout(daemon_request, Duration::from_secs(180))?; // 3 minutes for AI
+    let response = client.request_timeout(daemon_request, Duration::from_secs(300))?; // 5 minutes for AI - matches daemon timeout
     
     if !response.success {
         let error = response.error.unwrap_or_else(|| "Unknown error".to_string());

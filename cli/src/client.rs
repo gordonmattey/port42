@@ -39,7 +39,7 @@ impl DaemonClient {
             stream: None,
             reader: None,
             connection_timeout: Duration::from_secs(2),
-            request_timeout: Duration::from_secs(180), // 3 minutes for AI requests
+            request_timeout: Duration::from_secs(300), // 5 minutes for AI requests - matches daemon timeout
         }
     }
     
