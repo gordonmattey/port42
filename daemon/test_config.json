@@ -1,15 +1,1 @@
-{
-  "server": {
-    "port": 8080,
-    "host": "localhost"
-  },
-  "database": {
-    "connection": "postgres://user:pass@db/myapp",
-    "pool_size": 10
-  },
-  "features": {
-    "logging": true,
-    "metrics": true,
-    "cache_ttl": 3600
-  }
-}
+{"test": "data", "format": "json"}
