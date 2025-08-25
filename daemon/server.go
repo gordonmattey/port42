@@ -1253,6 +1253,17 @@ func (d *Daemon) handleDeclareRelation(req Request) Response {
 			payload.Relation.ID, req.UserPrompt)
 	}
 	
+	// Add default agent for Tool relations created via direct declare
+	if payload.Relation.Type == "Tool" {
+		if payload.Relation.Properties == nil {
+			payload.Relation.Properties = make(map[string]interface{})
+		}
+		// Only set agent if not already set (preserve session agents)
+		if _, hasAgent := payload.Relation.Properties["agent"]; !hasAgent {
+			payload.Relation.Properties["agent"] = "@ai-engineer"
+		}
+	}
+	
 	// Declare and materialize the relation
 	entity, err := d.realityCompiler.DeclareRelation(payload.Relation)
 	if err != nil {
@@ -1898,13 +1909,18 @@ func extractTags(spec *CommandSpec) []string {
 		tags = append(tags, dep)
 	}
 	
-	// Extract keywords from name and description
-	words := strings.Fields(spec.Name + " " + spec.Description)
-	for _, word := range words {
-		word = strings.ToLower(word)
-		// Add meaningful words as tags (skip common words)
-		if len(word) > 3 && !isCommonWord(word) {
-			tags = append(tags, word)
+	// Use AI-generated tags if available (preferred over word-splitting)
+	if len(spec.Tags) > 0 {
+		tags = append(tags, spec.Tags...)
+	} else {
+		// Fallback to word extraction for legacy tools
+		words := strings.Fields(spec.Name + " " + spec.Description)
+		for _, word := range words {
+			word = strings.ToLower(word)
+			// Add meaningful words as tags (skip common words)
+			if len(word) > 3 && !isCommonWord(word) {
+				tags = append(tags, word)
+			}
 		}
 	}
 	
@@ -2309,18 +2325,26 @@ func (d *Daemon) handleP42ToolPath(p42Path string) (*resolution.FileContent, err
 			content := d.formatToolRelationAsP42Content(relation)
 			
 			log.Printf("✅ P42 tool found: %s -> %s", toolName, relation.ID)
+			// Extract agent from properties for proper info display
+			metadata := map[string]interface{}{
+				"relation_id": relation.ID,
+				"relation_type": relation.Type,
+				"created": relation.CreatedAt,
+				"updated": relation.UpdatedAt,
+				"properties": relation.Properties,
+			}
+			
+			// Map agent from properties to expected field for info command
+			if agent, exists := relation.Properties["agent"]; exists {
+				metadata["Agent"] = agent
+			}
+			
 			return &resolution.FileContent{
 				Path:    p42Path,
 				Content: content,
 				Size:    int64(len(content)),
 				Type:    "application/port42-tool",
-				Metadata: map[string]interface{}{
-					"relation_id": relation.ID,
-					"relation_type": relation.Type,
-					"created": relation.CreatedAt,
-					"updated": relation.UpdatedAt,
-					"properties": relation.Properties,
-				},
+				Metadata: metadata,
 			}, nil
 		}
 	}

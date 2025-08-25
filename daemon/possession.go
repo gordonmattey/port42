@@ -77,6 +77,7 @@ type CommandSpec struct {
 	Implementation string   `json:"implementation"`
 	Language       string   `json:"language"` // bash, python, etc
 	Dependencies   []string `json:"dependencies,omitempty"` // External commands required
+	Tags           []string `json:"tags,omitempty"` // AI-generated semantic tags
 	SessionID      string   `json:"session_id,omitempty"` // Session that created this
 	Agent          string   `json:"agent,omitempty"` // Agent that created this
 }

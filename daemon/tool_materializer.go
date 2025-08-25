@@ -300,10 +300,11 @@ func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, r
 func (tm *ToolMaterializer) extractToolSpecFromResponse(responseText string) (*CommandSpec, error) {
 	// Define our new clean slate response structure
 	type ToolResponse struct {
-		Name           string `json:"name"`
-		Description    string `json:"description"`  
-		Language       string `json:"language"`
-		Implementation string `json:"implementation"`
+		Name           string   `json:"name"`
+		Description    string   `json:"description"`  
+		Language       string   `json:"language"`
+		Implementation string   `json:"implementation"`
+		Tags           []string `json:"tags"`
 	}
 	
 	// Look for JSON code block (same as legacy)
@@ -352,6 +353,7 @@ func (tm *ToolMaterializer) extractToolSpecFromResponse(responseText string) (*C
 		Language:       toolResp.Language,
 		Implementation: toolResp.Implementation,
 		Dependencies:   []string{}, // AI handles dependencies in implementation
+		Tags:           toolResp.Tags, // Use AI-generated tags
 		// Other fields will be set by materialization process
 	}
 	
@@ -559,6 +561,7 @@ NODE: Web servers, REST APIs, GraphQL, interactive tools, user interfaces, real-
 6. DO NOT include any comments - generate clean code without commentary
 7. For Python: Handle missing modules gracefully with helpful install messages
 8. Use only standard library modules when possible, check for external deps
+9. Generate 3-5 semantic tags that describe the tool's purpose and domain
 </requirements>
 
 <output_format>
@@ -569,6 +572,7 @@ Respond with a JSON object in this EXACT format (no additional text):
   "name": "%s",
   "description": "Brief description of what this tool does",
   "language": "your_selected_language_here",
+  "tags": ["semantic-tag1", "domain-tag", "tool-type", "functionality"],
   "implementation": "Your complete implementation here\\nUse \\\\n for line breaks, escape quotes with \\\\\\\"\\nDo NOT include shebang - it will be added automatically"
 }
 ` + "```", name)
