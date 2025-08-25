@@ -13,7 +13,9 @@ pub fn handle_possess(
     message: Option<String>, 
     session: Option<String>
 ) -> Result<()> {
-    handle_possess_with_references(port, agent, message, session, None, true)
+    // Auto-detect output mode: show boot only for interactive mode (no message)
+    let show_boot = message.is_none();
+    handle_possess_with_references(port, agent, message, session, None, show_boot)
 }
 
 pub fn handle_possess_with_references(
@@ -80,7 +82,9 @@ fn handle_possess_with_boot_and_context(
     // Show boot sequence only if requested
     if show_boot {
         let is_tty = atty::is(atty::Stream::Stdout);
-        let clear_screen = is_tty && message.is_none(); // Only clear screen for interactive mode
+        // Don't clear screen if we have references - user needs to see them
+        let has_references = references.is_some() && !references.as_ref().unwrap().is_empty();
+        let clear_screen = is_tty && message.is_none() && !has_references;
         
         show_boot_sequence(clear_screen, port)?;
         show_connection_progress(&agent)?;
@@ -94,11 +98,14 @@ fn handle_possess_with_boot_and_context(
         // Single message mode - use shared handler
         let mut handler = SessionHandler::new(client, false);
         
-        // Show session info (no need to repeat "Channeling" message if boot was shown)
+        // Show minimal connection info for CLI mode, full session info for interactive
         if !show_boot {
+            // CLI mode: just show channeling message, no session details
             println!("{}", help_text::format_possessing(&agent).blue().bold());
+        } else {
+            // Interactive mode: show full session info
+            handler.display_session_info(&session_id, is_new);
         }
-        handler.display_session_info(&session_id, is_new);
         println!();
         
         // Show memory context summary if present

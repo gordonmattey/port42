@@ -369,7 +369,9 @@ fn main() -> Result<()> {
             if std::env::var("PORT42_DEBUG").is_ok() {
                 eprintln!("DEBUG possess: agent={}, references={:?}, session={:?}, message={:?}", agent, references, session, message);
             }
-            commands::possess::handle_possess_with_references(port, agent, message, session, references, true)?;
+            // Auto-detect output mode: show boot only for interactive mode (no message)
+            let show_boot = message.is_none();
+            commands::possess::handle_possess_with_references(port, agent, message, session, references, show_boot)?;
         }
         
         Some(Commands::Declare { command }) => {

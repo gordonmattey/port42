@@ -2352,54 +2352,33 @@ func (d *Daemon) handleP42ToolPath(p42Path string) (*resolution.FileContent, err
 	return nil, fmt.Errorf("tool not found: %s", toolName)
 }
 
-// handleP42CommandPath resolves /commands/name paths via storage lookup
+// handleP42CommandPath resolves /commands/name paths via VFS direct access
 func (d *Daemon) handleP42CommandPath(p42Path string) (*resolution.FileContent, error) {
-	commandName := strings.TrimPrefix(p42Path, "/commands/")
-	if commandName == "" {
-		return nil, fmt.Errorf("invalid command path: %s", p42Path)
+	// Use VFS to resolve path to object ID - same pattern as port42 cat
+	log.Printf("🔍 P42 command path resolution via VFS: %s", p42Path)
+	
+	objID := d.resolvePath(p42Path)
+	if objID == "" {
+		return nil, fmt.Errorf("command not found in VFS: %s", p42Path)
 	}
 	
-	if d.storage == nil {
-		return nil, fmt.Errorf("storage not available for command lookup")
-	}
-	
-	// Search for command in storage
-	results, err := d.storage.SearchObjects(commandName, SearchFilters{
-		Limit: 5,
-	})
+	// Read content from storage using resolved object ID
+	content, err := d.storage.Read(objID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search for command: %w", err)
+		return nil, fmt.Errorf("failed to read command content: %w", err)
 	}
 	
-	// Look for exact command match in commands
-	for _, result := range results {
-		if strings.HasPrefix(result.Path, "/commands/") && 
-		   strings.Contains(result.Path, commandName) {
-			// Read command content from storage
-			content, err := d.storage.Read(result.ObjectID)
-			if err != nil {
-				continue // Try next result
-			}
-			
-			log.Printf("✅ P42 command found: %s -> %s", commandName, result.Path)
-			return &resolution.FileContent{
-				Path:    p42Path,
-				Content: string(content),
-				Size:    int64(len(content)),
-				Type:    "application/port42-command",
-				Metadata: map[string]interface{}{
-					"object_id": result.ObjectID,
-					"storage_path": result.Path,
-					"score": result.Score,
-					"created": result.Metadata.Created,
-					"title": result.Metadata.Title,
-					"tags": result.Metadata.Tags,
-				},
-			}, nil
-		}
-	}
-	
-	return nil, fmt.Errorf("command not found: %s", commandName)
+	log.Printf("✅ P42 command found via VFS: %s -> %s (size: %d bytes)", p42Path, objID, len(content))
+	return &resolution.FileContent{
+		Path:    p42Path,
+		Content: string(content),
+		Size:    int64(len(content)),
+		Type:    "application/port42-command",
+		Metadata: map[string]interface{}{
+			"vfs_path": p42Path,
+			"object_id": objID,
+		},
+	}, nil
 }
 
 // handleP42MemoryPath resolves /memory/session-id paths via session lookup
