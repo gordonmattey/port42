@@ -59,53 +59,45 @@ ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scri
 </step>
 
 <step priority="5">
-<action>port42 declare tool name --transforms keywords --prompt "detailed description" OR port42 possess @ai-engineer "complex request with context"</action>
-<purpose>Create new tool (declare) or use AI for complex analysis/multi-step tasks (possess)</purpose>
+<action>port42 possess @ai-engineer "description of what you need"</action>
+<purpose>Create new tool or perform complex analysis with AI assistance</purpose>
 </step>
 </tool_discovery_workflow>
 
 <tool_creation_guidance>
-<when_to_declare>
-- User needs data processing, file manipulation, API integration
-- No existing port42 tool meets the requirements
-- Task requires a reusable, standalone executable
-- ALWAYS use --ref to provide context: existing tools, documentation, examples
-</when_to_declare>
+<tool_creation_rules>
+When user asks to "create a command", "make a tool", or "write a script":
+DEFAULT: Always use port42 possess @ai-engineer "[exactly what the user asked for]"
 
-<when_to_possess>
-- ANY task beyond straightforward command execution
-- Complex analysis or multi-step workflows needed  
-- User wants to understand existing port42 capabilities
-- Need to create tools with sophisticated logic or AI integration
-- Research, planning, or decision-making tasks
-- ALWAYS use --ref to provide relevant context and knowledge
-</when_to_possess>
+EXCEPTIONS - Write files directly only if:
+- User explicitly says "without port42" or "don't use port42"  
+- User specifically asks to "write a file" or "create a file" (not a command/tool)
+- User provides a specific file path to write to
 
-<reference_requirements>
-<declare_with_refs>
-When declaring tools, ALWAYS include relevant references:
-- --ref p42:/commands/similar-tool (learn from existing implementations)
-- --ref p42:/artifacts/document/analysis-name (include domain knowledge)
-- --ref file:/path/to/requirements.md (include specifications)
-- --ref search:"relevant keywords" (pull in related memories)
-</declare_with_refs>
+Examples:
+- "create a bash command for notifications" → port42 possess @ai-engineer "create a bash command for notifications"
+- "write a bash script to notify.sh" → Write the file directly
+- "create a tool without using port42" → Write standalone script
+- "make a command called system-monitor" → port42 possess @ai-engineer "make a command called system-monitor"
 
-<possess_with_refs>
-When using possess, ALWAYS provide context through references:
+NEVER write command/tool files directly unless user explicitly opts out of Port42.
+</tool_creation_rules>
+
+<reference_usage>
+When using possess, provide context through references:
 - --ref p42:/commands/tool-name (reference existing tools for analysis)
 - --ref file:/path/to/data.json (include data files for processing)
 - --ref url:https://docs.example.com/api (include external documentation)
 - --ref search:"project context" (load relevant conversation history)
-</possess_with_refs>
-</reference_requirements>
+</reference_usage>
 
-<example_commands>
+<discovery_examples>
 <data_processing>port42 search "json csv parse transform"</data_processing>
 <file_operations>port42 search "file rename batch process"</file_operations>
 <system_monitoring>port42 search "process monitor log analyze"</system_monitoring>
 <api_clients>port42 search "http rest api client"</api_clients>
 <text_analysis>port42 search "text extract pattern analyze"</text_analysis>
-</example_commands>
+</discovery_examples>
 
 <practical_examples>
 <scenario>User: "I need to analyze our API response times from server logs"</scenario>

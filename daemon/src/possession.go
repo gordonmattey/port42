@@ -654,18 +654,18 @@ func getArtifactGenerationTool() AnthropicTool {
 func getCommandRunnerTool() AnthropicTool {
 	return AnthropicTool{
 		Name:        "run_command",
-		Description: "Run a previously generated Port 42 command",
+		Description: "Execute Port 42 operations: create new tools with 'port42 declare tool', run existing commands, or use any port42 subcommand",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"command": map[string]interface{}{
 					"type":        "string",
-					"description": "Command name (e.g., rainbow-art, git-haiku)",
+					"description": "Command to execute (e.g., 'port42' for CLI operations, rainbow-art, git-haiku)",
 				},
 				"args": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]interface{}{"type": "string"},
-					"description": "Command arguments",
+					"description": "Command arguments (e.g., ['declare', 'tool', 'name', '--transforms', 'keywords'] for creating new tools)",
 				},
 				"stdin": map[string]interface{}{
 					"type":        "string",

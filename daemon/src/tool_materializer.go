@@ -552,17 +552,31 @@ PYTHON: Data processing, analysis, transformation, API clients, JSON/XML/YAML pr
 NODE: Web servers, REST APIs, GraphQL, interactive tools, user interfaces, real-time applications
 </language_selection>
 
-<requirements>
-1. Select the best language (bash, python, or node) based on the transforms
-2. Write clean, functional code with proper error handling and argument parsing
-3. Include basic error messages and help text
+<implementation_guidelines>
+1. Use native OS APIs and tools when appropriate (e.g., osascript on macOS, notify-send on Linux, systemctl for services)
+2. Prefer built-in OS tools for OS-specific tasks rather than reimplementing functionality
+3. Use the right tool for the platform (e.g., AppleScript via osascript for macOS GUI/sound/notifications)
+</implementation_guidelines>
+
+<code_quality>
+1. Write clean, functional code with proper error handling and argument parsing
+2. Include basic error messages and help text
+3. Keep implementation concise but complete
 4. Make it useful and practical
-5. Keep implementation concise but complete
-6. DO NOT include any comments - generate clean code without commentary
-7. For Python: Handle missing modules gracefully with helpful install messages
-8. Use only standard library modules when possible, check for external deps
-9. Generate 3-5 semantic tags that describe the tool's purpose and domain
-</requirements>
+5. DO NOT include any comments - generate clean code without commentary
+</code_quality>
+
+<dependency_management>
+1. Use only standard library modules when possible
+2. For Python: Handle missing modules gracefully with helpful install messages
+3. Check for and declare any required external dependencies
+</dependency_management>
+
+<metadata>
+1. Select the best language (bash, python, or node) based on the transforms
+2. Generate 3-5 semantic tags that describe the tool's purpose and domain
+3. Write a clear, concise description of what the tool does
+</metadata>
 
 <output_format>
 Respond with a JSON object in this EXACT format (no additional text):
