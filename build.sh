@@ -16,13 +16,26 @@ mkdir -p bin
 
 # Build daemon
 echo -e "${BLUE}Building Go daemon...${NC}"
-if cd daemon && go build -o ../bin/port42d .; then
-    cd ..
-    echo -e "${GREEN}✅ Daemon built successfully${NC}"
+# Run go mod tidy first to ensure dependencies are up to date
+if cd daemon && go mod tidy >/dev/null 2>&1; then
+    if go build -o ../bin/port42d .; then
+        cd ..
+        echo -e "${GREEN}✅ Daemon built successfully${NC}"
+    else
+        cd ..
+        echo -e "${RED}❌ Failed to build daemon${NC}"
+        exit 1
+    fi
 else
-    cd ..
-    echo -e "${RED}❌ Failed to build daemon${NC}"
-    exit 1
+    # Try to build anyway - go mod tidy might fail but build might work
+    if go build -o ../bin/port42d .; then
+        cd ..
+        echo -e "${GREEN}✅ Daemon built successfully${NC}"
+    else
+        cd ..
+        echo -e "${RED}❌ Failed to build daemon${NC}"
+        exit 1
+    fi
 fi
 
 # Build Rust CLI
