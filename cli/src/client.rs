@@ -295,14 +295,11 @@ impl DaemonClient {
         match err.kind() {
             ErrorKind::ConnectionRefused => {
                 anyhow!(
-                    "{}\n\n{} {}\n\n{}\n  {}\n\n{}\n  {}",
+                    "{}\n\n{}\n\n{}\n  {}",
                     "🔌 Cannot connect to Port 42 daemon".red().bold(),
-                    "The daemon is not running on port".yellow(),
-                    self.port.to_string().bright_white(),
+                    "The daemon is not running on port 42 or 4242".yellow(),
                     "To start the daemon:".bright_white(),
-                    "sudo -E ./bin/port42d".bright_cyan(),
-                    "Or if installed:".bright_white(),
-                    "sudo -E port42 daemon start".bright_cyan()
+                    "port42 daemon start".bright_cyan()
                 )
             }
             ErrorKind::PermissionDenied => {

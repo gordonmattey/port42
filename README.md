@@ -47,14 +47,113 @@ $ port42 declare tool config-processor --transforms config,validate,format \
 
 ### Installation
 
-```bash
-# Install from official script (macOS/Linux)
-curl -fsSL https://raw.githubusercontent.com/yourusername/port42/main/install.sh | bash
+#### Prerequisites
 
-# Or install locally from source
-git clone https://github.com/yourusername/port42.git
+**For Binary Installation (Recommended):**
+- macOS or Linux (x86_64 or arm64)
+- curl or wget
+- Anthropic API key (for AI features) - get one at [console.anthropic.com](https://console.anthropic.com/)
+
+**For Building from Source:**
+- Go 1.21+ (for daemon)
+- Rust/Cargo (for CLI)
+- Git
+
+#### Quick Install (Pre-built Binaries)
+
+```bash
+# Install latest release (no password required!)
+curl -fsSL https://raw.githubusercontent.com/gordonmattey/port42/main/install.sh | bash
+
+# Activate Port 42 in current shell (no restart needed!)
+source ~/.port42/activate.sh
+
+# Start the daemon
+port42 daemon start
+
+# Verify installation
+port42 status
+```
+
+The installer automatically:
+- ✅ Downloads pre-built binaries for your platform
+- ✅ Installs to `~/.port42/bin` (no sudo required)
+- ✅ Updates your PATH automatically
+- ✅ Configures your API key interactively
+- ✅ Integrates with Claude Code (appends to ~/.claude/CLAUDE.md)
+- ✅ Creates activation script for easy environment setup
+
+#### Working with Claude Code
+
+After installation, Claude Code automatically uses Port 42 behind the scenes. You don't need to mention "port42" at all!
+
+**Just ask Claude naturally:**
+- "I need to analyze these server logs for errors"
+- "Create a tool to validate JSON schemas"
+- "Find tools for parsing CSV files"
+- "Generate a weekly report from this data"
+
+**Claude will automatically:**
+- Search existing Port 42 tools for solutions
+- Create new tools using Port 42's reality compiler
+- Reference existing tools and knowledge for context
+- All invisibly - Port 42 just makes Claude smarter!
+
+#### API Key Configuration
+
+Port 42 checks for API keys in this order:
+1. `PORT42_ANTHROPIC_API_KEY` - Port 42 specific key (recommended)
+2. `ANTHROPIC_API_KEY` - Shared Anthropic key
+
+You can set your key manually if needed:
+```bash
+export PORT42_ANTHROPIC_API_KEY='your-key-here'
+# OR
+export ANTHROPIC_API_KEY='your-key-here'
+```
+
+#### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/gordonmattey/port42.git
 cd port42
-./install-local.sh
+
+# Option 1: Build and install with one command
+./install.sh --build
+
+# Option 2: Build manually, then install
+./build.sh          # Creates binaries in ./bin/
+./install.sh        # Installs from local ./bin/
+
+# Set your API key and start
+export ANTHROPIC_API_KEY='your-key-here'
+port42 daemon start
+```
+
+#### Manual Build
+
+If you prefer to build components separately:
+
+```bash
+# Build daemon (Go)
+cd daemon/src
+go mod tidy
+go build -o ../../bin/port42d .
+cd ../..
+
+# Build CLI (Rust)
+cd cli
+cargo build --release
+cp target/release/port42 ../bin/
+cd ..
+
+# Install manually
+cp bin/port42* ~/.port42/bin/
+cp daemon/agents.json ~/.port42/
+
+# Add to PATH in your shell config
+echo 'export PATH="$PATH:$HOME/.port42/bin:$HOME/.port42/commands"' >> ~/.zshrc
 ```
 
 ### Reality Compiler Quick Start

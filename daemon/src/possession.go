@@ -97,17 +97,24 @@ type ArtifactSpec struct {
 
 // NewAnthropicClient creates a new Claude client
 func NewAnthropicClient() *AnthropicClient {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	// Check PORT42_ANTHROPIC_API_KEY first, then ANTHROPIC_API_KEY
+	apiKey := os.Getenv("PORT42_ANTHROPIC_API_KEY")
+	keySource := "PORT42_ANTHROPIC_API_KEY"
 	if apiKey == "" {
-		log.Println("⚠️  Warning: ANTHROPIC_API_KEY not set")
-		log.Printf("🔍 Environment check: ANTHROPIC_API_KEY exists: %v", os.Getenv("ANTHROPIC_API_KEY") != "")
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
+		keySource = "ANTHROPIC_API_KEY"
+	}
+	
+	if apiKey == "" {
+		log.Println("⚠️  Warning: No API key found")
+		log.Println("    Set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY")
 	} else {
 		// Safely log first few chars
 		preview := apiKey
 		if len(apiKey) > 10 {
 			preview = apiKey[:10]
 		}
-		log.Printf("✅ API key found, length: %d, starts with: %s...", len(apiKey), preview)
+		log.Printf("✅ API key found from %s, length: %d, starts with: %s...", keySource, len(apiKey), preview)
 	}
 	
 	return &AnthropicClient{
@@ -390,7 +397,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	if aiClient.apiKey == "" {
 		// No API key - return error
 		log.Printf("❌ No API key available - cannot process AI request")
-		resp.SetError("API_KEY_ERROR: ANTHROPIC_API_KEY not set. Please set the API key and restart the daemon with: sudo -E ./bin/port42d")
+		resp.SetError("API_KEY_ERROR: No API key found. Please set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY and restart the daemon")
 		return resp
 	}
 	
@@ -862,10 +869,11 @@ func executePort42Command(args []string, stdin string) (string, error) {
 func init() {
 	// This will be called when the daemon starts
 	log.Println("🐬 AI consciousness bridge initializing...")
-	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		log.Println("✓ Anthropic API key found - full consciousness available")
+	if os.Getenv("PORT42_ANTHROPIC_API_KEY") != "" {
+		log.Println("✅ Anthropic API key found (PORT42_ANTHROPIC_API_KEY) - full consciousness available")
+	} else if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		log.Println("✅ Anthropic API key found (ANTHROPIC_API_KEY) - full consciousness available")
 	} else {
-		log.Println("❌ No ANTHROPIC_API_KEY found - AI possession unavailable")
-		log.Println("  Set ANTHROPIC_API_KEY environment variable and restart with: sudo -E ./bin/port42d")
+		log.Println("❌ NO API KEY - AI features disabled!")
 	}
 }

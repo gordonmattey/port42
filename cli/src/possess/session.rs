@@ -83,7 +83,7 @@ impl SessionHandler {
                     eprintln!("{} Claude API is currently experiencing issues. Please try again in a moment.", "🤖".bright_blue());
                 },
                 Port42Error::ApiKey(_) => {
-                    eprintln!("{} API key issue. Please check your ANTHROPIC_API_KEY configuration.", "🔑".bright_yellow());
+                    eprintln!("{} API key issue. Please set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY and restart the daemon.", "🔑".bright_yellow());
                 },
                 Port42Error::Network(_) => {
                     eprintln!("{} Network connection issue. Please check your internet connection.", "🌐".bright_red());

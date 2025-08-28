@@ -45,11 +45,15 @@ fn start_daemon(background: bool) -> Result<()> {
         return Ok(());
     }
     
-    // Check for API key
-    let api_key = env::var("ANTHROPIC_API_KEY").ok();
+    // Check for API key - PORT42_ANTHROPIC_API_KEY first, then ANTHROPIC_API_KEY
+    let api_key = env::var("PORT42_ANTHROPIC_API_KEY")
+        .or_else(|_| env::var("ANTHROPIC_API_KEY"))
+        .ok();
     if api_key.is_none() {
         println!("{}", ERR_NO_API_KEY.yellow());
         println!("{}", "To channel consciousness:".yellow());
+        println!("  export PORT42_ANTHROPIC_API_KEY='your-key-here'");
+        println!("  # or");
         println!("  export ANTHROPIC_API_KEY='your-key-here'");
         println!("  port42 daemon restart\n");
     }
@@ -81,10 +85,8 @@ fn start_daemon(background: bool) -> Result<()> {
             .stderr(Stdio::from(fs::File::create(&log_path)?))
             .stdin(Stdio::null());
         
-        // Pass API key if available
-        if let Some(key) = api_key {
-            cmd.env("ANTHROPIC_API_KEY", key);
-        }
+        // The daemon should inherit all environment variables by default
+        // No need to explicitly set them unless we want to override
         
         let child = cmd.spawn()
             .context(ERR_DAEMON_START_FAILED)?;
@@ -110,10 +112,8 @@ fn start_daemon(background: bool) -> Result<()> {
         
         let mut cmd = Command::new(&daemon_path);
         
-        // Pass API key if available
-        if let Some(key) = api_key {
-            cmd.env("ANTHROPIC_API_KEY", key);
-        }
+        // The daemon should inherit all environment variables by default
+        // No need to explicitly set them unless we want to override
         
         let status = cmd.status()
             .context(ERR_DAEMON_START_FAILED)?;

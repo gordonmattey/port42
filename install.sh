@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-# Port 42 Installer
+# Port 42 Universal Installer
 # https://port42.ai
 # 
 # This script installs Port 42 on your system.
-# It will:
-#   - Download pre-built binaries OR build from source
-#   - Install the daemon (port42d) and CLI (port42)
-#   - Create necessary directories
-#   - Update your PATH
-#   - Start the daemon
+# It works in three modes:
+#   1. Local mode - When run from a cloned repository
+#   2. Remote mode - When curled from the web (downloads binaries)
+#   3. Build mode - Forces building from source (--build flag)
+#
+# Usage:
+#   Local:  ./install.sh
+#   Remote: curl -fsSL https://port42.ai/install.sh | bash
+#   Build:  curl -fsSL https://port42.ai/install.sh | bash -s -- --build
 
+set -euo pipefail
+
+# Configuration
 VERSION="${PORT42_VERSION:-latest}"
 REPO="gordonmattey/port42"
-INSTALL_DIR="/usr/local/bin"
 PORT42_HOME="$HOME/.port42"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Set installation directory
+set_install_dir() {
+    # Everything goes in user's .port42 directory - no sudo ever needed!
+    INSTALL_DIR="$PORT42_HOME/bin"
+    print_info "Will install to: $INSTALL_DIR"
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,6 +58,17 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Detect installation mode
+detect_mode() {
+    if [ -d "$SCRIPT_DIR/daemon/src" ] && [ -d "$SCRIPT_DIR/cli" ]; then
+        INSTALL_MODE="local"
+        print_info "Detected local repository installation"
+    else
+        INSTALL_MODE="remote"
+        print_info "Installing from remote source"
+    fi
+}
+
 # Detect OS and Architecture
 detect_platform() {
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -71,18 +93,31 @@ detect_platform() {
 check_prerequisites() {
     local missing_deps=()
     
-    # Check for curl or wget
-    if ! command_exists curl && ! command_exists wget; then
-        missing_deps+=("curl or wget")
+    if [ "$INSTALL_MODE" = "remote" ]; then
+        # Check for curl or wget
+        if ! command_exists curl && ! command_exists wget; then
+            missing_deps+=("curl or wget")
+        fi
+        
+        # Check for git if we might need to build
+        if [ "${BUILD_FROM_SOURCE:-false}" = "true" ] && ! command_exists git; then
+            missing_deps+=("git")
+        fi
     fi
     
     # If building from source, check for build tools
-    if [ "${BUILD_FROM_SOURCE:-false}" = "true" ]; then
-        if ! command_exists go; then
-            missing_deps+=("go (1.21+)")
-        fi
-        if ! command_exists cargo; then
-            missing_deps+=("rust/cargo")
+    if [ "${BUILD_FROM_SOURCE:-false}" = "true" ] || [ "$INSTALL_MODE" = "local" ]; then
+        # Only check if we'll actually need to build
+        if [ "$INSTALL_MODE" = "local" ] && [ -f "$SCRIPT_DIR/bin/port42d" ] && [ -f "$SCRIPT_DIR/bin/port42" ]; then
+            # Binaries exist, no need for build tools
+            :
+        else
+            if ! command_exists go; then
+                missing_deps+=("go (1.21+)")
+            fi
+            if ! command_exists cargo; then
+                missing_deps+=("rust/cargo")
+            fi
         fi
     fi
     
@@ -108,11 +143,32 @@ download() {
     fi
 }
 
-# Build from source
+# Build from local repository
+build_local() {
+    print_info "Building from local repository..."
+    
+    if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
+        print_error "build.sh not found. Are you in the Port 42 repository?"
+        exit 1
+    fi
+    
+    # Run the build script
+    cd "$SCRIPT_DIR"
+    ./build.sh
+    
+    if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
+        print_error "Build failed. Please check the error messages above."
+        exit 1
+    fi
+    
+    print_success "Build completed successfully"
+}
+
+# Build from source (remote)
 build_from_source() {
     print_info "Building from source..."
     
-    # Clone repository
+    # Create temp directory
     local temp_repo=$(mktemp -d)
     trap "rm -rf $temp_repo" EXIT
     
@@ -125,15 +181,18 @@ build_from_source() {
     cd daemon/src
     # Run go mod tidy first to ensure dependencies are up to date
     go mod tidy >/dev/null 2>&1 || true
-    go build -o "$TEMP_DIR/port42d" .
+    go build -o "$temp_repo/bin/port42d" .
     cd ../..
     
     # Build CLI
     print_info "Building CLI..."
     cd cli
     cargo build --release
-    cp target/release/port42 "$TEMP_DIR/port42"
+    cp target/release/port42 "$temp_repo/bin/port42"
     cd ..
+    
+    # Copy binaries to install location
+    SCRIPT_DIR="$temp_repo"
 }
 
 # Download pre-built binaries
@@ -144,74 +203,66 @@ download_binaries() {
         base_url="https://github.com/$REPO/releases/download/$VERSION"
     fi
     
-    print_info "Downloading pre-built binaries..."
+    print_info "Downloading pre-built binaries for $PLATFORM..."
     
-    # Try to download pre-built binaries
-    if download "$base_url/port42d-$PLATFORM" "$TEMP_DIR/port42d" 2>/dev/null && \
-       download "$base_url/port42-$PLATFORM" "$TEMP_DIR/port42" 2>/dev/null; then
-        chmod +x "$TEMP_DIR/port42d" "$TEMP_DIR/port42"
-        return 0
-    else
-        print_warning "Pre-built binaries not found for $PLATFORM"
-        print_info "Falling back to building from source..."
-        BUILD_FROM_SOURCE=true
-        build_from_source
-    fi
-}
-
-# Install binaries
-install_binaries() {
-    print_info "Installing binaries to $INSTALL_DIR..."
+    # Create temp directory for downloads
+    local temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" EXIT
     
-    # Check if we need sudo
-    if [ -w "$INSTALL_DIR" ]; then
-        cp "$TEMP_DIR/port42d" "$INSTALL_DIR/"
-        cp "$TEMP_DIR/port42" "$INSTALL_DIR/"
-    else
-        print_info "Need sudo access to install to $INSTALL_DIR"
-        sudo cp "$TEMP_DIR/port42d" "$INSTALL_DIR/"
-        sudo cp "$TEMP_DIR/port42" "$INSTALL_DIR/"
+    # Download binaries
+    local daemon_url="${base_url}/port42d-${PLATFORM}"
+    local cli_url="${base_url}/port42-${PLATFORM}"
+    local agents_url="${base_url}/agents.json"
+    
+    print_info "Downloading daemon..."
+    if ! download "$daemon_url" "$temp_dir/port42d" 2>/dev/null; then
+        print_warning "Pre-built binaries not available for $PLATFORM"
+        return 1
     fi
     
-    print_success "Binaries installed"
+    print_info "Downloading CLI..."
+    if ! download "$cli_url" "$temp_dir/port42" 2>/dev/null; then
+        print_warning "Failed to download CLI"
+        return 1
+    fi
+    
+    print_info "Downloading configuration..."
+    if ! download "$agents_url" "$temp_dir/agents.json" 2>/dev/null; then
+        print_warning "Failed to download agents.json"
+        return 1
+    fi
+    
+    # Make binaries executable
+    chmod +x "$temp_dir/port42d" "$temp_dir/port42"
+    
+    # Set SCRIPT_DIR to temp for installation
+    mkdir -p "$temp_dir/bin" "$temp_dir/daemon"
+    mv "$temp_dir/port42d" "$temp_dir/bin/"
+    mv "$temp_dir/port42" "$temp_dir/bin/"
+    mv "$temp_dir/agents.json" "$temp_dir/daemon/"
+    
+    SCRIPT_DIR="$temp_dir"
+    return 0
 }
 
 # Create Port 42 home directory structure
 create_directories() {
-    print_info "Setting up Port 42 directories..."
+    print_info "Creating Port 42 directories..."
     
-    # Check if directory exists and handle permissions
-    if [ -d "$PORT42_HOME" ]; then
-        # Check ownership
-        local owner=$(stat -f %u "$PORT42_HOME" 2>/dev/null || stat -c %u "$PORT42_HOME" 2>/dev/null || echo "unknown")
-        local current_uid=$(id -u)
-        
-        if [ "$owner" = "0" ] && [ "$current_uid" != "0" ]; then
-            print_error "Port 42 directory is owned by root"
-            print_info "Please run: sudo chown -R $(whoami):$(id -gn) $PORT42_HOME"
-            print_info "Then run the installer again"
-            exit 1
-        elif [ "$owner" != "$current_uid" ] && [ "$owner" != "unknown" ]; then
-            print_warning "Port 42 directory is owned by another user"
-            print_info "This may cause permission issues"
-        fi
-        
-        print_info "Using existing Port 42 directory"
+    # Check if directory exists and is owned by root
+    if [ -d "$PORT42_HOME" ] && [ "$(stat -f %u "$PORT42_HOME" 2>/dev/null || stat -c %u "$PORT42_HOME" 2>/dev/null)" = "0" ]; then
+        print_warning "Existing $PORT42_HOME is owned by root"
+        print_info "Please run: sudo chown -R \$(whoami):staff $PORT42_HOME"
+        print_info "Then run this installer again"
+        exit 1
     fi
     
-    # Create directories (will not fail if they exist)
-    mkdir -p "$PORT42_HOME"/{commands,memory/sessions,artifacts,metadata,objects,tools}
+    mkdir -p "$PORT42_HOME"/{bin,commands,memory/sessions,artifacts,metadata,objects,tools}
     
-    # Create initial memory index if missing
+    # Create initial memory index
     if [ ! -f "$PORT42_HOME/memory/index.json" ]; then
         echo '{"sessions":[],"stats":{"total_sessions":0,"total_commands":0}}' > "$PORT42_HOME/memory/index.json"
-        print_success "Initialized memory store"
     fi
-    
-    # Ensure proper permissions
-    chmod 755 "$PORT42_HOME"
-    chmod 755 "$PORT42_HOME/commands"
-    chmod 700 "$PORT42_HOME/memory"  # Private for user
     
     # Create activation helper
     cat > "$PORT42_HOME/activate.sh" << 'EOF'
@@ -237,14 +288,17 @@ fi
 EOF
     chmod +x "$PORT42_HOME/activate.sh"
     
-    print_success "Port 42 directories ready at $PORT42_HOME"
+    print_success "Directories created at $PORT42_HOME"
 }
 
 # Update PATH in shell configuration
 update_path() {
     local shell_name=$(basename "$SHELL")
     local shell_rc=""
-    local path_line="export PATH=\"\$PATH:$PORT42_HOME/commands\""
+    local path_additions=""
+    
+    # Both binaries and commands are in .port42
+    local port42_paths="$PORT42_HOME/bin:$PORT42_HOME/commands"
     
     case "$shell_name" in
         bash)
@@ -253,88 +307,203 @@ update_path() {
             elif [ -f "$HOME/.bash_profile" ]; then
                 shell_rc="$HOME/.bash_profile"
             fi
+            path_additions="export PATH=\"\$PATH:$port42_paths\""
             ;;
         zsh)
             shell_rc="$HOME/.zshrc"
+            path_additions="export PATH=\"\$PATH:$port42_paths\""
             ;;
         fish)
             shell_rc="$HOME/.config/fish/config.fish"
-            path_line="set -gx PATH \$PATH $PORT42_HOME/commands"
+            path_additions="set -gx PATH \$PATH $PORT42_HOME/bin $PORT42_HOME/commands"
             ;;
         *)
             print_warning "Unknown shell: $shell_name"
-            print_info "Please manually add $PORT42_HOME/commands to your PATH"
+            print_info "Please manually add to your PATH:"
+            print_info "  - $PORT42_HOME/bin"
+            print_info "  - $PORT42_HOME/commands"
             return
             ;;
     esac
     
     if [ -n "$shell_rc" ]; then
         # Check if PATH update already exists
-        if ! grep -q "port42/commands" "$shell_rc" 2>/dev/null; then
+        if ! grep -q "port42/commands" "$shell_rc" 2>/dev/null && ! grep -q "port42/bin" "$shell_rc" 2>/dev/null; then
             echo "" >> "$shell_rc"
             echo "# Port 42" >> "$shell_rc"
-            echo "$path_line" >> "$shell_rc"
+            echo "$path_additions" >> "$shell_rc"
             print_success "Updated PATH in $shell_rc"
-            print_info "Restart your shell or run: source $shell_rc"
+            SAVED_TO_PROFILE="$shell_rc"
         else
             print_info "PATH already configured"
         fi
     fi
 }
 
-# Global variable to track if we saved to shell profile
-SAVED_TO_PROFILE=""
+# Install binaries
+install_binaries() {
+    print_info "Installing binaries to $INSTALL_DIR..."
+    
+    # Check if binaries exist
+    if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
+        print_error "Binaries not found in $SCRIPT_DIR/bin/"
+        exit 1
+    fi
+    
+    # Check if agents.json exists
+    if [ ! -f "$SCRIPT_DIR/daemon/agents.json" ]; then
+        print_error "agents.json not found in $SCRIPT_DIR/daemon/"
+        exit 1
+    fi
+    
+    # Directory already created by create_directories, just copy
+    cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/bin/port42" "$INSTALL_DIR/"
+    chmod +x "$INSTALL_DIR/port42d" "$INSTALL_DIR/port42"
+    
+    # Copy agents.json to home directory
+    cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
+    
+    print_success "Binaries installed to $INSTALL_DIR"
+}
 
-# Configure API key
-configure_api_key() {
-    # Check if already set in environment
-    if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-        print_success "Using API key from environment"
-        return 0
-    fi
+# Install Claude Code integration
+install_claude_integration() {
+    local claude_config="$HOME/.claude/CLAUDE.md"
+    local p42_instructions=""
     
-    # Check if running non-interactively
-    if [ ! -t 0 ] || [ "${PORT42_SKIP_API_KEY:-}" = "yes" ]; then
-        print_warning "No API key configured (non-interactive mode)"
-        print_info "AI features will be disabled until you set ANTHROPIC_API_KEY"
-        return 1
-    fi
-    
-    # Prompt for API key
     echo
-    print_info "Port 42 uses Anthropic's Claude for AI features"
-    echo "Get your API key from: https://console.anthropic.com/api-keys"
-    echo
-    read -r -p "Enter your Anthropic API key (or press Enter to skip): " api_key
+    print_info "Configuring Claude Code integration..."
     
-    if [ -z "$api_key" ]; then
-        print_warning "Skipping API key configuration"
-        print_info "AI features will be disabled until you set ANTHROPIC_API_KEY"
-        return 1
-    fi
-    
-    # Validate key format (basic check)
-    if [[ ! "$api_key" =~ ^sk-ant-api[0-9]{2}-[a-zA-Z0-9_-]{48,}$ ]]; then
-        print_warning "API key format looks incorrect (should start with sk-ant-api)"
-        read -r -p "Continue anyway? [y/N] " confirm
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            print_info "Skipping API key configuration"
-            return 1
+    # Determine where to get P42CLAUDE.md from
+    if [ "$INSTALL_MODE" = "local" ] && [ -f "$SCRIPT_DIR/P42CLAUDE.md" ]; then
+        # Local installation - use file from repo
+        p42_instructions="$SCRIPT_DIR/P42CLAUDE.md"
+    else
+        # Remote installation - download from GitHub
+        print_info "Downloading Claude Code integration file..."
+        local temp_file=$(mktemp)
+        if download "https://raw.githubusercontent.com/$REPO/main/P42CLAUDE.md" "$temp_file" 2>/dev/null; then
+            p42_instructions="$temp_file"
+        else
+            print_warning "Could not download Claude integration file, skipping"
+            print_info "You can manually add it later from: https://github.com/$REPO/blob/main/P42CLAUDE.md"
+            return
         fi
     fi
     
-    # Export for current session AND any subshells
-    export ANTHROPIC_API_KEY="$api_key"
+    # Create .claude directory if it doesn't exist
+    mkdir -p "$HOME/.claude"
     
-    # IMPORTANT: The export above only affects this script's process
-    # We need to tell the user to source their profile or provide the key to the daemon
+    # Check if already integrated (case insensitive)
+    if [ -f "$claude_config" ] && grep -qi "port42_integration" "$claude_config" 2>/dev/null; then
+        print_info "Port 42 Claude integration already configured"
+        [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
+        return
+    fi
     
-    # Offer to save to shell profile
+    # Append with markers
+    if [ -f "$claude_config" ]; then
+        print_info "Appending Port 42 integration to existing Claude config"
+    else
+        print_info "Creating new Claude config with Port 42 integration"
+    fi
+    
+    {
+        echo ""
+        echo "<!-- PORT42_INTEGRATION_START -->"
+        cat "$p42_instructions"
+        echo "<!-- PORT42_INTEGRATION_END -->"
+    } >> "$claude_config"
+    
+    # Clean up temp file if we used one
+    [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
+    
+    print_success "Claude Code will now automatically use Port 42 for tool creation!"
+    print_info "Claude will search and create Port 42 tools without being asked"
+}
+
+# Configure API key
+configure_api_key() {
     echo
-    read -r -p "Save API key to your shell profile for future sessions? [Y/n] " save_key
-    if [[ ! "$save_key" =~ ^[Nn]$ ]]; then
-        local shell_name=$(basename "$SHELL")
+    print_info "Configuring Anthropic API key..."
+    
+    local current_key=""
+    local key_source=""
+    
+    # Check for existing keys
+    if [ -n "${PORT42_ANTHROPIC_API_KEY:-}" ]; then
+        current_key="$PORT42_ANTHROPIC_API_KEY"
+        key_source="PORT42_ANTHROPIC_API_KEY"
+    elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+        current_key="$ANTHROPIC_API_KEY"
+        key_source="ANTHROPIC_API_KEY"
+    fi
+    
+    if [ -n "$current_key" ]; then
+        # Mask the key for display (show first 8 and last 4 chars)
+        local masked_key=""
+        if [ ${#current_key} -gt 12 ]; then
+            masked_key="${current_key:0:8}...${current_key: -4}"
+        else
+            masked_key="***hidden***"
+        fi
+        
+        echo -e "${GREEN}Found existing API key:${NC} $masked_key (from $key_source)"
+        echo
+        echo "Would you like to:"
+        echo "  1) Use this key"
+        echo "  2) Enter a different key"
+        echo "  3) Skip (configure later)"
+        echo
+        read -p "Choice [1]: " choice
+        choice=${choice:-1}
+        
+        case "$choice" in
+            2)
+                read -p "Enter your Anthropic API key: " new_key
+                if [ -n "$new_key" ]; then
+                    API_KEY_TO_SAVE="$new_key"
+                    SAVE_API_KEY=true
+                fi
+                ;;
+            3)
+                print_info "Skipping API key configuration"
+                return
+                ;;
+            *)
+                # Use existing key, but save as PORT42_ANTHROPIC_API_KEY if it was from ANTHROPIC_API_KEY
+                if [ "$key_source" = "ANTHROPIC_API_KEY" ]; then
+                    API_KEY_TO_SAVE="$current_key"
+                    SAVE_API_KEY=true
+                fi
+                ;;
+        esac
+    else
+        echo "No API key found. Port 42 requires an Anthropic API key for AI features."
+        echo
+        echo "Would you like to:"
+        echo "  1) Enter your API key now"
+        echo "  2) Skip (configure later)"
+        echo
+        read -p "Choice [1]: " choice
+        choice=${choice:-1}
+        
+        if [ "$choice" = "1" ] || [ -z "$choice" ]; then
+            read -p "Enter your Anthropic API key: " new_key
+            if [ -n "$new_key" ]; then
+                API_KEY_TO_SAVE="$new_key"
+                SAVE_API_KEY=true
+            fi
+        else
+            print_warning "No API key configured. You'll need to set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY to use AI features."
+        fi
+    fi
+    
+    # Save the key to shell profile if we have one to save
+    if [ "${SAVE_API_KEY:-false}" = true ] && [ -n "${API_KEY_TO_SAVE:-}" ]; then
         local shell_rc=""
+        local shell_name=$(basename "$SHELL")
         
         case "$shell_name" in
             bash)
@@ -347,166 +516,127 @@ configure_api_key() {
             zsh)
                 shell_rc="$HOME/.zshrc"
                 ;;
-            fish)
-                shell_rc="$HOME/.config/fish/config.fish"
-                ;;
         esac
         
         if [ -n "$shell_rc" ]; then
-            # Check if already exists
-            if ! grep -q "ANTHROPIC_API_KEY" "$shell_rc" 2>/dev/null; then
+            # Check if PORT42_ANTHROPIC_API_KEY already exists
+            if ! grep -q "PORT42_ANTHROPIC_API_KEY" "$shell_rc" 2>/dev/null; then
                 echo "" >> "$shell_rc"
-                echo "# Port 42 - Anthropic API Key" >> "$shell_rc"
-                echo "export ANTHROPIC_API_KEY='$api_key'" >> "$shell_rc"
+                echo "# Port 42 API Key" >> "$shell_rc"
+                echo "export PORT42_ANTHROPIC_API_KEY='$API_KEY_TO_SAVE'" >> "$shell_rc"
                 print_success "API key saved to $shell_rc"
-                SAVED_TO_PROFILE="$shell_rc"
+                export PORT42_ANTHROPIC_API_KEY="$API_KEY_TO_SAVE"
             else
-                print_info "API key already exists in $shell_rc"
-                # Still need to activate in current session
-                SAVED_TO_PROFILE="$shell_rc"
+                print_info "Updating existing PORT42_ANTHROPIC_API_KEY in $shell_rc"
+                # Use a temp file for safe replacement
+                sed -i.bak "s/export PORT42_ANTHROPIC_API_KEY=.*/export PORT42_ANTHROPIC_API_KEY='$API_KEY_TO_SAVE'/" "$shell_rc"
+                rm "${shell_rc}.bak"
+                export PORT42_ANTHROPIC_API_KEY="$API_KEY_TO_SAVE"
             fi
         fi
     fi
-    
-    # Make sure the key is available for the daemon start
-    print_success "API key configured for this installation session"
-    
-    return 0
 }
 
-
-# Check for existing installation
-check_existing_installation() {
-    if [ -f "$INSTALL_DIR/port42" ] && [ -f "$INSTALL_DIR/port42d" ]; then
-        print_info "Existing Port 42 installation detected"
-        
-        # Try to get version
-        if "$INSTALL_DIR/port42" --version >/dev/null 2>&1; then
-            local current_version=$("$INSTALL_DIR/port42" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
-            print_info "Current version: $current_version"
-        fi
-        
-        # Check if daemon is running
-        local daemon_running=false
-        if pgrep -f "port42d" >/dev/null 2>&1; then
-            daemon_running=true
-            print_warning "Port 42 daemon is currently running"
-        fi
-        
-        # Non-interactive mode (for CI/CD)
-        if [ "${PORT42_UPGRADE:-}" = "yes" ] || [ "${CI:-}" = "true" ]; then
-            print_info "Auto-upgrade mode: proceeding with installation"
-            if [ "$daemon_running" = true ]; then
-                print_info "Stopping daemon..."
-                pkill -f port42d || true
-                sleep 2
-            fi
-            return
-        fi
-        
-        # Interactive mode
-        if [ -t 0 ]; then  # Check if stdin is a terminal
-            echo
-            echo "What would you like to do?"
-            echo "  1) Upgrade/reinstall Port 42 (recommended)"
-            echo "  2) Cancel installation"
-            echo
-            read -r -p "Enter choice [1-2]: " choice
-            
-            case "$choice" in
-                1)
-                    print_info "Proceeding with upgrade..."
-                    if [ "$daemon_running" = true ]; then
-                        print_info "Stopping daemon..."
-                        pkill -f port42d || true
-                        sleep 2
-                    fi
-                    ;;
-                2)
-                    print_info "Installation cancelled"
-                    exit 0
-                    ;;
-                *)
-                    print_error "Invalid choice"
-                    exit 1
-                    ;;
-            esac
-        else
-            # Non-interactive without explicit upgrade flag
-            print_error "Existing installation found. Use PORT42_UPGRADE=yes to upgrade non-interactively"
-            exit 1
-        fi
+# Show next steps
+show_next_steps() {
+    echo
+    echo -e "${GREEN}${BOLD}🐬 Port 42 installation complete!${NC}"
+    echo
+    echo -e "${BOLD}Next steps:${NC}"
+    echo
+    
+    echo -e "1. ${BLUE}Activate Port 42 in this shell:${NC}"
+    echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
+    echo
+    
+    if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+        echo -e "2. ${BLUE}Set your Anthropic API key:${NC}"
+        echo -e "   ${BOLD}export PORT42_ANTHROPIC_API_KEY='your-key-here'${NC}"
+        echo -e "   or"
+        echo -e "   ${BOLD}export ANTHROPIC_API_KEY='your-key-here'${NC}"
+        echo
+        echo -e "3. ${BLUE}Start the daemon:${NC}"
+        echo -e "   ${BOLD}port42 daemon start${NC}"
+    else
+        echo -e "2. ${BLUE}Start the daemon:${NC}"
+        echo -e "   ${BOLD}port42 daemon start${NC}"
     fi
+    
+    echo
+    echo -e "4. ${BLUE}Check status:${NC}"
+    echo -e "   ${BOLD}port42 status${NC}"
+    echo
+    echo -e "5. ${BLUE}Try your first command:${NC}"
+    echo -e "   ${BOLD}port42 possess @ai-muse 'write a haiku about consciousness'${NC}"
+    echo
+    echo -e "For more information: ${BOLD}https://port42.ai${NC}"
 }
 
 # Main installation flow
 main() {
-    echo
-    echo -e "${BOLD}${BLUE}Port 42 Installer${NC}"
-    echo -e "${BLUE}═══════════════════${NC}"
+    echo -e "${BLUE}${BOLD}🐬 Port 42 Universal Installer${NC}"
     echo
     
-    # Create temp directory
-    TEMP_DIR=$(mktemp -d)
-    trap "rm -rf $TEMP_DIR" EXIT
+    # Parse arguments
+    BUILD_FROM_SOURCE=false
+    for arg in "$@"; do
+        case $arg in
+            --build)
+                BUILD_FROM_SOURCE=true
+                print_info "Force building from source"
+                ;;
+            --version=*)
+                VERSION="${arg#*=}"
+                print_info "Installing version: $VERSION"
+                ;;
+        esac
+    done
     
-    # Run installation steps
+    # Detect mode and platform
+    detect_mode
     detect_platform
+    set_install_dir
+    
+    # Check prerequisites
     check_prerequisites
-    check_existing_installation
     
-    # Download or build binaries
-    if [ "${BUILD_FROM_SOURCE:-false}" = "true" ]; then
-        build_from_source
-    else
-        download_binaries
-    fi
-    
-    # Install everything
-    install_binaries
-    create_directories
-    update_path
-    configure_api_key
-    
-    # Success message
-    echo
-    echo -e "${GREEN}${BOLD}✅ Port 42 installed successfully!${NC}"
-    echo
-    echo -e "${BLUE}🐬 Getting started:${NC}"
-    echo -e "   ${BOLD}port42 daemon start${NC} - Start the daemon"
-    echo -e "   ${BOLD}port42${NC}              - Enter the Port 42 shell"
-    echo -e "   ${BOLD}port42 possess${NC}      - Start an AI conversation"
-    echo -e "   ${BOLD}port42 status${NC}       - Check daemon status"
-    echo -e "   ${BOLD}port42 list${NC}         - List your commands"
-    echo
-    echo -e "${BLUE}📚 Documentation:${NC} https://port42.ai/docs"
-    echo -e "${BLUE}🐛 Issues:${NC} https://github.com/$REPO/issues"
-    echo
-    
-    if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-        echo -e "${YELLOW}${BOLD}⚠️  No API key was configured${NC}"
-        echo -e "   To enable AI features:"
-        echo -e "   export ANTHROPIC_API_KEY='your-key-here'"
-        echo -e "   port42 daemon start"
-        echo
-    else
-        # Check if the key was just configured but shell needs sourcing
-        if [ -n "$SAVED_TO_PROFILE" ]; then
-            echo -e "${YELLOW}${BOLD}⚠️  To activate your API key:${NC}"
-            echo
-            echo -e "${GREEN}${BOLD}Run this command:${NC}"
-            echo -e "   ${BOLD}source $SAVED_TO_PROFILE${NC}"
-            echo
-            echo -e "${BLUE}Then start the daemon:${NC}"
-            echo -e "   ${BOLD}port42 daemon start${NC}"
-            echo
+    # Install based on mode
+    if [ "$INSTALL_MODE" = "local" ]; then
+        # Local installation
+        if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
+            print_info "Binaries not found, building..."
+            build_local
         else
-            echo -e "${GREEN}${BOLD}Start the daemon:${NC}"
-            echo -e "   ${BOLD}port42 daemon start${NC}"
-            echo
+            print_info "Using existing binaries from ./bin/"
+        fi
+    else
+        # Remote installation
+        if [ "$BUILD_FROM_SOURCE" = true ]; then
+            build_from_source
+        else
+            # Try to download binaries first
+            if ! download_binaries; then
+                print_info "Falling back to building from source..."
+                BUILD_FROM_SOURCE=true
+                check_prerequisites  # Re-check for build tools
+                build_from_source
+            fi
         fi
     fi
+    
+    # Common installation steps
+    create_directories
+    install_binaries
+    update_path
+    configure_api_key
+    install_claude_integration
+    
+    # Show completion message
+    show_next_steps
 }
+
+# Global variable to track if we saved to shell profile
+SAVED_TO_PROFILE=""
 
 # Run main installation
 main "$@"

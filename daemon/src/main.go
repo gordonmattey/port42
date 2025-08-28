@@ -70,13 +70,33 @@ func main() {
 	// Log the actual port we're using
 	log.Printf("◊ Listening on localhost:%s", port)
 	
-	// Debug environment
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	// Debug environment - check PORT42_ANTHROPIC_API_KEY first, then ANTHROPIC_API_KEY
+	apiKey := os.Getenv("PORT42_ANTHROPIC_API_KEY")
 	if apiKey != "" {
-		log.Printf("🔍 Environment: ANTHROPIC_API_KEY is set (length: %d)", len(apiKey))
+		log.Printf("🔑 Using PORT42_ANTHROPIC_API_KEY (length: %d)", len(apiKey))
 	} else {
-		log.Println("🔍 Environment: ANTHROPIC_API_KEY is NOT set")
-		// Check if running under sudo
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
+		if apiKey != "" {
+			log.Printf("🔑 Using ANTHROPIC_API_KEY (length: %d)", len(apiKey))
+		} else {
+			log.Println("")
+			log.Println("⚠️ ⚠️ ⚠️  WARNING: NO API KEY FOUND ⚠️ ⚠️ ⚠️")
+			log.Println("")
+			log.Println("Port 42 AI features will NOT work without an API key!")
+			log.Println("")
+			log.Println("To fix this:")
+			log.Println("  1. Set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY")
+			log.Println("  2. Restart the daemon")
+			log.Println("")
+			log.Println("Example:")
+			log.Println("  export PORT42_ANTHROPIC_API_KEY='your-key-here'")
+			log.Println("  port42 daemon start")
+			log.Println("")
+		}
+	}
+	
+	// Check if running under sudo
+	if apiKey == "" {
 		log.Printf("🔍 Running as user: %s (UID: %d)", os.Getenv("USER"), os.Getuid())
 		log.Printf("🔍 SUDO_USER: %s", os.Getenv("SUDO_USER"))
 		log.Printf("🔍 HOME: %s", os.Getenv("HOME"))

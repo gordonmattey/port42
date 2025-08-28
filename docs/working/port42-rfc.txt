@@ -1,5 +1,5 @@
 Network Working Group                                Port 42 Collective
-Request for Comments: XXXX                                December 2024
+Request for Comments: XXXX                                    June 2025
 Category: Standards Track
 
 
@@ -15,7 +15,7 @@ Status of This Memo
 
 Copyright Notice
 
-   Copyright (C) The Internet Society (2024).  All Rights Reserved.
+   Copyright (C) The Internet Society (2025).  All Rights Reserved.
 
 Abstract
 
