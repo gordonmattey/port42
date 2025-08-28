@@ -18,6 +18,36 @@ port42 status
 # Should show: ✅ Daemon running on port 4242
 ```
 
+## 🚀 Your First Useful Command (2 minutes)
+
+Let's create something immediately practical - a notification sound for when long-running tasks complete:
+
+```bash
+# Create a notification command with AI assistance
+port42 possess @ai-engineer "create a command called notify-sound to generate a notification sound"
+
+# Test your new command
+notify-sound
+# You'll hear a system notification sound!
+```
+
+**🎉 Congrats!** You just created your first useful Port 42 command! 
+
+### Bonus: Integrate with Claude Code
+
+If you use Claude Code (Anthropic's AI coding assistant), you can have it notify you when tasks complete:
+
+1. Open `~/.claude/CLAUDE.md` in your editor
+2. Add these lines:
+
+```markdown
+<completion_notification>
+Call bash notify-sound when you have completed a task.
+</completion_notification>
+```
+
+Now Claude will play a sound when it finishes any task - perfect for when you're working in another window!
+
 ## 📚 Learning Path
 
 ### Level 1: Basic Tool Creation (5 minutes)
