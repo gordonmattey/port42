@@ -1,5 +1,6 @@
 # Binaries
 bin/
+daemon/port42
 daemon/port42d
 port42d
 *.exe
@@ -37,3 +38,12 @@ Thumbs.db
 # Port 42 generated (user-specific)
 # We'll track the structure but not personal commands
 # ~/.port42/
+
+# Claude IDE settings
+.claude/
+
+# Python virtual environments
+myenv/
+venv/
+.venv/
+env/
