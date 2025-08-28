@@ -13,7 +13,7 @@ set -euo pipefail
 #   - Start the daemon
 
 VERSION="${PORT42_VERSION:-latest}"
-REPO="yourusername/port42"
+REPO="gordonmattey/port42"
 INSTALL_DIR="/usr/local/bin"
 PORT42_HOME="$HOME/.port42"
 
@@ -122,9 +122,11 @@ build_from_source() {
     
     # Build daemon
     print_info "Building daemon..."
-    cd daemon
+    cd daemon/src
+    # Run go mod tidy first to ensure dependencies are up to date
+    go mod tidy >/dev/null 2>&1 || true
     go build -o "$TEMP_DIR/port42d" .
-    cd ..
+    cd ../..
     
     # Build CLI
     print_info "Building CLI..."

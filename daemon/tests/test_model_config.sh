@@ -9,8 +9,8 @@ sleep 1
 
 # Build the daemon with fixes
 echo "1️⃣ Building daemon with model config fixes..."
-cd daemon && go build -o daemon . && cd ..
-sudo cp daemon/daemon /usr/local/bin/port42d
+cd daemon/src && go build -o ../../bin/port42d . && cd ../..
+sudo cp bin/port42d /usr/local/bin/port42d
 
 echo ""
 echo "2️⃣ Testing default model (from agents.json)..."
