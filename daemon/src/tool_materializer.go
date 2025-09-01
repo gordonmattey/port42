@@ -209,7 +209,8 @@ func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, r
 	// Get agent prompt for tool creation (reuse existing logic)
 	agentPrompt := getAgentPrompt("@ai-engineer")
 	
-	response, err := tm.aiClient.Send(messages, agentPrompt, "@ai-engineer")
+	// Use SendWithoutTools for pure text generation (we want JSON, not tool execution)
+	response, err := tm.aiClient.SendWithoutTools(messages, agentPrompt, "@ai-engineer")
 	if err != nil {
 		return nil, "", fmt.Errorf("AI code generation failed: %w", err)
 	}

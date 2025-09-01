@@ -94,21 +94,42 @@ ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scri
 
 <tool_creation_guidance>
 <tool_creation_rules>
-When user asks to "create a command", "make a tool", or "write a script":
-DEFAULT: Always use port42 possess @ai-engineer "[exactly what the user asked for]"
+ALWAYS use Port42 for creating reusable commands, tools, or utilities.
 
-EXCEPTIONS - Write files directly only if:
-- User explicitly says "without port42" or "don't use port42"  
-- User specifically asks to "write a file" or "create a file" (not a command/tool)
-- User provides a specific file path to write to
+When user says any of these, USE PORT42:
+- "create/make/build a command" → port42 possess @ai-engineer
+- "create/make/build a tool" → port42 possess @ai-engineer  
+- "create/make/build a bash command" → port42 possess @ai-engineer
+- "create/make/build a utility" → port42 possess @ai-engineer
+- "create/make/build a script" (without file path) → port42 possess @ai-engineer
+- Any request for reusable functionality → port42 possess @ai-engineer
+
+When user says these, WRITE FILES DIRECTLY:
+- "write a bash script to ./script.sh" (specific file path given)
+- "create a file called X" (explicitly mentions "file")
+- "save this as X.sh" (explicit save instruction)
+- "write this code to a file" (explicit file writing)
+- User says "without port42" or "don't use port42"
+- One-off scripts that won't be reused
+
+KEY DISTINCTION:
+- Port42 = Creating named, reusable commands that become part of the system
+- File writing = Creating specific files at specific paths for project code
+
+DEFAULT ACTION: When in doubt about "create bash command" or similar:
+1. Ask yourself: "Is this meant to be a reusable tool?"
+2. If YES or UNCLEAR → Use port42 possess
+3. If explicitly a project file → Write file
 
 Examples:
-- "create a bash command for notifications" → port42 possess @ai-engineer "create a bash command for notifications"
-- "write a bash script to notify.sh" → Write the file directly
-- "create a tool without using port42" → Write standalone script
-- "make a command called system-monitor" → port42 possess @ai-engineer "make a command called system-monitor"
+✅ "create a bash command for testing" → port42 possess @ai-engineer "create a bash command for testing"
+✅ "make a tool to analyze logs" → port42 possess @ai-engineer "make a tool to analyze logs"
+✅ "build a notification utility" → port42 possess @ai-engineer "build a notification utility"
+❌ "write a script to ./deploy.sh" → Write file directly
+❌ "create a file called test.sh" → Write file directly
+❌ "save this bash code" → Write file directly
 
-NEVER write command/tool files directly unless user explicitly opts out of Port42.
+REMEMBER: Port42 tools are installed system-wide and accessible from anywhere. If the user wants that level of reusability, use Port42.
 </tool_creation_rules>
 
 <reference_requirements>

@@ -130,6 +130,163 @@ type AnthropicMessage struct {
 	Content string `json:"content"`
 }
 
+// SendWithoutTools sends a message to Claude without any tools - for pure text generation
+func (c *AnthropicClient) SendWithoutTools(messages []Message, systemPrompt string, agentName string) (*AnthropicResponse, error) {
+	// Get model configuration for this agent
+	modelDef, err := GetModelForAgent(agentName)
+	if err != nil {
+		log.Printf("⚠️ Failed to get model for agent %s: %v", agentName, err)
+		return nil, err
+	}
+	responseConfig := GetResponseConfig()
+	
+	// Rate limiting: ensure minimum time between requests
+	c.requestMutex.Lock()
+	timeSinceLastRequest := time.Since(c.lastRequest)
+	
+	minDelay := time.Duration(modelDef.RateLimit.MinDelaySeconds) * time.Second
+	if minDelay == 0 {
+		minDelay = 1 * time.Second // fallback
+	}
+	
+	if timeSinceLastRequest < minDelay {
+		waitTime := minDelay - timeSinceLastRequest
+		log.Printf("⏳ Rate limiting: waiting %v before next request", waitTime)
+		time.Sleep(waitTime)
+	}
+	c.lastRequest = time.Now()
+	c.requestMutex.Unlock()
+	
+	// Convert our Message format to Anthropic's format (without timestamp)
+	// Skip any system messages as they'll be in the system parameter
+	anthropicMessages := []AnthropicMessage{}
+	for _, msg := range messages {
+		if msg.Role == "system" {
+			continue // Skip system messages
+		}
+		anthropicMessages = append(anthropicMessages, AnthropicMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		})
+	}
+	
+	// NO TOOLS - this is the key difference from Send()
+	// We explicitly set tools to nil for pure text generation
+	
+	// Debug log the model
+	log.Printf("🔍 Using model for agent %s (NO TOOLS): ID=%s, Name=%s, Temp=%.2f", 
+		agentName, modelDef.ID, modelDef.Name, modelDef.Temperature)
+	
+	req := AnthropicRequest{
+		Model:       modelDef.ID,
+		System:      systemPrompt,
+		Messages:    anthropicMessages,
+		MaxTokens:   responseConfig.MaxTokens,
+		Stream:      responseConfig.Stream,
+		Temperature: modelDef.Temperature,
+		Tools:       nil, // Explicitly no tools
+	}
+	
+	log.Printf("📝 Sending request WITHOUT tools (pure text generation)")
+	
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Log request details for debugging
+	log.Printf("🔍 Claude API Request: model=%s, messages=%d, tokens=%d, temp=%.2f", 
+		req.Model, len(req.Messages), req.MaxTokens, req.Temperature)
+	
+	// Log system prompt
+	if req.System != "" {
+		// Log if prompt contains XML tags
+		hasXMLTags := strings.Contains(req.System, "<tool_instructions>")
+		log.Printf("  System prompt contains XML tags: %v", hasXMLTags)
+		
+		// Show more of the prompt for debugging
+		systemPreview := req.System
+		if len(systemPreview) > 500 {
+			systemPreview = systemPreview[:500] + "..."
+		}
+		log.Printf("  System prompt preview: %s", systemPreview)
+	}
+	
+	// Log full payload for debugging
+	for i, msg := range req.Messages {
+		preview := msg.Content
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		log.Printf("  Message %d [%s]: %s", i+1, msg.Role, preview)
+	}
+	
+	// Retry logic with exponential backoff
+	maxRetries := 3
+	baseDelay := 2 * time.Second
+	
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 2s, 4s, 8s
+			delay := baseDelay * time.Duration(1<<(attempt-1))
+			log.Printf("Retrying Claude API after %v (attempt %d/%d)", delay, attempt+1, maxRetries)
+			time.Sleep(delay)
+		}
+		
+		startTime := time.Now()
+		
+		httpReq, err := http.NewRequest("POST", c.apiURL, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return nil, err
+		}
+		
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("x-api-key", c.apiKey)
+		httpReq.Header.Set("anthropic-version", "2023-06-01")
+		
+		resp, err := c.httpClient.Do(httpReq)
+		elapsed := time.Since(startTime)
+		
+		if err != nil {
+			// Network error - retry
+			log.Printf("❌ Network error after %v: %v", elapsed, err)
+			if attempt < maxRetries-1 {
+				continue
+			}
+			return nil, err
+		}
+		defer resp.Body.Close()
+		
+		log.Printf("✅ Claude API responded in %v with status %d", elapsed, resp.StatusCode)
+		
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		
+		var anthropicResp AnthropicResponse
+		if err := json.Unmarshal(body, &anthropicResp); err != nil {
+			return nil, fmt.Errorf("failed to parse response: %v", err)
+		}
+		
+		if anthropicResp.Error != nil {
+			// Check if it's a rate limit error (429) or server error (5xx)
+			if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+				if attempt < maxRetries-1 {
+					log.Printf("API error %d (will retry): %s", resp.StatusCode, anthropicResp.Error.Message)
+					continue
+				}
+			}
+			return nil, fmt.Errorf("API error: %s - %s", anthropicResp.Error.Type, anthropicResp.Error.Message)
+		}
+		
+		// Success!
+		return &anthropicResp, nil
+	}
+	
+	return nil, fmt.Errorf("failed after %d retries", maxRetries)
+}
+
 // Send a message to Claude with retry logic
 func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentName string) (*AnthropicResponse, error) {
 	// Get model configuration for this agent
@@ -654,7 +811,7 @@ func getArtifactGenerationTool() AnthropicTool {
 func getCommandRunnerTool() AnthropicTool {
 	return AnthropicTool{
 		Name:        "run_command",
-		Description: "Execute Port 42 operations: create new tools with 'port42 declare tool', run existing commands, or use any port42 subcommand",
+		Description: "Execute Port 42 operations. When user asks to 'create', 'make', or 'build' a tool/command/script, IMMEDIATELY use: 'port42 declare tool TOOLNAME --prompt \"what the tool should do\" --transforms \"comma,separated,keywords\" [--ref REF...]'. Do NOT search first. For other operations, use the appropriate port42 subcommand",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -665,7 +822,7 @@ func getCommandRunnerTool() AnthropicTool {
 				"args": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]interface{}{"type": "string"},
-					"description": "Command arguments (e.g., ['declare', 'tool', 'name', '--transforms', 'keywords'] for creating new tools)",
+					"description": "Command arguments as array. When user says 'create'/'make'/'build', IMMEDIATELY use: ['declare', 'tool', 'toolname', '--prompt', 'detailed description of what it should do', '--transforms', 'keyword1,keyword2,keyword3', '--ref', 'p42:/commands/similar-tool']. Each flag and value must be separate array elements. Multiple --ref flags can be included for context",
 				},
 				"stdin": map[string]interface{}{
 					"type":        "string",
