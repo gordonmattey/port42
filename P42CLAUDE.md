@@ -44,23 +44,51 @@ ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scri
 </step>
 
 <step priority="2">
-<action>port42 ls /similar/tool-concept/</action>
-<purpose>Discover similar functionality that could be adapted</purpose>
+<action>port42 ls /tools/</action>
+<purpose>Explore the multi-dimensional tool ecosystem</purpose>
+<paths>
+- /tools/by-name/ (alphabetical listing of all tools)
+- /tools/by-transform/ (tools grouped by capabilities)
+- /tools/spawned-by/ (tool creation relationships)
+- /tools/ancestry/ (inheritance chains)
+</paths>
 </step>
 
 <step priority="3">
-<action>port42 info /commands/tool-name</action>
-<purpose>Introspect tool capabilities, metadata, and implementation details</purpose>
+<action>port42 ls /tools/by-transform/[capability]/</action>
+<purpose>Find tools with specific capabilities</purpose>
+<examples>
+- /tools/by-transform/git/ (git-related tools)
+- /tools/by-transform/notification/ (alert/sound tools)
+- /tools/by-transform/test/ (testing/validation tools)
+- /tools/by-transform/haiku/ (poetry/creative tools)
+</examples>
 </step>
 
 <step priority="4">
-<action>port42 ls /tools/by-transform/category/</action>
-<purpose>Browse tools by capability type (parse, analyze, format, etc.)</purpose>
+<action>port42 ls /tools/[tool-name]/</action>
+<purpose>Understand a specific tool's structure and relationships</purpose>
+<structure>
+- definition (metadata)
+- executable (the actual command)
+- spawned/ (tools this one created)
+- parents/ (inheritance chain)
+</structure>
 </step>
 
 <step priority="5">
-<action>port42 possess @ai-engineer "description of what you need"</action>
-<purpose>Create new tool or perform complex analysis with AI assistance</purpose>
+<action>port42 info /commands/tool-name</action>
+<purpose>Get detailed metadata for execution</purpose>
+</step>
+
+<step priority="6">
+<action>port42 cat /commands/tool-name</action>
+<purpose>View the actual source code</purpose>
+</step>
+
+<step priority="7">
+<action>port42 possess @ai-engineer "request" --ref [context]</action>
+<purpose>Create new tool or analyze/improve existing tools</purpose>
 </step>
 </tool_discovery_workflow>
 
@@ -83,13 +111,20 @@ Examples:
 NEVER write command/tool files directly unless user explicitly opts out of Port42.
 </tool_creation_rules>
 
-<reference_usage>
-When using possess, provide context through references:
-- --ref p42:/commands/tool-name (reference existing tools for analysis)
+<reference_requirements>
+When using possess to create tools or analyze existing ones, ALWAYS provide context through references:
+- --ref p42:/commands/similar-tool (learn from existing implementations)
+- --ref p42:/artifacts/document/analysis-name (include domain knowledge)
+- --ref file:/path/to/requirements.md (include specifications)
 - --ref file:/path/to/data.json (include data files for processing)
 - --ref url:https://docs.example.com/api (include external documentation)
-- --ref search:"project context" (load relevant conversation history)
-</reference_usage>
+- --ref search:"relevant keywords" (pull in related memories and context)
+
+Examples:
+- Creating a new tool: port42 possess @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
+- Analyzing with context: port42 possess @ai-engineer --ref file:/data.csv "analyze this sales data"
+- Improving existing tool: port42 possess @ai-engineer --ref p42:/commands/my-tool "add error handling to this tool"
+</reference_requirements>
 
 <discovery_examples>
 <data_processing>port42 search "json csv parse transform"</data_processing>
@@ -105,7 +140,7 @@ When using possess, provide context through references:
 1. port42 search "log analyze response time api"
 2. port42 ls /similar/analyzer/ (discover related tools)
 3. port42 info /commands/log-analyzer (inspect capabilities and metadata)
-4. port42 declare tool api-response-analyzer --transforms logs,analysis,metrics --ref p42:/commands/log-analyzer --ref file:/path/to/sample-log.txt
+4. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref file:/path/to/sample-log.txt "create a tool called api-response-analyzer to analyze API response times from logs"
 5. Execute directly: api-response-analyzer /var/log/app.log --metric response_time
 6. Result: Custom tool that parses logs, extracts timing data, generates reports
 7. Value: 5 minutes vs hours of manual scripting
@@ -116,7 +151,7 @@ When using possess, provide context through references:
 1. port42 search "requirements validation feedback analysis"
 2. port42 ls /similar/validator/ (find similar validation tools)
 3. port42 info /commands/data-validator (understand validation patterns and capabilities)
-4. port42 declare tool requirement-validator --transforms validation,analysis,product --ref p42:/commands/data-validator --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json
+4. port42 possess @ai-engineer --ref p42:/commands/data-validator --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json "create a tool called requirement-validator to validate product requirements against user feedback"
 5. Execute directly: requirement-validator --requirements reqs.md --feedback feedback.json
 6. Result: Automated validation tool with scoring and gap analysis
 7. Value: Consistent, repeatable validation process vs manual review
@@ -126,7 +161,7 @@ When using possess, provide context through references:
 <port42_approach>
 1. port42 search "marketing metrics report generation"
 2. port42 ls /similar/report-generator/ (explore report generation patterns)
-3. port42 declare tool marketing-weekly-report --transforms marketing,reports,metrics --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs
+3. port42 possess @ai-engineer --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs "create a tool called marketing-weekly-report to generate weekly marketing performance reports"
 4. Execute directly: marketing-weekly-report --week 2024-08-25 --format pdf
 5. Result: Automated weekly reports with trend analysis
 6. Value: Zero manual work vs hours of data compilation weekly
@@ -135,7 +170,7 @@ When using possess, provide context through references:
 
 <command_execution>
 <direct_execution>
-Port42 commands are installed as executables and can be called directly in both CLI and shell modes:
+Port42 commands are installed as executables and can be called directly from the terminal or through port42 in in both CLI and shell modes:
 - ✅ git-haiku -h (discover usage and options)
 - ✅ log-analyzer -h (see parameters and examples)
 - ✅ marketing-weekly-report -h (check available formats and options)
@@ -150,13 +185,22 @@ Use possession when you want AI to process or analyze the output:
 </ai_assisted_execution>
 
 <discovery_commands>
-Discovery and management commands:
-- port42 search "keyword" (find existing tools)
-- port42 ls /commands/ (browse available tools)
-- port42 info /commands/tool-name (introspect capabilities and metadata)
-- port42 cat /commands/tool-name (view tool source code)
-- port42 declare tool name (create new tools)
-- port42 possess @agent (AI assistance)
+Path navigation for tool discovery:
+- port42 ls /tools/ (explore tool ecosystem and relationships)
+- port42 ls /tools/by-transform/X/ (find tools by capability)
+- port42 ls /tools/spawned-by/X/ (see tool creation lineage)
+- port42 ls /commands/ (direct access to executable tools)
+
+Tool inspection and execution:
+- port42 search "keyword" (find tools and memories by keyword)
+- port42 info /commands/tool-name (get metadata and usage)
+- port42 cat /commands/tool-name (view source code)
+- port42 possess @agent "request" --ref (AI assistance)
+- tool-name --help (execute tool with help flag)
+
+Key distinction:
+- /tools/ = relationships, capabilities, lineage (discovery)
+- /commands/ = direct access to executables (execution)
 </discovery_commands>
 </command_execution>
 </tool_creation_guidance>

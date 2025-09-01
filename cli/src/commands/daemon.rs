@@ -1,7 +1,7 @@
 use anyhow::{Result, Context, bail};
 use colored::*;
 use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::fs;
 use std::env;
 use std::path::PathBuf;
@@ -107,16 +107,66 @@ fn start_daemon(background: bool) -> Result<()> {
             ));
         }
     } else {
-        // Start in foreground
-        println!("{}", "Starting in foreground mode (Ctrl+C to stop)...".dimmed());
+        // Start in foreground - but still log to file
+        let log_path = get_log_path();
         
+        // Create log directory if needed
+        if let Some(parent) = log_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        println!("{}", "Starting in foreground mode (Ctrl+C to stop)...".dimmed());
+        println!("{}", format!("📋 Log file: {}", log_path.display()).dimmed());
+        
+        // Open log file for writing
+        let log_file = fs::File::create(&log_path)?;
+        
+        // Start daemon directly, capturing output to both terminal and file
         let mut cmd = Command::new(&daemon_path);
         
         // The daemon should inherit all environment variables by default
-        // No need to explicitly set them unless we want to override
         
-        let status = cmd.status()
+        // Spawn the process with piped stdout/stderr
+        let mut child = cmd
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .context(ERR_DAEMON_START_FAILED)?;
+        
+        // Read from daemon and write to both terminal and file
+        let stdout = child.stdout.take().expect("Failed to capture stdout");
+        let stderr = child.stderr.take().expect("Failed to capture stderr");
+        
+        // Use threads to handle both streams
+        let log_file_stdout = log_file.try_clone()?;
+        let log_file_stderr = log_file.try_clone()?;
+        
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            let mut writer = std::io::BufWriter::new(log_file_stdout);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    println!("{}", line);
+                    writeln!(writer, "{}", line).ok();
+                    writer.flush().ok();
+                }
+            }
+        });
+        
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            let mut writer = std::io::BufWriter::new(log_file_stderr);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    eprintln!("{}", line);
+                    writeln!(writer, "{}", line).ok();
+                    writer.flush().ok();
+                }
+            }
+        });
+        
+        // Wait for the child process to exit
+        let status = child.wait()?;
         
         if !status.success() {
             bail!(format_error_with_suggestion(
