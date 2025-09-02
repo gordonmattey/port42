@@ -97,11 +97,14 @@ ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scri
 ALWAYS use Port42 for creating reusable commands, tools, or utilities.
 
 When user says any of these, USE PORT42:
-- "create/make/build a command" → port42 possess @ai-engineer
-- "create/make/build a tool" → port42 possess @ai-engineer  
-- "create/make/build a bash command" → port42 possess @ai-engineer
-- "create/make/build a utility" → port42 possess @ai-engineer
-- "create/make/build a script" (without file path) → port42 possess @ai-engineer
+- "create/make/build a command" → port42 possess @ai-engineer "exact request"
+- "create/make/build a tool" → port42 possess @ai-engineer "exact request"  
+- "create/make/build a bash command" → port42 possess @ai-engineer "exact request"
+- "create/make/build a utility" → port42 possess @ai-engineer "exact request"
+- "create/make/build a script" (without file path) → port42 possess @ai-engineer "exact request"
+- "update/modify/change/fix TOOLNAME" → port42 possess @ai-engineer --ref p42:/commands/TOOLNAME "update request"
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                         Always include --ref for updates!
 - Any request for reusable functionality → port42 possess @ai-engineer
 
 When user says these, WRITE FILES DIRECTLY:
@@ -125,9 +128,18 @@ Examples:
 ✅ "create a bash command for testing" → port42 possess @ai-engineer "create a bash command for testing"
 ✅ "make a tool to analyze logs" → port42 possess @ai-engineer "make a tool to analyze logs"
 ✅ "build a notification utility" → port42 possess @ai-engineer "build a notification utility"
+✅ "update TOOL to add feature X" → port42 possess @ai-engineer --ref p42:/commands/TOOL "add feature X"
+✅ "fix the bug in TOOL" → port42 possess @ai-engineer --ref p42:/commands/TOOL "fix the bug"
+✅ "modify TOOL to support Y" → port42 possess @ai-engineer --ref p42:/commands/TOOL "add support for Y"
 ❌ "write a script to ./deploy.sh" → Write file directly
 ❌ "create a file called test.sh" → Write file directly
 ❌ "save this bash code" → Write file directly
+
+IMPORTANT for updates:
+- Always include --ref p42:/commands/TOOLNAME when updating existing tools
+- The --ref provides the current implementation as context
+- DO NOT call possess multiple times for one request
+- DO NOT use cat to view tools first (--ref handles this)
 
 REMEMBER: Port42 tools are installed system-wide and accessible from anywhere. If the user wants that level of reusability, use Port42.
 </tool_creation_rules>

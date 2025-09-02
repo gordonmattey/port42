@@ -811,7 +811,7 @@ func getArtifactGenerationTool() AnthropicTool {
 func getCommandRunnerTool() AnthropicTool {
 	return AnthropicTool{
 		Name:        "run_command",
-		Description: "Execute Port 42 operations. When user asks to 'create', 'make', or 'build' a tool/command/script, IMMEDIATELY use: 'port42 declare tool TOOLNAME --prompt \"what the tool should do\" --transforms \"comma,separated,keywords\" [--ref REF...]'. Do NOT search first. For other operations, use the appropriate port42 subcommand",
+		Description: "Execute Port 42 operations. To VIEW tools: use 'port42 cat /commands/TOOLNAME'. To GET INFO: use 'port42 info /commands/TOOLNAME'. To UPDATE: re-declare with same name. When user asks to 'create', 'make', or 'build' a tool/command/script, IMMEDIATELY use: 'port42 declare tool TOOLNAME --prompt \"what the tool should do\" --transforms \"comma,separated,keywords\" [--ref REF...]'. Do NOT search first. For other operations, use the appropriate port42 subcommand",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{

@@ -26,6 +26,29 @@ Only specific agents can:
 
 ## Current State Analysis
 
+### Current Prompt Injection Architecture
+
+#### Data Flow
+```
+agents.json → LoadAgentConfig() → AgentConfiguration struct → GetAgentPrompt() → Full System Prompt
+```
+
+#### Prompt Assembly Order in GetAgentPrompt()
+1. Base template with {name}, {personality}, {style} injected
+2. Available commands list (dynamically generated)
+3. ConversationContext (all agents)
+4. ToolUsageGuidance (all agents - PROBLEM: includes declare instructions)
+5. ArtifactGuidance (all agents)
+6. Agent-specific prompt (if exists)
+7. Implementation guidance (if !NoImplementation)
+8. Agent suffix (if exists)
+
+#### Current Problems
+1. **No Capability-Based Injection**: All agents get same tool_usage_guidance
+2. **Mixed Concerns**: tool_usage_guidance contains both discovery AND creation
+3. **Missing Guidance Type**: No field to control conditional injection
+4. **Hardcoded Assembly**: All sections hardcoded in GetAgentPrompt()
+
 ### Existing Guidance Structure in agents.json
 
 #### 1. base_guidance
@@ -278,25 +301,47 @@ When generating command implementations, leverage Port42's capabilities:
 
 ### New Structure
 
-#### 1. base_guidance Template System (KEEP AS IS)
-The base_template uses variable injection for agent-specific values:
-- `{name}` - Agent name (@ai-engineer, @ai-muse, etc.)
-- `{personality}` - Agent's personality traits
-- `{style}` - Communication style
-- **NEW: `{guidance}` - Injected guidance based on agent capabilities**
+#### 1. Component Architecture
 
-The template structure:
+##### Data Structures
+```go
+type BaseGuidance struct {
+    BaseTemplate                    string `json:"base_template"`
+    DiscoveryAndNavigationGuidance string `json:"discovery_and_navigation_guidance"`
+    ToolCreationGuidance           string `json:"tool_creation_guidance"`
+    UnifiedExecutionGuidance       string `json:"unified_execution_guidance"`
+    ArtifactGuidance               string `json:"artifact_guidance"`
+    ConversationContext            string `json:"conversation_context"`
+}
+
+type Agent struct {
+    Name         string  `json:"name"`
+    Personality  string  `json:"personality"`
+    Style        string  `json:"style"`
+    GuidanceType string  `json:"guidance_type"` // "creation_agent" or "exploration_agent"
+    CustomPrompt string  `json:"custom_prompt,omitempty"`
+}
 ```
-base_template + {agent-specific values} + {guidance injection} = Full system prompt
+
+##### Dependency Graph
+```
+Base Components (All Agents):
+├── base_template (identity)
+├── discovery_and_navigation_guidance
+├── conversation_context  
+└── artifact_guidance
+
+Creation Agents Only:
+└── tool_creation_guidance
+
+Routing Layer:
+└── unified_execution_guidance (reads guidance_type)
+
+Agent-Specific:
+└── custom_prompt (optional overrides)
 ```
 
-#### 2. Guidance Injection Pattern
-For each agent, inject the appropriate guidance sections:
-- **All agents**: Get `discovery_and_navigation_guidance`
-- **Engineer/Growth**: Additionally get `tool_creation_guidance`
-- **Muse/Founder**: Explicitly get restriction notices
-
-#### 3. discovery_and_navigation_guidance (NEW - ALL AGENTS)
+#### 2. discovery_and_navigation_guidance (NEW - ALL AGENTS)
 ```json
 {
   "discovery_and_navigation_guidance": {
@@ -452,35 +497,51 @@ For each agent, inject the appropriate guidance sections:
 }
 ```
 
-#### 5. How Guidance Gets Injected
-The system constructs the full prompt by combining:
-1. **base_template** with {name}, {personality}, {style} injected
-2. **base_guidance sections** that apply to all agents
-3. **agent-specific guidance** based on capabilities
+#### 5. How Guidance Gets Injected - Actual Implementation
 
-Example for @ai-engineer:
-```
-systemPrompt = base_template.replace({name}, "@ai-engineer")
-                            .replace({personality}, "Technical, thorough...")
-                            .replace({style}, "Direct, precise...")
-             + discovery_and_navigation_guidance  // All agents get this
-             + tool_creation_guidance             // Only engineer/growth get this
-             + unified_execution_guidance         // Routes based on agent type
-             + "Follow unified_execution_guidance for creation agents."
+##### Current GetAgentPrompt() Refactor
+```go
+func GetAgentPrompt(agentName string) string {
+    // 1. Load agent config
+    agent := agentConfig.Agents[cleanName]
+    
+    // 2. Base template with replacements
+    prompt := strings.ReplaceAll(baseTemplate, "{name}", agent.Name)
+    prompt = strings.ReplaceAll(prompt, "{personality}", agent.Personality)
+    prompt = strings.ReplaceAll(prompt, "{style}", agent.Style)
+    
+    // 3. Universal guidance (all agents)
+    prompt += "\n\n" + agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance
+    prompt += "\n\n" + agentConfig.BaseGuidance.ConversationContext
+    prompt += "\n\n" + agentConfig.BaseGuidance.ArtifactGuidance
+    
+    // 4. Conditional guidance based on guidance_type
+    if agent.GuidanceType == "creation_agent" {
+        prompt += "\n\n" + agentConfig.BaseGuidance.ToolCreationGuidance
+    }
+    
+    // 5. Unified execution guidance (knows about types)
+    prompt += "\n\n" + agentConfig.BaseGuidance.UnifiedExecutionGuidance
+    
+    // 6. Routing instruction based on type
+    prompt += fmt.Sprintf("\n\nFollow unified_execution_guidance for %s.", agent.GuidanceType)
+    
+    // 7. Custom prompt if exists
+    if agent.CustomPrompt != "" {
+        prompt += "\n\n<role_details>\n" + agent.CustomPrompt + "\n</role_details>"
+    }
+    
+    // 8. Dynamic commands list (keep existing logic)
+    commands := listAvailableCommands()
+    if len(commands) > 0 {
+        prompt += "\n\n<available_commands>..."
+    }
+    
+    return prompt
+}
 ```
 
-Example for @ai-muse:
-```
-systemPrompt = base_template.replace({name}, "@ai-muse")
-                            .replace({personality}, "Creative, poetic...")
-                            .replace({style}, "Flowing, artistic...")
-             + discovery_and_navigation_guidance  // All agents get this
-             + unified_execution_guidance         // Routes based on agent type
-             + "Follow unified_execution_guidance for exploration agents. You CANNOT use declare."
-```
-
-#### 6. Agent Configuration Updates
-Instead of embedding guidance in the prompt field, reference which guidance sections to include:
+#### 6. Agent Configuration in agents.json
 ```json
 {
   "agents": {
@@ -488,15 +549,15 @@ Instead of embedding guidance in the prompt field, reference which guidance sect
       "name": "@ai-engineer",
       "personality": "Technical, thorough, practical, reliable",
       "style": "Direct, precise, methodical...",
-      "guidance_sections": ["discovery_and_navigation", "tool_creation"],
-      "guidance_type": "creation_agent"
+      "guidance_type": "creation_agent",
+      "custom_prompt": "Focus on robust implementations with error handling..."
     },
     "muse": {
       "name": "@ai-muse", 
       "personality": "Creative, poetic, imaginative, playful",
       "style": "Flowing, artistic language...",
-      "guidance_sections": ["discovery_and_navigation"],
-      "guidance_type": "exploration_agent"
+      "guidance_type": "exploration_agent",
+      "custom_prompt": "Help users discover surprising combinations..."
     }
   }
 }
@@ -504,90 +565,137 @@ Instead of embedding guidance in the prompt field, reference which guidance sect
 
 ## Implementation Plan
 
-### Phase 1: Simplify run_command Description
-Change from complex description with declare instructions to:
+### Phase 1: Update Data Structures (agents.go)
 ```go
-// In possession.go
-Name: "run_command"
-Description: "Execute Port 42 CLI operations and existing tools"
-```
-**Rationale**: Instructions for declare will come from injected guidance, not tool description
+// In agents.go - Update struct definitions
+type BaseGuidance struct {
+    BaseTemplate                    string `json:"base_template"`
+    DiscoveryAndNavigationGuidance string `json:"discovery_and_navigation_guidance"`
+    ToolCreationGuidance           string `json:"tool_creation_guidance"`  
+    UnifiedExecutionGuidance       string `json:"unified_execution_guidance"`
+    ArtifactGuidance               string `json:"artifact_guidance"`
+    ConversationContext            string `json:"conversation_context"`
+    // REMOVE: Implementation, FormatTemplate, ToolUsageGuidance
+}
 
-### Phase 2: Update agents.json Structure
-Modify agents.json to support guidance injection:
-
-```json
-{
-  "base_guidance": {
-    "base_template": "...", // Keep existing template with {name}, {personality}, {style}
-    "discovery_and_navigation_guidance": "...", // NEW - for all agents
-    "tool_creation_guidance": "...", // NEW - only for engineer/growth
-    "unified_execution_guidance": "..." // NEW - replaces unified_agent_guidance
-  },
-  
-  "agents": {
-    "engineer": {
-      "name": "@ai-engineer",
-      "personality": "...",
-      "style": "...",
-      "guidance_type": "creation_agent" // Determines injection
-    },
-    "muse": {
-      "name": "@ai-muse",
-      "personality": "...",
-      "style": "...",
-      "guidance_type": "exploration_agent" // Determines injection
-    }
-  }
+type Agent struct {
+    Name         string  `json:"name"`
+    Model        string  `json:"model"`
+    Personality  string  `json:"personality"`
+    Style        string  `json:"style"`
+    GuidanceType string  `json:"guidance_type"`  // NEW FIELD
+    CustomPrompt string  `json:"custom_prompt,omitempty"`  // Renamed from "prompt"
+    Suffix       string  `json:"suffix,omitempty"`
+    // REMOVE: NoImplementation, Example
 }
 ```
 
-### Phase 3: Implement Guidance Injection Logic
-Update the prompt construction to inject based on guidance_type:
-
+### Phase 2: Refactor GetAgentPrompt() (agents.go)
 ```go
-// Pseudocode for prompt construction
-func buildSystemPrompt(agent Agent, baseGuidance BaseGuidance) string {
-    // Start with base template
-    prompt := injectTemplate(baseGuidance.BaseTemplate, agent)
+func GetAgentPrompt(agentName string) string {
+    // ... existing agent loading logic ...
     
-    // All agents get discovery
-    prompt += baseGuidance.DiscoveryAndNavigationGuidance
+    var prompt strings.Builder
     
-    // Only creation agents get tool creation
+    // 1. Base template
+    baseTemplate := agentConfig.BaseGuidance.BaseTemplate
+    baseTemplate = strings.ReplaceAll(baseTemplate, "{name}", agent.Name)
+    baseTemplate = strings.ReplaceAll(baseTemplate, "{personality}", agent.Personality)
+    baseTemplate = strings.ReplaceAll(baseTemplate, "{style}", agent.Style)
+    prompt.WriteString(baseTemplate)
+    
+    // 2. Universal guidance
+    prompt.WriteString("\n\n")
+    prompt.WriteString(agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance)
+    prompt.WriteString("\n\n")
+    prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
+    prompt.WriteString("\n\n")
+    prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
+    
+    // 3. Conditional tool creation guidance
     if agent.GuidanceType == "creation_agent" {
-        prompt += baseGuidance.ToolCreationGuidance
+        prompt.WriteString("\n\n")
+        prompt.WriteString(agentConfig.BaseGuidance.ToolCreationGuidance)
     }
     
-    // Add unified execution guidance
-    prompt += baseGuidance.UnifiedExecutionGuidance
+    // 4. Unified execution guidance
+    prompt.WriteString("\n\n")
+    prompt.WriteString(agentConfig.BaseGuidance.UnifiedExecutionGuidance)
     
-    // Add agent-specific routing instruction
-    prompt += fmt.Sprintf("Follow unified_execution_guidance for %s.", agent.GuidanceType)
+    // 5. Type-specific routing
+    prompt.WriteString(fmt.Sprintf("\n\nFollow unified_execution_guidance for %s.", agent.GuidanceType))
     
-    return prompt
+    // 6. Custom prompt if exists
+    if agent.CustomPrompt != "" {
+        prompt.WriteString("\n\n<role_details>\n")
+        prompt.WriteString(agent.CustomPrompt)
+        prompt.WriteString("\n</role_details>")
+    }
+    
+    // 7. Available commands (keep existing logic)
+    commands := listAvailableCommands()
+    // ... existing command listing code ...
+    
+    // 8. Agent suffix
+    if agent.Suffix != "" {
+        prompt.WriteString("\n\n")
+        prompt.WriteString(agent.Suffix)
+    }
+    
+    return prompt.String()
 }
 ```
 
-### Phase 4: Natural Access Control Through Information Architecture
-**No hard enforcement needed** - Access control emerges naturally:
-- Agents without `tool_creation_guidance` don't know declare syntax
-- They can't use what they don't know
-- Information hiding IS the access control
+### Phase 3: Simplify run_command Description (possession.go:810-834)
+```go
+Name: "run_command",
+Description: "Execute Port 42 CLI operations and existing tools",
+// Remove all the complex instructions about declare
+```
 
-### Phase 5: Remove Redundant Guidance
-Clean up agents.json by removing sections now consolidated:
-- Remove individual `ai_decision_framework` (merged into unified)
-- Remove `xml_decision_workflow` (merged into unified)  
-- Remove `port42_command_guidelines` (split between discovery and creation)
-- Remove per-agent prompt field (generated from guidance_type)
+### Phase 4: Reorganize agents.json
+1. Split current guidance into new sections:
+   - Extract discovery patterns → `discovery_and_navigation_guidance`
+   - Extract creation patterns → `tool_creation_guidance`
+   - Merge decision frameworks → `unified_execution_guidance`
+   
+2. Add `guidance_type` to each agent:
+   - engineer: "creation_agent"
+   - growth: "creation_agent"
+   - muse: "exploration_agent"
+   - founder: "exploration_agent"
 
-### Phase 6: Testing Strategy
-Verify the natural access control works:
-1. Test @ai-muse with "create a tool" → Should explore existing tools instead
-2. Test @ai-engineer with "create a tool" → Should use declare properly
-3. Test all agents with "run git-haiku" → All should execute successfully
-4. Test all agents with "explore /tools/" → All should navigate VFS
+3. Remove redundant fields:
+   - Remove `no_implementation`
+   - Remove `tool_usage_guidance` (split into new sections)
+   - Rename `prompt` to `custom_prompt`
+
+### Phase 5: Testing Strategy
+```bash
+# Test 1: Muse exploration (should not create)
+port42 possess @ai-muse "create a tool to analyze logs"
+# Expected: Searches for existing tools, suggests alternatives
+
+# Test 2: Engineer creation (should create)
+port42 possess @ai-engineer "create a tool to analyze logs"  
+# Expected: Uses declare to create new tool
+
+# Test 3: All agents can execute
+port42 possess @ai-muse "run git-haiku"
+# Expected: Executes successfully
+
+# Test 4: All agents can explore
+port42 possess @ai-founder "explore /tools/"
+# Expected: Lists tool hierarchy
+```
+
+### Phase 6: Validation Checklist
+- [ ] Muse cannot see declare syntax in its prompt
+- [ ] Engineer has full declare instructions
+- [ ] All agents have VFS navigation guidance
+- [ ] No duplicate guidance between sections
+- [ ] Clean separation of concerns
+- [ ] Backward compatibility maintained
 
 ## Success Criteria
 1. AI correctly passes references through to declare
