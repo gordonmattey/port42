@@ -27,10 +27,6 @@ type BaseGuidance struct {
 	UnifiedExecutionGuidance       string `json:"unified_execution_guidance"`
 	ArtifactGuidance               string `json:"artifact_guidance"`
 	ConversationContext            string `json:"conversation_context"`
-	// Deprecated fields - kept for backward compatibility during migration
-	Implementation    string `json:"implementation,omitempty"`
-	FormatTemplate    string `json:"format_template,omitempty"`
-	ToolUsageGuidance string `json:"tool_usage_guidance,omitempty"`
 }
 
 // CommandMetadata represents basic info about a Port 42 command
@@ -41,19 +37,15 @@ type CommandMetadata struct {
 
 // Agent represents a single AI agent configuration
 type Agent struct {
-	Name                string       `json:"name"`
-	Model               string       `json:"model"`
-	TemperatureOverride *float64     `json:"temperature_override,omitempty"`
-	Description         string       `json:"description"`
-	Personality         string       `json:"personality"`
-	Style               string       `json:"style"`
-	GuidanceType        string       `json:"guidance_type"` // "creation_agent" or "exploration_agent"
-	CustomPrompt        string       `json:"custom_prompt,omitempty"`
-	Suffix              string       `json:"suffix,omitempty"`
-	// Deprecated fields - kept for backward compatibility during migration
-	Prompt           string       `json:"prompt,omitempty"`
-	Example          *CommandSpec `json:"example,omitempty"`
-	NoImplementation bool         `json:"no_implementation,omitempty"`
+	Name                string   `json:"name"`
+	Model               string   `json:"model"`
+	TemperatureOverride *float64 `json:"temperature_override,omitempty"`
+	Description         string   `json:"description"`
+	Personality         string   `json:"personality"`
+	Style               string   `json:"style"`
+	GuidanceType        string   `json:"guidance_type"` // "creation_agent" or "exploration_agent"
+	CustomPrompt        string   `json:"custom_prompt,omitempty"`
+	Suffix              string   `json:"suffix,omitempty"`
 }
 
 // ModelDefinition represents a single model configuration
@@ -228,15 +220,10 @@ func GetAgentPrompt(agentName string) string {
 		prompt.WriteString(fmt.Sprintf("\n\nFollow unified_execution_guidance for %s.", agent.GuidanceType))
 	}
 	
-	// 8. Custom prompt if exists (replaces old "prompt" field)
+	// 8. Custom prompt if exists
 	if agent.CustomPrompt != "" {
 		prompt.WriteString("\n\n<role_details>\n")
 		prompt.WriteString(agent.CustomPrompt)
-		prompt.WriteString("\n</role_details>")
-	} else if agent.Prompt != "" {
-		// Backward compatibility: use old Prompt field if CustomPrompt not set
-		prompt.WriteString("\n\n<role_details>\n")
-		prompt.WriteString(agent.Prompt)
 		prompt.WriteString("\n</role_details>")
 	}
 	
@@ -261,42 +248,6 @@ func GetAgentPrompt(agentName string) string {
 	// Debug logging
 	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s, type: %s", 
 		agentName, agent.Personality, agent.Style, agent.GuidanceType)
-	
-	// === BACKWARD COMPATIBILITY SECTION ===
-	// If new guidance fields are empty, fall back to old system
-	if agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance == "" && 
-	   agentConfig.BaseGuidance.ToolCreationGuidance == "" &&
-	   agentConfig.BaseGuidance.UnifiedExecutionGuidance == "" {
-		
-		log.Printf("⚠️ Using legacy guidance system for backward compatibility")
-		
-		// Add old tool usage guidance
-		if agentConfig.BaseGuidance.ToolUsageGuidance != "" {
-			prompt.WriteString("\n\n")
-			prompt.WriteString(agentConfig.BaseGuidance.ToolUsageGuidance)
-		}
-		
-		// Add old implementation guidance if agent creates commands
-		if !agent.NoImplementation {
-			if agentConfig.BaseGuidance.FormatTemplate != "" {
-				prompt.WriteString("\n\n")
-				prompt.WriteString(agentConfig.BaseGuidance.FormatTemplate)
-			}
-			
-			// Add example if provided
-			if agent.Example != nil {
-				prompt.WriteString("\n\nExample:\n```json\n")
-				exampleJSON, _ := json.MarshalIndent(agent.Example, "", "  ")
-				prompt.WriteString(string(exampleJSON))
-				prompt.WriteString("\n```")
-			}
-			
-			if agentConfig.BaseGuidance.Implementation != "" {
-				prompt.WriteString("\n\n")
-				prompt.WriteString(agentConfig.BaseGuidance.Implementation)
-			}
-		}
-	}
 	
 	return prompt.String()
 }

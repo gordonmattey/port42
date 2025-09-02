@@ -337,21 +337,16 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 	
 	if agentConfig != nil {
 		if agentInfo, exists := agentConfig.Agents[cleanName]; exists {
-			log.Printf("🔍 Agent %s found, NoImplementation: %v", cleanName, agentInfo.NoImplementation)
-			if agentInfo.NoImplementation {
-				// Agent marked as no implementation - gets command runner and artifact tool
-				tools = []AnthropicTool{
-					getCommandRunnerTool(),
-					getArtifactGenerationTool(),
-				}
-				log.Printf("🎨 Agent %s will use command runner and artifact generation", agentName)
+			log.Printf("🔍 Agent %s found, GuidanceType: %s", cleanName, agentInfo.GuidanceType)
+			// All agents get the same tools - the guidance controls what they do with them
+			tools = []AnthropicTool{
+				getCommandRunnerTool(),
+				getArtifactGenerationTool(),
+			}
+			if agentInfo.GuidanceType == "exploration_agent" {
+				log.Printf("🎨 Agent %s is exploration_agent - won't create tools", agentName)
 			} else {
-				// Full implementation agent - gets all tools
-				tools = []AnthropicTool{
-					getCommandRunnerTool(),
-					getArtifactGenerationTool(),
-				}
-				log.Printf("🔧 Agent %s will use all tools (command runner and artifacts)", agentName)
+				log.Printf("🔧 Agent %s is creation_agent - can create tools", agentName)
 			}
 		} else {
 			log.Printf("⚠️ Agent %s not found in config", cleanName)
