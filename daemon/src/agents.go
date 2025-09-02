@@ -185,14 +185,62 @@ func GetAgentPrompt(agentName string) string {
 	// Build the base prompt using the template from configuration
 	var prompt strings.Builder
 	
-	// Base consciousness template from configuration
+	// 1. Base consciousness template from configuration
 	baseTemplate := agentConfig.BaseGuidance.BaseTemplate
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{name}", agent.Name)
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{personality}", agent.Personality)
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{style}", agent.Style)
 	prompt.WriteString(baseTemplate)
 	
-	// Add available commands
+	// 2. Universal guidance - Discovery and Navigation (ALL agents)
+	if agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance != "" {
+		prompt.WriteString("\n\n")
+		prompt.WriteString(agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance)
+	}
+	
+	// 3. Conversation context guidance (ALL agents)
+	if agentConfig.BaseGuidance.ConversationContext != "" {
+		prompt.WriteString("\n\n")
+		prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
+	}
+	
+	// 4. Artifact guidance (ALL agents)
+	if agentConfig.BaseGuidance.ArtifactGuidance != "" {
+		prompt.WriteString("\n\n")
+		prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
+	}
+	
+	// 5. Conditional Tool Creation Guidance (creation agents ONLY)
+	if agent.GuidanceType == "creation_agent" && agentConfig.BaseGuidance.ToolCreationGuidance != "" {
+		prompt.WriteString("\n\n")
+		prompt.WriteString(agentConfig.BaseGuidance.ToolCreationGuidance)
+		log.Printf("🔍 Added tool creation guidance for %s (creation_agent)", agentName)
+	}
+	
+	// 6. Unified Execution Guidance (ALL agents - routes based on type)
+	if agentConfig.BaseGuidance.UnifiedExecutionGuidance != "" {
+		prompt.WriteString("\n\n")
+		prompt.WriteString(agentConfig.BaseGuidance.UnifiedExecutionGuidance)
+	}
+	
+	// 7. Type-specific routing instruction
+	if agent.GuidanceType != "" {
+		prompt.WriteString(fmt.Sprintf("\n\nFollow unified_execution_guidance for %s.", agent.GuidanceType))
+	}
+	
+	// 8. Custom prompt if exists (replaces old "prompt" field)
+	if agent.CustomPrompt != "" {
+		prompt.WriteString("\n\n<role_details>\n")
+		prompt.WriteString(agent.CustomPrompt)
+		prompt.WriteString("\n</role_details>")
+	} else if agent.Prompt != "" {
+		// Backward compatibility: use old Prompt field if CustomPrompt not set
+		prompt.WriteString("\n\n<role_details>\n")
+		prompt.WriteString(agent.Prompt)
+		prompt.WriteString("\n</role_details>")
+	}
+	
+	// 9. Available commands list (ALL agents)
 	commands := listAvailableCommands()
 	if len(commands) > 0 {
 		prompt.WriteString("\n\n<available_commands>")
@@ -204,51 +252,50 @@ func GetAgentPrompt(agentName string) string {
 		prompt.WriteString("\nUse run_command to execute any of these when they would be helpful.")
 	}
 	
-	// Add conversation context guidance for all agents
-	prompt.WriteString("\n\n")
-	prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
-	
-	// Add tool usage guidance for all agents
-	prompt.WriteString("\n\n")
-	log.Printf("🔍 [DEBUG] ToolUsageGuidance length: %d", len(agentConfig.BaseGuidance.ToolUsageGuidance))
-	prompt.WriteString(agentConfig.BaseGuidance.ToolUsageGuidance)
-	
-	// Add artifact guidance for all agents
-	prompt.WriteString("\n\n")
-	prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
-	
-	// Add agent-specific role details if provided
-	if agent.Prompt != "" {
-		prompt.WriteString("\n\n<role_details>\n")
-		prompt.WriteString(agent.Prompt)
-		prompt.WriteString("\n</role_details>")
-	}
-	
-	// Debug log
-	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s", 
-		agentName, agent.Personality, agent.Style)
-	
-	// Add implementation guidance if agent creates commands
-	if !agent.NoImplementation {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.FormatTemplate)
-		
-		// Add example if provided
-		if agent.Example != nil {
-			prompt.WriteString("\n\nExample:\n```json\n")
-			exampleJSON, _ := json.MarshalIndent(agent.Example, "", "  ")
-			prompt.WriteString(string(exampleJSON))
-			prompt.WriteString("\n```")
-		}
-		
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.Implementation)
-	}
-	
-	// Add agent-specific suffix
+	// 10. Agent-specific suffix
 	if agent.Suffix != "" {
 		prompt.WriteString("\n\n")
 		prompt.WriteString(agent.Suffix)
+	}
+	
+	// Debug logging
+	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s, type: %s", 
+		agentName, agent.Personality, agent.Style, agent.GuidanceType)
+	
+	// === BACKWARD COMPATIBILITY SECTION ===
+	// If new guidance fields are empty, fall back to old system
+	if agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance == "" && 
+	   agentConfig.BaseGuidance.ToolCreationGuidance == "" &&
+	   agentConfig.BaseGuidance.UnifiedExecutionGuidance == "" {
+		
+		log.Printf("⚠️ Using legacy guidance system for backward compatibility")
+		
+		// Add old tool usage guidance
+		if agentConfig.BaseGuidance.ToolUsageGuidance != "" {
+			prompt.WriteString("\n\n")
+			prompt.WriteString(agentConfig.BaseGuidance.ToolUsageGuidance)
+		}
+		
+		// Add old implementation guidance if agent creates commands
+		if !agent.NoImplementation {
+			if agentConfig.BaseGuidance.FormatTemplate != "" {
+				prompt.WriteString("\n\n")
+				prompt.WriteString(agentConfig.BaseGuidance.FormatTemplate)
+			}
+			
+			// Add example if provided
+			if agent.Example != nil {
+				prompt.WriteString("\n\nExample:\n```json\n")
+				exampleJSON, _ := json.MarshalIndent(agent.Example, "", "  ")
+				prompt.WriteString(string(exampleJSON))
+				prompt.WriteString("\n```")
+			}
+			
+			if agentConfig.BaseGuidance.Implementation != "" {
+				prompt.WriteString("\n\n")
+				prompt.WriteString(agentConfig.BaseGuidance.Implementation)
+			}
+		}
 	}
 	
 	return prompt.String()
