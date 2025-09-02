@@ -21,12 +21,16 @@ type AgentConfig struct {
 
 // BaseGuidance contains shared implementation guidelines
 type BaseGuidance struct {
-	BaseTemplate        string `json:"base_template"`
-	Implementation      string `json:"implementation"`
-	FormatTemplate      string `json:"format_template"`
-	ArtifactGuidance    string `json:"artifact_guidance"`
-	ConversationContext string `json:"conversation_context"`
-	ToolUsageGuidance   string `json:"tool_usage_guidance"`
+	BaseTemplate                    string `json:"base_template"`
+	DiscoveryAndNavigationGuidance string `json:"discovery_and_navigation_guidance"`
+	ToolCreationGuidance           string `json:"tool_creation_guidance"`
+	UnifiedExecutionGuidance       string `json:"unified_execution_guidance"`
+	ArtifactGuidance               string `json:"artifact_guidance"`
+	ConversationContext            string `json:"conversation_context"`
+	// Deprecated fields - kept for backward compatibility during migration
+	Implementation    string `json:"implementation,omitempty"`
+	FormatTemplate    string `json:"format_template,omitempty"`
+	ToolUsageGuidance string `json:"tool_usage_guidance,omitempty"`
 }
 
 // CommandMetadata represents basic info about a Port 42 command
@@ -41,12 +45,15 @@ type Agent struct {
 	Model               string       `json:"model"`
 	TemperatureOverride *float64     `json:"temperature_override,omitempty"`
 	Description         string       `json:"description"`
-	Prompt              string       `json:"prompt"`
 	Personality         string       `json:"personality"`
 	Style               string       `json:"style"`
-	Example             *CommandSpec `json:"example,omitempty"`
+	GuidanceType        string       `json:"guidance_type"` // "creation_agent" or "exploration_agent"
+	CustomPrompt        string       `json:"custom_prompt,omitempty"`
 	Suffix              string       `json:"suffix,omitempty"`
-	NoImplementation    bool         `json:"no_implementation,omitempty"`
+	// Deprecated fields - kept for backward compatibility during migration
+	Prompt           string       `json:"prompt,omitempty"`
+	Example          *CommandSpec `json:"example,omitempty"`
+	NoImplementation bool         `json:"no_implementation,omitempty"`
 }
 
 // ModelDefinition represents a single model configuration
