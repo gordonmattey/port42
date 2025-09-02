@@ -811,18 +811,18 @@ func getArtifactGenerationTool() AnthropicTool {
 func getCommandRunnerTool() AnthropicTool {
 	return AnthropicTool{
 		Name:        "run_command",
-		Description: "Execute Port 42 operations. To VIEW tools: use 'port42 cat /commands/TOOLNAME'. To GET INFO: use 'port42 info /commands/TOOLNAME'. To UPDATE: re-declare with same name. When user asks to 'create', 'make', or 'build' a tool/command/script, IMMEDIATELY use: 'port42 declare tool TOOLNAME --prompt \"what the tool should do\" --transforms \"comma,separated,keywords\" [--ref REF...]'. Do NOT search first. For other operations, use the appropriate port42 subcommand",
+		Description: "Execute Port 42 CLI operations and existing tools",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"command": map[string]interface{}{
 					"type":        "string",
-					"description": "Command to execute (e.g., 'port42' for CLI operations, rainbow-art, git-haiku)",
+					"description": "Command to execute (e.g., 'port42', 'git-haiku', 'log-analyzer')",
 				},
 				"args": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]interface{}{"type": "string"},
-					"description": "Command arguments as array. When user says 'create'/'make'/'build', IMMEDIATELY use: ['declare', 'tool', 'toolname', '--prompt', 'detailed description of what it should do', '--transforms', 'keyword1,keyword2,keyword3', '--ref', 'p42:/commands/similar-tool']. Each flag and value must be separate array elements. Multiple --ref flags can be included for context",
+					"description": "Command arguments as an array of strings",
 				},
 				"stdin": map[string]interface{}{
 					"type":        "string",
