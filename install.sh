@@ -15,6 +15,9 @@
 
 set -euo pipefail
 
+# Debug trap to catch errors
+trap 'echo "Error occurred at line $LINENO with exit code $?"' ERR
+
 # Configuration
 VERSION="${PORT42_VERSION:-latest}"
 REPO="gordonmattey/port42"
@@ -398,7 +401,11 @@ install_claude_integration() {
     # Check if already integrated (case insensitive)
     if [ -f "$claude_config" ] && grep -qi "port42_integration" "$claude_config" 2>/dev/null; then
         print_info "Port 42 Claude integration already configured"
-        [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
+        # Clean up temp file if it exists (only relevant for remote mode)
+        if [ "$INSTALL_MODE" = "remote" ]; then
+            [ -n "${temp_file:-}" ] && [ -f "${temp_file:-}" ] && rm "$temp_file" 2>/dev/null || true
+        fi
+        print_info "Continuing to configure Claude settings..."
         # Don't return here - we still need to configure settings.json!
     else
         # Append with markers
@@ -416,11 +423,13 @@ install_claude_integration() {
         } >> "$claude_config"
         
         # Clean up temp file if we used one
-        [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
+        [ "$INSTALL_MODE" = "remote" ] && [ -n "${temp_file:-}" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
         
         print_success "Claude Code will now automatically use Port 42 for tool creation!"
         print_info "Claude will search and create Port 42 tools without being asked"
     fi
+    
+    print_info "Exiting install_claude_integration function normally"
 }
 
 # Configure Claude Code settings.json for Port42 commands
