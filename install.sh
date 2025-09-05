@@ -423,6 +423,141 @@ install_claude_integration() {
     print_info "Claude will search and create Port 42 tools without being asked"
 }
 
+# Configure Claude Code settings.json for Port42 commands
+configure_claude_settings() {
+    local settings_file="$HOME/.claude/settings.json"
+    
+    echo
+    print_info "Configuring Claude Code command permissions..."
+    
+    # Ask for permission
+    echo
+    echo -e "${YELLOW}Port 42 needs to update Claude Code settings to:${NC}"
+    echo "  • Allow Port42 commands without approval prompts"
+    echo "  • Set appropriate timeout values for long-running operations"
+    echo
+    read -p "$(echo -e ${BOLD}"Update Claude Code settings? (y/n): "${NC})" -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Skipping Claude Code settings configuration"
+        print_info "You can manually add Port42 commands to: $settings_file"
+        return
+    fi
+    
+    # Create .claude directory if it doesn't exist
+    mkdir -p "$HOME/.claude"
+    
+    # Check if settings.json exists
+    if [ -f "$settings_file" ]; then
+        # Backup existing settings
+        cp "$settings_file" "${settings_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        print_info "Backed up existing settings to ${settings_file}.backup.*"
+        
+        # Don't skip - we'll merge/update existing settings
+        
+        # Check if jq is available (required for JSON manipulation)
+        if ! command -v jq &> /dev/null; then
+            print_warning "jq is not installed. Cannot automatically update Claude Code settings."
+            print_info "Please install jq or manually add these to $settings_file:"
+            echo "  allowedCommands: port42, port42:*, port42 search:*, etc."
+            echo "  env.BASH_DEFAULT_TIMEOUT_MS: \"1800000\""
+            echo "  env.BASH_MAX_TIMEOUT_MS: \"7200000\""
+            return
+        fi
+        
+        # Update with jq - merge and deduplicate
+        print_info "Merging Port42 commands into existing settings..."
+        if jq '
+            # Ensure allowedCommands array exists
+            if .allowedCommands == null then .allowedCommands = [] else . end |
+            # Add Port42 commands
+            .allowedCommands += [
+                "port42",
+                "port42:*",
+                "port42 search:*",
+                "port42 ls:*",
+                "port42 cat:*",
+                "port42 info:*",
+                "port42 possess:*",
+                "port42 memory:*",
+                "port42 status:*",
+                "port42 daemon:*",
+                "port42 declare:*",
+                "port42 reality:*",
+                "port42 help:*",
+                "port42 watch:*"
+            ] |
+            # Remove duplicates
+            .allowedCommands |= unique |
+            # Ensure env object exists
+            if .env == null then .env = {} else . end |
+            # Set timeout values
+            .env.BASH_DEFAULT_TIMEOUT_MS = "1800000" |
+            .env.BASH_MAX_TIMEOUT_MS = "7200000"' "$settings_file" > "${settings_file}.tmp"; then
+            # Move temp file to actual file
+            if mv "${settings_file}.tmp" "$settings_file"; then
+                print_success "Settings updated successfully"
+            else
+                print_error "Failed to move temporary file to $settings_file"
+                print_info "Temporary file saved at ${settings_file}.tmp"
+                return
+            fi
+        else
+            print_error "Failed to process JSON with jq"
+            return
+        fi
+    else
+        # Create new settings file
+        cat > "$settings_file" << 'EOF'
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "1800000",
+    "BASH_MAX_TIMEOUT_MS": "7200000"
+  },
+  "allowedCommands": [
+    "port42",
+    "port42:*",
+    "port42 search:*",
+    "port42 ls:*",
+    "port42 cat:*",
+    "port42 info:*",
+    "port42 possess:*",
+    "port42 memory:*",
+    "port42 status:*",
+    "port42 daemon:*",
+    "port42 declare:*",
+    "port42 reality:*",
+    "port42 help:*",
+    "port42 watch:*"
+  ]
+}
+EOF
+    fi
+    
+    # Verify the update worked
+    if [ -f "$settings_file" ]; then
+        if command -v jq &> /dev/null; then
+            # Use jq to verify JSON structure
+            if jq -e '.allowedCommands | map(select(. == "port42")) | length > 0' "$settings_file" >/dev/null 2>&1 && \
+               jq -e '.env.BASH_DEFAULT_TIMEOUT_MS' "$settings_file" >/dev/null 2>&1; then
+                print_success "Claude Code settings configured for Port42!"
+                print_info "Port42 commands will now run without approval prompts"
+            else
+                print_warning "Settings file was created but may be incomplete"
+                print_info "Please verify $settings_file manually"
+            fi
+        else
+            # Without jq, just check file exists
+            print_success "Settings file created at $settings_file"
+            print_info "Please verify it contains Port42 commands and timeout settings"
+        fi
+    else
+        print_error "Failed to create settings file"
+    fi
+}
+
 # Configure API key
 configure_api_key() {
     echo
@@ -630,6 +765,7 @@ main() {
     update_path
     configure_api_key
     install_claude_integration
+    configure_claude_settings
     
     # Show completion message
     show_next_steps

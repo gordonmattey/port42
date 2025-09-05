@@ -143,7 +143,7 @@ port42 possess @ai-engineer
 Try different AI personalities:
 - `@ai-engineer` - Technical implementation focus
 - `@ai-muse` - Creative and elegant solutions  
-- `@ai-growth` - Business and productivity tools
+- `@ai-analyst` - Data analysis and insights tools
 - `@ai-founder` - Strategic and visionary tools
 
 **💡 Key Insight**: AI agents understand context and can both create tools AND help you use existing ones.

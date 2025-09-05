@@ -260,7 +260,7 @@ fn end_session(port: u16, session_id: &str) -> Result<()> {
 }
 
 fn validate_agent(agent: &str) -> Result<()> {
-    const VALID_AGENTS: &[&str] = &["@ai-engineer", "@ai-muse", "@ai-growth", "@ai-founder"];
+    const VALID_AGENTS: &[&str] = &["@ai-engineer", "@ai-muse", "@ai-analyst", "@ai-founder"];
     
     if !VALID_AGENTS.contains(&agent) {
         let error_msg = format!("👻 Unknown consciousness '{}'. Choose from: {}", 

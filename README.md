@@ -202,7 +202,7 @@ port42 ls /tools/ancestry/                  # Tools with parent chains
 # Start interactive AI session
 port42 possess @ai-muse         # Creative AI agent
 port42 possess @ai-engineer     # Technical implementation
-port42 possess @ai-growth       # Growth & strategy  
+port42 possess @ai-analyst      # Data analysis & insights  
 port42 possess @ai-founder      # Business strategy
 
 # View conversation memory
@@ -941,7 +941,7 @@ Virtual Filesystem View:
 └── by-agent/          # Organized by AI consciousness
     ├── @ai-engineer/  # Technical creations
     ├── @ai-muse/     # Creative works
-    ├── @ai-growth/   # Growth strategies
+    ├── @ai-analyst/  # Analysis & insights
     └── @ai-founder/  # Visionary synthesis
 ```
 

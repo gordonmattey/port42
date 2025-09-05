@@ -76,7 +76,7 @@ pub enum Commands {
     #[command(about = crate::help_text::POSSESS_DESC)]
     /// Channel an AI agent's consciousness
     Possess {
-        /// AI agent to possess (@ai-engineer, @ai-muse, @ai-growth, @ai-founder)
+        /// AI agent to possess (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder)
         agent: String,
         
         /// Reference entities for context (file:path, p42:/commands/name, url:https://, search:"query")

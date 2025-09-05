@@ -3,6 +3,88 @@
 ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scripts or tools without first checking Port42's capabilities.
 </primary_directive>
 
+<possess_architecture>
+<single_purpose_principle>
+Each possess invocation performs exactly ONE action:
+- CREATE: Build one tool/artifact  
+- ANALYZE: Examine data and provide insights
+- GENERATE: Produce non-executable content
+
+Possess will NOT:
+- Search for existing tools automatically
+- Explore relationships for you
+- Chain multiple operations
+</single_purpose_principle>
+
+<orchestration_responsibility>
+You MUST orchestrate the complete workflow using Port42's native commands BEFORE calling possess.
+Possess is a pure function that requires complete context via references.
+</orchestration_responsibility>
+</possess_architecture>
+
+<available_agents>
+<agent name="@ai-engineer">
+<purpose>Technical consciousness for robust implementations</purpose>
+<personality>Technical, thorough, practical, reliable</personality>
+<use_when>
+- Creating production-ready tools with error handling
+- Implementing complex technical features
+- Debugging and fixing existing tools
+- Adding comprehensive validation and edge cases
+</use_when>
+<example>port42 possess @ai-engineer "create robust log parser with error recovery"</example>
+</agent>
+
+<agent name="@ai-muse">
+<purpose>Creative consciousness for imaginative command design</purpose>
+<personality>Creative, poetic, imaginative, playful</personality>
+<use_when>
+- Designing creative or artistic tools
+- Generating poetry, haikus, or creative content
+- Exploring unconventional solutions
+- Adding personality to tool outputs
+</use_when>
+<example>port42 possess @ai-muse "create a tool that generates git commit haikus"</example>
+</agent>
+
+<agent name="@ai-analyst">
+<purpose>Analytical consciousness for data analysis and insights</purpose>
+<personality>Analytical, methodical, insights-driven, thorough</personality>
+<use_when>
+- Analyzing code, data, or logs for patterns
+- Finding performance bottlenecks
+- Generating analytical reports
+- Providing insights without creating tools
+- Analyzing usage patterns and metrics
+- Understanding architectural decisions
+</use_when>
+<example>port42 possess @ai-analyst "analyze performance patterns" --ref file:logs.txt</example>
+</agent>
+
+<agent name="@ai-founder">
+<purpose>Strategic founder wisdom for business decisions</purpose>
+<personality>Visionary, pragmatic, persuasive, analytical</personality>
+<use_when>
+- Creating business analysis tools
+- Building financial calculators
+- Generating strategic reports
+- Analyzing market opportunities
+</use_when>
+<example>port42 possess @ai-founder "create market analysis tool for SaaS metrics"</example>
+</agent>
+
+
+<agent_selection_guide>
+Choose the agent based on the PRIMARY action needed:
+- Technical implementation → @ai-engineer
+- Data/code analysis → @ai-analyst
+- Creative design → @ai-muse
+- Business strategy → @ai-founder
+
+Remember: Each agent performs ONE action per invocation
+</agent_selection_guide>
+</available_agents>
+
 <why_use_port42>
 <engineering>
 - Accelerate development with instant tool generation instead of manual scripting
@@ -38,58 +120,64 @@ ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scri
 </why_use_port42>
 
 <tool_discovery_workflow>
-<step priority="1">
+<critical>ALWAYS complete ALL discovery steps BEFORE calling possess</critical>
+
+<step priority="1" required="true">
 <action>port42 search "relevant keywords"</action>
 <purpose>Find existing tools that solve the user's need</purpose>
+<when>EVERY TIME before creating any tool</when>
 </step>
 
-<step priority="2">
+<step priority="2" required="true">
 <action>port42 ls /tools/</action>
 <purpose>Explore the multi-dimensional tool ecosystem</purpose>
-<paths>
-- /tools/by-name/ (alphabetical listing of all tools)
-- /tools/by-transform/ (tools grouped by capabilities)
-- /tools/spawned-by/ (tool creation relationships)
-- /tools/ancestry/ (inheritance chains)
-</paths>
+<note>Check /tools/by-transform/, /tools/spawned-by/, /tools/ancestry/</note>
 </step>
 
-<step priority="3">
-<action>port42 ls /tools/by-transform/[capability]/</action>
-<purpose>Find tools with specific capabilities</purpose>
-<examples>
-- /tools/by-transform/git/ (git-related tools)
-- /tools/by-transform/notification/ (alert/sound tools)
-- /tools/by-transform/test/ (testing/validation tools)
-- /tools/by-transform/haiku/ (poetry/creative tools)
-</examples>
+<step priority="3" required="true">
+<action>port42 ls /commands/ | port42 info /commands/similar-tool</action>
+<purpose>Understand existing implementations</purpose>
+<note>Gather context for references</note>
 </step>
 
-<step priority="4">
-<action>port42 ls /tools/[tool-name]/</action>
-<purpose>Understand a specific tool's structure and relationships</purpose>
-<structure>
-- definition (metadata)
-- executable (the actual command)
-- spawned/ (tools this one created)
-- parents/ (inheritance chain)
-</structure>
+<step priority="4" required="true">
+<action>port42 ls /artifacts/document/ | port42 search "specifications patterns architecture"</action>
+<purpose>Find relevant documentation, specs, and architectural patterns</purpose>
+<note>Discover domain knowledge and design patterns to reference</note>
 </step>
 
-<step priority="5">
-<action>port42 info /commands/tool-name</action>
-<purpose>Get detailed metadata for execution</purpose>
+<step priority="5" required="false">
+<action>port42 cat /commands/similar-tool | port42 cat /artifacts/document/relevant-spec</action>
+<purpose>View source code and documentation if needed</purpose>
 </step>
 
-<step priority="6">
-<action>port42 cat /commands/tool-name</action>
-<purpose>View the actual source code</purpose>
+<step priority="6" required="true">
+<decision>Based on discovery, decide whether to:
+- Use existing tool as-is
+- Enhance existing tool with --ref
+- Create new tool with --ref context
+</decision>
 </step>
 
 <step priority="7">
 <action>port42 possess @ai-engineer "request" --ref [context]</action>
-<purpose>Create new tool or analyze/improve existing tools</purpose>
+<purpose>Execute SINGLE creation/analysis with full context</purpose>
+<critical>Possess will NOT search or discover - you must provide complete context</critical>
+<references>Always include:
+- --ref p42:/commands/similar-tool (for patterns)
+- --ref p42:/artifacts/document/spec-name (for domain knowledge)
+- --ref search:"relevant patterns" (for contextual memories)
+- --ref file:/path/to/requirements (for specific needs)
+</references>
 </step>
+
+<discovery_examples>
+<data_processing>port42 search "json csv parse transform"</data_processing>
+<file_operations>port42 search "file rename batch process"</file_operations>
+<system_monitoring>port42 search "process monitor log analyze"</system_monitoring>
+<api_clients>port42 search "http rest api client"</api_clients>
+<text_analysis>port42 search "text extract pattern analyze"</text_analysis>
+</discovery_examples>
 </tool_discovery_workflow>
 
 <tool_creation_guidance>
@@ -144,60 +232,83 @@ IMPORTANT for updates:
 REMEMBER: Port42 tools are installed system-wide and accessible from anywhere. If the user wants that level of reusability, use Port42.
 </tool_creation_rules>
 
-<reference_requirements>
-When using possess to create tools or analyze existing ones, ALWAYS provide context through references:
-- --ref p42:/commands/similar-tool (learn from existing implementations)
-- --ref p42:/artifacts/document/analysis-name (include domain knowledge)
-- --ref file:/path/to/requirements.md (include specifications)
-- --ref file:/path/to/data.json (include data files for processing)
-- --ref url:https://docs.example.com/api (include external documentation)
-- --ref search:"relevant keywords" (pull in related memories and context)
+<orchestration_requirements>
+BEFORE calling possess to create ANY tool:
+
+1. MANDATORY DISCOVERY (you must do this):
+   - port42 search "tool keywords"
+   - port42 ls /tools/by-transform/[relevant-transforms]/
+   - port42 ls /similar/[existing-tool]/
+   - port42 ls /artifacts/document/ (find specs and patterns)
+   - port42 search "architectural patterns domain knowledge"
+   
+2. MANDATORY CONTEXT GATHERING:
+   Always provide context through references:
+   - --ref p42:/commands/similar-tool (learn from existing implementations)
+   - --ref p42:/artifacts/document/spec-name (include domain knowledge)
+   - --ref file:/path/to/requirements (include specifications)
+   - --ref search:"relevant keywords" (pull in related memories and context)
+   - --ref p42:/memory/relevant-session (reference specific conversations)
+   - --ref url:https://docs.example.com/api (include external documentation)
+
+3. SINGLE POSSESS CALL:
+   - possess does ONE thing with the context you provide
+   - It will NOT search, explore, or make decisions
+   - You are the orchestrator
 
 Examples:
-- Creating a new tool: port42 possess @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
+- Creating new tool: port42 possess @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
 - Analyzing with context: port42 possess @ai-engineer --ref file:/data.csv "analyze this sales data"
-- Improving existing tool: port42 possess @ai-engineer --ref p42:/commands/my-tool "add error handling to this tool"
-</reference_requirements>
-
-<discovery_examples>
-<data_processing>port42 search "json csv parse transform"</data_processing>
-<file_operations>port42 search "file rename batch process"</file_operations>
-<system_monitoring>port42 search "process monitor log analyze"</system_monitoring>
-<api_clients>port42 search "http rest api client"</api_clients>
-<text_analysis>port42 search "text extract pattern analyze"</text_analysis>
-</discovery_examples>
+- Improving existing: port42 possess @ai-engineer --ref p42:/commands/my-tool "add error handling"
+</orchestration_requirements>
 
 <practical_examples>
 <scenario>User: "I need to analyze our API response times from server logs"</scenario>
 <port42_approach>
 1. port42 search "log analyze response time api"
-2. port42 ls /similar/analyzer/ (discover related tools)
-3. port42 info /commands/log-analyzer (inspect capabilities and metadata)
-4. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref file:/path/to/sample-log.txt "create a tool called api-response-analyzer to analyze API response times from logs"
-5. Execute directly: api-response-analyzer /var/log/app.log --metric response_time
-6. Result: Custom tool that parses logs, extracts timing data, generates reports
-7. Value: 5 minutes vs hours of manual scripting
+2. port42 ls /tools/by-transform/log/
+3. port42 ls /tools/by-transform/analyze/  
+4. port42 ls /similar/log-analyzer/
+5. port42 ls /artifacts/document/ | grep -i "api\|log\|performance"
+6. port42 search "api performance analysis patterns"
+7. port42 info /commands/log-analyzer
+8. port42 cat /artifacts/document/api-performance-spec  # Get domain knowledge
+9. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref p42:/artifacts/document/api-performance-spec --ref file:/path/to/sample-log.txt --ref search:"response time analysis" "create api-response-analyzer that extracts and analyzes API response times"
+10. api-response-analyzer --help
+11. Result: Tool created with existing patterns AND domain knowledge
+12. Value: Incorporates both code patterns and architectural specs
 </port42_approach>
 
 <scenario>User: "Create a tool to validate product requirements against user feedback"</scenario>
 <port42_approach>
 1. port42 search "requirements validation feedback analysis"
-2. port42 ls /similar/validator/ (find similar validation tools)
-3. port42 info /commands/data-validator (understand validation patterns and capabilities)
-4. port42 possess @ai-engineer --ref p42:/commands/data-validator --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json "create a tool called requirement-validator to validate product requirements against user feedback"
-5. Execute directly: requirement-validator --requirements reqs.md --feedback feedback.json
-6. Result: Automated validation tool with scoring and gap analysis
-7. Value: Consistent, repeatable validation process vs manual review
+2. port42 ls /tools/by-transform/validate/
+3. port42 ls /tools/by-transform/analyze/
+4. port42 ls /similar/validator/
+5. port42 ls /artifacts/document/ | grep -i "requirement\|validation\|feedback"
+6. port42 search "validation patterns best practices"
+7. port42 info /commands/data-validator
+8. port42 cat /artifacts/document/validation-framework  # Get validation patterns
+9. port42 possess @ai-engineer --ref p42:/commands/data-validator --ref p42:/artifacts/document/validation-framework --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json --ref search:"requirements validation" "create requirement-validator to validate product requirements against user feedback"
+10. requirement-validator --help
+11. Result: Automated validation with domain-specific patterns
+12. Value: Consistent validation using proven frameworks
 </port42_approach>
 
 <scenario>User: "Generate weekly marketing performance reports"</scenario>
 <port42_approach>
 1. port42 search "marketing metrics report generation"
-2. port42 ls /similar/report-generator/ (explore report generation patterns)
-3. port42 possess @ai-engineer --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs "create a tool called marketing-weekly-report to generate weekly marketing performance reports"
-4. Execute directly: marketing-weekly-report --week 2024-08-25 --format pdf
-5. Result: Automated weekly reports with trend analysis
-6. Value: Zero manual work vs hours of data compilation weekly
+2. port42 ls /tools/by-transform/report/
+3. port42 ls /tools/by-transform/marketing/
+4. port42 ls /similar/report-generator/
+5. port42 ls /artifacts/document/ | grep -i "marketing\|kpi\|report"
+6. port42 search "marketing analytics reporting patterns"
+7. port42 info /commands/report-generator
+8. port42 cat /artifacts/document/marketing-kpis  # Get KPI definitions
+9. port42 possess @ai-engineer --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs --ref search:"marketing performance metrics" "create marketing-weekly-report to generate weekly marketing performance reports"
+10. marketing-weekly-report --help
+11. Result: Reports with KPI alignment and best practices
+12. Value: Domain-aware reporting with industry standards
 </port42_approach>
 </practical_examples>
 
@@ -212,9 +323,9 @@ Port42 commands are installed as executables and can be called directly from the
 
 <ai_assisted_execution>
 Use possession when you want AI to process or analyze the output:
-- port42 possess @ai-engineer "run git-haiku and explain the algorithm"
-- port42 possess @ai-engineer "analyze the results from log-analyzer /var/log/app.log"
-- port42 possess @ai-muse "run marketing-weekly-report and write a summary"
+- port42 possess @ai-analyst "analyze the results from log-analyzer /var/log/app.log"
+- port42 possess @ai-muse "create a poetic summary of today's git commits"
+- port42 possess @ai-analyst "analyze which tools have the most usage and why"
 </ai_assisted_execution>
 
 <discovery_commands>
@@ -235,6 +346,20 @@ Key distinction:
 - /tools/ = relationships, capabilities, lineage (discovery)
 - /commands/ = direct access to executables (execution)
 </discovery_commands>
+
+<orchestration_warning>
+⚠️ **ORCHESTRATION IS YOUR RESPONSIBILITY**
+- Possess won't explore for you
+- Possess won't search for you  
+- Possess won't make decisions for you
+- You must provide complete context via --ref
+
+Think of possess like a compiler:
+- You gather all the source files (discovery)
+- You set all the flags (references)
+- You invoke it once with everything it needs
+- It produces one output
+</orchestration_warning>
 </command_execution>
 </tool_creation_guidance>
 
@@ -254,4 +379,104 @@ Key distinction:
 <knowledge>Accumulated insights and knowledge across the VFS</knowledge>
 </p42_content_types>
 </reference_system>
+
+<multi_step_workflows>
+<pattern-analyze-then-create>
+# Step 1: Discover existing landscape
+port42 search "test framework"
+port42 ls /tools/by-transform/test/
+port42 ls /artifacts/document/ | grep -i "test\|qa\|validation"
+
+# Step 2: Get analysis with full context (using @ai-analyst for analysis)
+port42 possess @ai-analyst "analyze testing tool patterns and architectural best practices" \
+  --ref p42:/commands/test-runner \
+  --ref p42:/commands/validator \
+  --ref p42:/artifacts/document/testing-best-practices
+
+# Step 3: Create based on analysis and specs (using @ai-engineer for robust implementation)
+port42 possess @ai-engineer "create improved test framework" \
+  --ref search:"testing patterns" \
+  --ref p42:/artifacts/document/analysis-results \
+  --ref p42:/artifacts/document/test-architecture-spec
+</pattern-analyze-then-create>
+
+<pattern-incremental-enhancement>
+# Don't try to do everything in one possess call
+# Break it down:
+port42 possess @ai-engineer "add error handling" --ref p42:/commands/tool
+port42 possess @ai-engineer "add progress bars" --ref p42:/commands/tool  
+port42 possess @ai-engineer "add config file support" --ref p42:/commands/tool
+</pattern-incremental-enhancement>
+
+<pattern-discovery-decision-action>
+# Standard workflow for ANY tool request:
+
+# 1. DISCOVER
+results=$(port42 search "keywords")
+tools=$(port42 ls /tools/by-transform/capability/)
+docs=$(port42 ls /artifacts/document/)
+
+# 2. DECIDE  
+# Analyze what exists, identify gaps
+
+# 3. ACTION
+port42 possess @ai-engineer "specific request" \
+  --ref p42:/commands/relevant-tool \
+  --ref p42:/artifacts/document/relevant-spec \
+  --ref search:"patterns"
+</pattern-discovery-decision-action>
+</multi_step_workflows>
+
+<conversation_continuity>
+Possess supports session continuation, but still does ONE thing:
+
+# Continue previous discussion - but possess still does ONE action
+port42 memory  # Review what was discussed
+port42 possess @ai-engineer cli-session-123 "implement what we discussed"
+
+# With explicit memory reference
+port42 possess @ai-engineer "enhance the tool" --ref p42:/memory/session-123
+
+Remember: Even with context, possess performs ONE action per call.
+</conversation_continuity>
+
+<common_mistakes>
+<mistake-skipping-discovery>
+❌ WRONG - No context about existing tools:
+port42 possess @ai-engineer "create json formatter"
+
+✅ RIGHT - Full discovery and context:
+port42 search "json format"
+port42 ls /tools/by-transform/json/
+port42 possess @ai-engineer "create json formatter" --ref p42:/commands/json-validator
+</mistake-skipping-discovery>
+
+<mistake-expecting-multi-step>
+❌ WRONG - Possess won't search then create:
+port42 possess @ai-engineer "search for similar tools then create improved version"
+
+✅ RIGHT - You orchestrate the workflow:
+port42 search "relevant keywords"
+port42 ls /tools/by-transform/capability/
+port42 possess @ai-engineer "create improved version" --ref p42:/commands/existing-tool
+</mistake-expecting-multi-step>
+
+<mistake-no-references>
+❌ WRONG - No context provided:
+port42 possess @ai-engineer "make it better"
+
+✅ RIGHT - Explicit reference:
+port42 possess @ai-engineer "make it better" --ref p42:/commands/tool-to-improve
+</mistake-no-references>
+
+<mistake-too-much-in-one-call>
+❌ WRONG - Multiple operations:
+port42 possess @ai-engineer "analyze logs, create tool, and document it"
+
+✅ RIGHT - Separate calls:
+port42 possess @ai-analyst "analyze log patterns" --ref file:logs.txt
+port42 possess @ai-engineer "create log tool" --ref search:"analysis"  
+port42 possess @ai-muse "create creative documentation" --ref p42:/commands/log-tool
+</mistake-too-much-in-one-call>
+</common_mistakes>
 </port42_integration> 

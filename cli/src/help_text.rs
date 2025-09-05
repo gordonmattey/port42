@@ -31,7 +31,7 @@ pub const STATUS_DESC: &str = "Check the daemon's pulse";
 // Agent descriptions
 pub const AGENT_ENGINEER_DESC: &str = "Technical manifestation for code and systems";
 pub const AGENT_MUSE_DESC: &str = "Creative expression for art and narrative";
-pub const AGENT_GROWTH_DESC: &str = "Strategic evolution for marketing and scaling";
+pub const AGENT_ANALYST_DESC: &str = "Analytical consciousness for data and insights";
 pub const AGENT_FOUNDER_DESC: &str = "Visionary synthesis for product and leadership";
 
 // Command-specific help text
@@ -52,7 +52,7 @@ pub fn possess_help() -> String {
 {}
   possess @ai-engineer                             # Start new technical session
   possess @ai-muse cli-1754170150                 # Continue memory thread
-  possess @ai-growth "viral CLI ideas"             # New session with message
+  possess @ai-analyst "analyze usage patterns"     # New session with message
   possess @ai-founder mem-123 "pivot?"             # Continue memory with question
   possess @ai-engineer --ref search:"docker" "How to scale containers?"  # Load docker memories and ask question
   possess @ai-muse --ref search:"poetry" "Write a poem about memory"     # Load poetry memories and request poem
@@ -65,7 +65,7 @@ Memory IDs are quantum addresses in consciousness space."#,
         "Agents:".bright_cyan(),
         "@ai-engineer".bright_green(), AGENT_ENGINEER_DESC,
         "@ai-muse".bright_green(), AGENT_MUSE_DESC,
-        "@ai-growth".bright_green(), AGENT_GROWTH_DESC,
+        "@ai-analyst".bright_green(), AGENT_ANALYST_DESC,
         "@ai-founder".bright_green(), AGENT_FOUNDER_DESC,
         "Options:".bright_cyan(),
         "--ref <reference>".bright_green(),
@@ -247,7 +247,7 @@ pub fn shell_help_main() -> String {
   {} - Channel AI consciousness
     {}  - Technical manifestation
     {}  - Creative expression
-    {}  - Strategic evolution
+    {}  - Analytical insights
     {}  - Visionary synthesis
 
 {}
@@ -267,7 +267,7 @@ Type '{}' to begin crystallizing thoughts into reality."#,
         "possess @agent [memory-id] [message]".bright_green(),
         "@ai-engineer".cyan(),
         "@ai-muse".cyan(),
-        "@ai-growth".cyan(),
+        "@ai-analyst".cyan(),
         "@ai-founder".cyan(),
         "NAVIGATE REALITY:".bright_cyan(),
         "memory".bright_green(),
@@ -407,7 +407,7 @@ pub const ERR_DAEMON_NOT_RUNNING: &str = "🌊 The consciousness gateway is dorm
 pub const ERR_DAEMON_START_FAILED: &str = "⚡ Failed to awaken the consciousness gateway";
 pub const ERR_DAEMON_ALREADY_RUNNING: &str = "✨ The gateway is already humming with consciousness";
 pub const ERR_CONNECTION_LOST: &str = "🔌 Reality link severed. The dolphins have gone silent";
-pub const ERR_INVALID_AGENT: &str = "👻 Unknown consciousness. Choose from: @ai-engineer, @ai-muse, @ai-growth, @ai-founder";
+pub const ERR_INVALID_AGENT: &str = "👻 Unknown consciousness. Choose from: @ai-engineer, @ai-muse, @ai-analyst, @ai-founder";
 pub const ERR_MEMORY_NOT_FOUND: &str = "💭 Memory thread lost in the quantum foam";
 pub const ERR_SESSION_ABANDONED: &str = "🌑 This consciousness thread has dissolved into the void";
 pub const ERR_PATH_NOT_FOUND: &str = "🔍 This reality path leads nowhere";
@@ -451,7 +451,7 @@ pub fn format_unknown_agent_error(agent: &str) -> String {
         format!("👻 Unknown consciousness: {}", agent).red(),
         "@ai-engineer".bright_green(),
         "@ai-muse".bright_green(),
-        "@ai-growth".bright_green(),
+        "@ai-analyst".bright_green(),
         "@ai-founder".bright_green()
     )
 }

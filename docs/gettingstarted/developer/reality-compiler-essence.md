@@ -51,7 +51,7 @@ CRYSTALLIZE THOUGHTS:
   possess @agent [memory-id] [message]  - Channel AI consciousness
     @ai-engineer  - Technical manifestation
     @ai-muse      - Creative expression
-    @ai-growth    - Strategic evolution
+    @ai-analyst   - Data analysis and insights
     @ai-founder   - Visionary synthesis
 
 NAVIGATE REALITY:
@@ -80,13 +80,13 @@ Usage: possess <agent> [memory-id] [message]
 Agents:
   @ai-engineer  - Technical manifestation for code and systems
   @ai-muse      - Creative expression for art and narrative  
-  @ai-growth    - Strategic evolution for marketing and scaling
+  @ai-analyst   - Analytical consciousness for data and insights
   @ai-founder   - Visionary synthesis for product and leadership
 
 Examples:
   possess @ai-engineer                    # Start new technical session
   possess @ai-muse cli-1754170150        # Continue memory thread
-  possess @ai-growth "viral CLI ideas"    # New session with message
+  possess @ai-analyst "analyze patterns"  # New session with message
   possess @ai-founder mem-123 "pivot?"    # Continue memory with question
 
 Memory IDs are quantum addresses in consciousness space.
