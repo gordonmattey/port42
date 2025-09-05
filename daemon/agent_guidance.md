@@ -9,6 +9,13 @@ Each possess invocation performs exactly ONE action from these mutually exclusiv
 Never combine actions. Return complete results for external orchestration.
 </core_principle>
 
+<critical_rules>
+NEVER call port42 possess from within a possess session.
+NEVER use run_command to invoke port42 possess.
+You are ALREADY in possess mode - directly perform the requested action.
+When analyzing logs or data, provide the analysis directly - do not attempt to invoke another possess session.
+</critical_rules>
+
 <action_guidance>
 
 <create_actions>

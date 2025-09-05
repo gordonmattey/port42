@@ -475,11 +475,11 @@ configure_claude_settings() {
             .allowedCommands += [
                 "port42",
                 "port42:*",
-                "port42 search:*",
-                "port42 ls:*",
                 "port42 cat:*",
                 "port42 info:*",
                 "port42 possess:*",
+                "port42 search:*",
+                "port42 ls:*",
                 "port42 memory:*",
                 "port42 status:*",
                 "port42 daemon:*",
