@@ -2099,6 +2099,17 @@ func (d *Daemon) logCommandGeneration(spec *CommandSpec) {
 
 // handleLocalFile implements secure local file access for file: references
 func (d *Daemon) handleLocalFile(path string) (*resolution.FileContent, error) {
+	// Expand tilde (~) to home directory if present
+	if strings.HasPrefix(path, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Printf("❌ Failed to get home directory: %v", err)
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		path = filepath.Join(homeDir, path[2:])
+		log.Printf("🏠 Expanded tilde path to: %s", path)
+	}
+	
 	// Security: Clean path and prevent directory traversal
 	cleanPath := filepath.Clean(path)
 	if strings.Contains(cleanPath, "..") {
@@ -2195,6 +2206,13 @@ func (d *Daemon) isFileAccessAllowed(absPath string) bool {
 		// Allow .port42 directory
 		port42Dir := filepath.Join(homeDir, ".port42")
 		if strings.HasPrefix(absPath, port42Dir) {
+			return true
+		}
+		
+		// Allow files directly in home directory (like ~/test.txt)
+		// but still exclude sensitive system paths
+		if strings.HasPrefix(absPath, homeDir) && !strings.Contains(absPath, "/.ssh/") && 
+		   !strings.Contains(absPath, "/.gnupg/") && !strings.Contains(absPath, "/.aws/") {
 			return true
 		}
 	}
