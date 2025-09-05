@@ -937,7 +937,21 @@ func executeCommand(input json.RawMessage) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	
-	cmd := exec.CommandContext(ctx, cmdPath, params.Args...)
+	// Expand tilde in arguments
+	expandedArgs := make([]string, len(params.Args))
+	for i, arg := range params.Args {
+		if strings.HasPrefix(arg, "~/") {
+			if homeDir, err := os.UserHomeDir(); err == nil {
+				expandedArgs[i] = filepath.Join(homeDir, arg[2:])
+			} else {
+				expandedArgs[i] = arg // Keep original if expansion fails
+			}
+		} else {
+			expandedArgs[i] = arg
+		}
+	}
+	
+	cmd := exec.CommandContext(ctx, cmdPath, expandedArgs...)
 	
 	// Set up stdin if provided
 	if params.Stdin != "" {
@@ -985,7 +999,21 @@ func executePort42Command(args []string, stdin string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) // 5 minutes - enough for Claude API calls + auto-spawn rules
 	defer cancel()
 	
-	cmd := exec.CommandContext(ctx, cliPath, args...)
+	// Expand tilde in arguments
+	expandedArgs := make([]string, len(args))
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "~/") {
+			if homeDir, err := os.UserHomeDir(); err == nil {
+				expandedArgs[i] = filepath.Join(homeDir, arg[2:])
+			} else {
+				expandedArgs[i] = arg // Keep original if expansion fails
+			}
+		} else {
+			expandedArgs[i] = arg
+		}
+	}
+	
+	cmd := exec.CommandContext(ctx, cliPath, expandedArgs...)
 	
 	// Set up stdin if provided
 	if stdin != "" {
