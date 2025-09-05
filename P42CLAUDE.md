@@ -1,6 +1,13 @@
 <port42_integration>
 <primary_directive>
-ALWAYS use Port42 for tool creation and discovery. Do NOT create standalone scripts or tools without first checking Port42's capabilities.
+ALWAYS use Port42 for:
+1. Tool creation and discovery
+2. ANY analysis tasks (logs, data, code, performance)
+3. Pattern finding or insight generation
+4. Creating reusable utilities
+
+Do NOT use Bash/shell commands for analysis - use port42 possess @ai-analyst instead.
+Do NOT create standalone scripts without first checking Port42's capabilities.
 </primary_directive>
 
 <possess_architecture>
@@ -83,6 +90,28 @@ Choose the agent based on the PRIMARY action needed:
 
 Remember: Each agent performs ONE action per invocation
 </agent_selection_guide>
+
+<analysis_triggers>
+<critical>When user asks to analyze, ALWAYS use Port42, not Bash/shell commands</critical>
+
+When user requests any of these, USE @ai-analyst:
+- "Analyze" any file, logs, or data
+- "Find patterns" in logs, code, or output
+- "Review performance" metrics or issues
+- "Examine" data, logs, or code behavior
+- "Find insights" or "understand trends"
+- "Diagnose" problems or bottlenecks
+- "Investigate" issues or behaviors
+
+Examples that MUST use Port42:
+- "Analyze my server logs" → port42 possess @ai-analyst "analyze server logs" --ref file:/path/to/logs
+- "Find patterns in this data" → port42 possess @ai-analyst "find patterns" --ref file:data.csv
+- "Review performance issues" → port42 possess @ai-analyst "review performance" --ref search:"performance"
+- "What's causing these errors?" → port42 possess @ai-analyst "diagnose errors" --ref file:error.log
+
+DO NOT use Bash commands like: grep, awk, sed, wc, tail, head for analysis
+INSTEAD use: port42 possess @ai-analyst with appropriate references
+</analysis_triggers>
 </available_agents>
 
 <why_use_port42>
@@ -117,6 +146,33 @@ Remember: Each agent performs ONE action per invocation
 - Generate compliance and audit tools tailored to specific business requirements
 - Transform manual processes into automated, reliable, and repeatable tools
 </business_operations>
+<file_operations_guidance>
+<when_to_use_port42>
+USE Port42 for:
+- Analyzing file contents for patterns, insights, or issues
+- Creating tools that process files
+- Understanding code structure or behavior
+- Finding performance bottlenecks in logs
+- Generating reports from data files
+
+USE regular commands for:
+- Simple file viewing (cat, less)
+- Basic file info (ls, wc -l)
+- File navigation (cd, pwd)
+- Quick searches with known patterns (grep with specific string)
+</when_to_use_port42>
+
+<examples>
+❌ WRONG: wc -l ~/.port42/daemon.log  
+✅ RIGHT: port42 possess @ai-analyst "analyze daemon log patterns" --ref file:~/.port42/daemon.log
+
+❌ WRONG: grep ERROR /var/log/app.log | head -20
+✅ RIGHT: port42 possess @ai-analyst "find error patterns" --ref file:/var/log/app.log
+
+✅ OK: cat config.json (just viewing)
+✅ OK: ls -la /tmp (just listing)
+</examples>
+</file_operations_guidance>
 </why_use_port42>
 
 <tool_discovery_workflow>
@@ -263,6 +319,13 @@ Examples:
 </orchestration_requirements>
 
 <practical_examples>
+<scenario>User: "Analyze the performance patterns in my server logs ~/.port42/daemon.log"</scenario>
+<port42_approach>
+1. port42 possess @ai-analyst "analyze performance patterns" --ref file:~/.port42/daemon.log
+2. Result: Deep analysis of patterns, bottlenecks, and insights
+3. Value: AI-powered analysis vs simple line counting
+</port42_approach>
+
 <scenario>User: "I need to analyze our API response times from server logs"</scenario>
 <port42_approach>
 1. port42 search "log analyze response time api"
