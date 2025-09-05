@@ -399,28 +399,28 @@ install_claude_integration() {
     if [ -f "$claude_config" ] && grep -qi "port42_integration" "$claude_config" 2>/dev/null; then
         print_info "Port 42 Claude integration already configured"
         [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
-        return
-    fi
-    
-    # Append with markers
-    if [ -f "$claude_config" ]; then
-        print_info "Appending Port 42 integration to existing Claude config"
+        # Don't return here - we still need to configure settings.json!
     else
-        print_info "Creating new Claude config with Port 42 integration"
+        # Append with markers
+        if [ -f "$claude_config" ]; then
+            print_info "Appending Port 42 integration to existing Claude config"
+        else
+            print_info "Creating new Claude config with Port 42 integration"
+        fi
+        
+        {
+            echo ""
+            echo "<!-- PORT42_INTEGRATION_START -->"
+            cat "$p42_instructions"
+            echo "<!-- PORT42_INTEGRATION_END -->"
+        } >> "$claude_config"
+        
+        # Clean up temp file if we used one
+        [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
+        
+        print_success "Claude Code will now automatically use Port 42 for tool creation!"
+        print_info "Claude will search and create Port 42 tools without being asked"
     fi
-    
-    {
-        echo ""
-        echo "<!-- PORT42_INTEGRATION_START -->"
-        cat "$p42_instructions"
-        echo "<!-- PORT42_INTEGRATION_END -->"
-    } >> "$claude_config"
-    
-    # Clean up temp file if we used one
-    [ "$INSTALL_MODE" = "remote" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
-    
-    print_success "Claude Code will now automatically use Port 42 for tool creation!"
-    print_info "Claude will search and create Port 42 tools without being asked"
 }
 
 # Configure Claude Code settings.json for Port42 commands
@@ -763,8 +763,14 @@ main() {
     create_directories
     install_binaries
     update_path
+    
+    print_info "About to configure API key..."
     configure_api_key
+    
+    print_info "About to install Claude integration..."
     install_claude_integration
+    
+    print_info "About to configure Claude settings..."
     configure_claude_settings
     
     # Show completion message
