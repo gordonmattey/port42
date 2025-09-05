@@ -223,7 +223,7 @@ func documentationRule() Rule {
 		ID:          "spawn-documentation",
 		Name:        "Auto-spawn documentation for complex tools",
 		Description: "When a tool with 3+ transforms is declared, automatically create documentation artifact",
-		Enabled:     true,
+		Enabled:     false, // TEMPORARILY DISABLED FOR TESTING
 		Condition: func(relation Relation) bool {
 			// Only process Tool relations
 			if relation.Type != "Tool" {

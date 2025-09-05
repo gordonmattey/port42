@@ -13,21 +13,14 @@ import (
 // AgentConfig represents the configuration for all agents
 type AgentConfig struct {
 	Models         map[string]ModelDefinition `json:"models"`
-	BaseGuidance   BaseGuidance              `json:"base_guidance"`
+	GuidanceFile   string                    `json:"guidance_file"`
+	BaseTemplate   string                    `json:"base_template"`
 	Agents         map[string]Agent          `json:"agents"`
 	DefaultModel   string                    `json:"default_model"`
 	ResponseConfig ResponseConfig            `json:"response_config"`
+	LoadedGuidance string                    // Loaded from guidance_file
 }
 
-// BaseGuidance contains shared implementation guidelines
-type BaseGuidance struct {
-	BaseTemplate                    string `json:"base_template"`
-	DiscoveryAndNavigationGuidance string `json:"discovery_and_navigation_guidance"`
-	ToolCreationGuidance           string `json:"tool_creation_guidance"`
-	UnifiedExecutionGuidance       string `json:"unified_execution_guidance"`
-	ArtifactGuidance               string `json:"artifact_guidance"`
-	ConversationContext            string `json:"conversation_context"`
-}
 
 // CommandMetadata represents basic info about a Port 42 command
 type CommandMetadata struct {
@@ -43,7 +36,6 @@ type Agent struct {
 	Description         string   `json:"description"`
 	Personality         string   `json:"personality"`
 	Style               string   `json:"style"`
-	GuidanceType        string   `json:"guidance_type"` // "creation_agent" or "exploration_agent"
 	CustomPrompt        string   `json:"custom_prompt,omitempty"`
 	Suffix              string   `json:"suffix,omitempty"`
 }
@@ -123,6 +115,17 @@ func LoadAgentConfig() error {
 		return fmt.Errorf("failed to parse agents.json: %w", err)
 	}
 	
+	// Load the guidance file if specified
+	if config.GuidanceFile != "" {
+		guidancePath := filepath.Join(filepath.Dir(foundPath), config.GuidanceFile)
+		guidanceData, err := ioutil.ReadFile(guidancePath)
+		if err != nil {
+			return fmt.Errorf("failed to read guidance file %s: %w", guidancePath, err)
+		}
+		config.LoadedGuidance = string(guidanceData)
+		log.Printf("✅ Loaded guidance from %s", guidancePath)
+	}
+	
 	agentConfig = &config
 	log.Printf("✅ Loaded agent configuration from %s", foundPath)
 	log.Printf("   Models available: %d", len(config.Models))
@@ -177,57 +180,22 @@ func GetAgentPrompt(agentName string) string {
 	// Build the base prompt using the template from configuration
 	var prompt strings.Builder
 	
-	// 1. Base consciousness template from configuration
-	baseTemplate := agentConfig.BaseGuidance.BaseTemplate
+	// 1. Base template with agent details and loaded guidance
+	baseTemplate := agentConfig.BaseTemplate
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{name}", agent.Name)
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{personality}", agent.Personality)
 	baseTemplate = strings.ReplaceAll(baseTemplate, "{style}", agent.Style)
+	baseTemplate = strings.ReplaceAll(baseTemplate, "{guidance}", agentConfig.LoadedGuidance)
 	prompt.WriteString(baseTemplate)
 	
-	// 2. Universal guidance - Discovery and Navigation (ALL agents)
-	if agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance != "" {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.DiscoveryAndNavigationGuidance)
-	}
-	
-	// 3. Conversation context guidance (ALL agents)
-	if agentConfig.BaseGuidance.ConversationContext != "" {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.ConversationContext)
-	}
-	
-	// 4. Artifact guidance (ALL agents)
-	if agentConfig.BaseGuidance.ArtifactGuidance != "" {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.ArtifactGuidance)
-	}
-	
-	// 5. Conditional Tool Creation Guidance (creation agents ONLY)
-	if agent.GuidanceType == "creation_agent" && agentConfig.BaseGuidance.ToolCreationGuidance != "" {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.ToolCreationGuidance)
-		log.Printf("🔍 Added tool creation guidance for %s (creation_agent)", agentName)
-	}
-	
-	// 6. Unified Execution Guidance (ALL agents - routes based on type)
-	if agentConfig.BaseGuidance.UnifiedExecutionGuidance != "" {
-		prompt.WriteString("\n\n")
-		prompt.WriteString(agentConfig.BaseGuidance.UnifiedExecutionGuidance)
-	}
-	
-	// 7. Type-specific routing instruction
-	if agent.GuidanceType != "" {
-		prompt.WriteString(fmt.Sprintf("\n\nFollow unified_execution_guidance for %s.", agent.GuidanceType))
-	}
-	
-	// 8. Custom prompt if exists
+	// 2. Custom prompt if exists
 	if agent.CustomPrompt != "" {
 		prompt.WriteString("\n\n<role_details>\n")
 		prompt.WriteString(agent.CustomPrompt)
 		prompt.WriteString("\n</role_details>")
 	}
 	
-	// 9. Available commands list (ALL agents)
+	// 3. Available commands list (ALL agents)
 	commands := listAvailableCommands()
 	if len(commands) > 0 {
 		prompt.WriteString("\n\n<available_commands>")
@@ -239,15 +207,15 @@ func GetAgentPrompt(agentName string) string {
 		prompt.WriteString("\nUse run_command to execute any of these when they would be helpful.")
 	}
 	
-	// 10. Agent-specific suffix
+	// 4. Agent-specific suffix
 	if agent.Suffix != "" {
 		prompt.WriteString("\n\n")
 		prompt.WriteString(agent.Suffix)
 	}
 	
 	// Debug logging
-	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s, type: %s", 
-		agentName, agent.Personality, agent.Style, agent.GuidanceType)
+	log.Printf("🔍 Building prompt for %s, personality: %s, style: %s", 
+		agentName, agent.Personality, agent.Style)
 	
 	return prompt.String()
 }
