@@ -225,8 +225,6 @@ func (tm *ToolMaterializer) generateToolCode(name string, transforms []string, r
 		return nil, "", fmt.Errorf("AI returned empty response")
 	}
 	
-	// DEBUG: Log the actual AI response to understand the format
-	log.Printf("🔍 DEBUG: AI Response Text:\n%s", responseText)
 	
 	// Extract tool specification from our new unified AI response format
 	spec, err := tm.extractToolSpecFromResponse(responseText)
