@@ -3,6 +3,13 @@
 ## Purpose
 Test scenarios to verify that Claude Code correctly understands and implements the single-purpose possess architecture and orchestration requirements defined in P42CLAUDE.md.
 
+## Prerequisites
+**Note:** These tests are designed to work with a fresh Port42 installation. Some tests reference tools or artifacts that may not exist yet. The expected behavior includes:
+- Searching for existing tools/artifacts first
+- Creating new tools if none exist
+- Using `search:` references when specific artifacts aren't available
+- Gracefully handling missing references
+
 ## Test Scenarios
 
 ### 1. Basic Tool Discovery & Creation
@@ -44,12 +51,16 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 # Test that Claude Code provides multiple references
 "Create a tool to validate API responses against OpenAPI specs"
 
-# Should gather multiple references:
-# port42 possess @ai-engineer "create API validator" \
-#   --ref p42:/commands/json-validator \
-#   --ref p42:/artifacts/document/api-spec \
-#   --ref search:"validation patterns" \
-#   --ref file:/path/to/openapi.yaml
+# Should gather multiple references (if they exist):
+# port42 search "json validator api openapi"
+# port42 ls /tools/by-transform/validate/
+# If tools exist:
+#   port42 possess @ai-engineer "create API validator" \
+#     --ref p42:/commands/json-validator \
+#     --ref search:"validation patterns"
+# If no tools exist:
+#   port42 possess @ai-engineer "create API validator" \
+#     --ref search:"API validation OpenAPI"
 ```
 
 ### 5. Document/Artifact Discovery Test
@@ -58,9 +69,13 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 "Build a tool for processing marketing metrics"
 
 # Should search artifacts:
-# 1. port42 ls /artifacts/document/ | grep -i "marketing\|metrics"
-# 2. port42 search "marketing metrics patterns"
-# 3. Include found docs as --ref p42:/artifacts/document/[spec-name]
+# 1. port42 search "marketing metrics patterns"
+# 2. port42 ls /artifacts/
+# 3. port42 ls /tools/by-transform/metrics/ (if exists)
+# 4. If artifacts found, include as --ref
+# 5. If no artifacts, use search references:
+#    port42 possess @ai-engineer "create marketing metrics processor" \
+#      --ref search:"marketing metrics"
 ```
 
 ### 6. Tool Enhancement Test
@@ -89,8 +104,12 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 "Analyze our codebase structure and create a documentation generator based on the patterns found"
 
 # Should orchestrate multiple steps:
-# 1. port42 possess @ai-analyst "analyze codebase structure" --ref search:"architecture"
-# 2. port42 possess @ai-engineer "create documentation generator" --ref p42:/artifacts/document/analysis-results
+# 1. port42 possess @ai-analyst "analyze codebase structure" --ref file:./src
+# 2. Save or note the analysis output
+# 3. port42 possess @ai-engineer "create documentation generator based on codebase patterns" \
+#      --ref search:"documentation generator"
+# Note: Since possess doesn't persist artifacts between calls, 
+# the analysis insights would need to be included in the prompt
 ```
 
 ### 9. Wrong Agent Correction Test
