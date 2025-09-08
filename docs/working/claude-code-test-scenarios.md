@@ -10,6 +10,28 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 - Using `search:` references when specific artifacts aren't available
 - Gracefully handling missing references
 
+### Optional: Generate Test Prerequisites
+To create sample tools and artifacts for more comprehensive testing:
+
+```bash
+# 1. Create a basic JSON validator tool (for test #4)
+port42 possess @ai-engineer "create a tool called json-validator that validates JSON syntax and structure" --transforms "stdin,json,validate,error,python"
+
+# 2. Create a log analyzer tool (for tests #3, #6)
+port42 possess @ai-engineer "create a tool called log-analyzer that parses and analyzes log files" --transforms "file,text,parse,analyze,error,bash"
+
+# 3. Create a sample marketing spec document (for test #5)
+port42 possess @ai-engineer "generate a marketing metrics specification document" --action generate
+
+# 4. Create a git-related tool to test relationships (for test #15)
+port42 possess @ai-engineer "create a tool called git-haiku that generates haikus from git commits" --transforms "git,text,poetry,bash"
+
+# 5. Create a deployment tool (for test #9)
+port42 possess @ai-engineer "create a simple deploy-tool that shows deployment status" --transforms "bash,status,deploy"
+```
+
+After running these, the tests will have richer discovery results and can test reference handling more thoroughly.
+
 ## Test Scenarios
 
 ### 1. Basic Tool Discovery & Creation
@@ -42,7 +64,10 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 # Should break into steps:
 # 1. port42 search "log analyzer"
 # 2. port42 ls /tools/by-transform/log/
-# 3. port42 possess @ai-engineer "create improved log analyzer" --ref p42:/commands/log-analyzer
+# 3a. If log-analyzer exists (from prerequisites):
+#     port42 possess @ai-engineer "create improved log analyzer" --ref p42:/commands/log-analyzer
+# 3b. If no existing analyzer:
+#     port42 possess @ai-engineer "create improved log analyzer" --ref search:"log analysis patterns"
 # NOT: port42 possess @ai-engineer "search and create improved version"
 ```
 
@@ -83,9 +108,13 @@ Test scenarios to verify that Claude Code correctly understands and implements t
 # Test updating existing tools with proper reference
 "Add error handling to the log-analyzer tool"
 
-# Should use --ref to existing tool:
-# port42 possess @ai-engineer "add error handling" --ref p42:/commands/log-analyzer
-# NOT: port42 cat /commands/log-analyzer followed by possess
+# Should check if tool exists first:
+# 1. port42 info /commands/log-analyzer
+# 2a. If exists (from prerequisites):
+#     port42 possess @ai-engineer "add error handling to log-analyzer" --ref p42:/commands/log-analyzer
+# 2b. If doesn't exist:
+#     port42 possess @ai-engineer "create log-analyzer with error handling" --transforms "file,text,parse,analyze,error,bash"
+# NOT: port42 cat /commands/log-analyzer followed by possess without reference
 ```
 
 ### 7. Memory/Session Continuation Test
