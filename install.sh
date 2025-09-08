@@ -398,29 +398,48 @@ install_claude_integration() {
     # Create .claude directory if it doesn't exist
     mkdir -p "$HOME/.claude"
     
-    # Check if already integrated (case insensitive)
-    if [ -f "$claude_config" ] && grep -qi "port42_integration" "$claude_config" 2>/dev/null; then
-        print_info "Port 42 Claude integration already configured"
+    # Check if Port42 integration exists
+    if [ -f "$claude_config" ] && grep -q "<port42_integration>" "$claude_config" 2>/dev/null; then
+        print_info "Updating Port 42 Claude integration with latest features..."
+        
+        # Create backup
+        cp "$claude_config" "${claude_config}.backup.$(date +%Y%m%d_%H%M%S)"
+        
+        # Replace the entire port42_integration section with updated content
+        # Create a temp file to handle multi-line replacement properly
+        awk '
+            /<port42_integration>/ { 
+                skip=1
+                print ""  # Add blank line before if needed
+                while ((getline line < "'"$p42_instructions"'") > 0) print line
+            }
+            /<\/port42_integration>/ { 
+                skip=0
+                next
+            }
+            !skip { print }
+        ' "$claude_config" > "${claude_config}.tmp"
+        
+        # Move temp file to original
+        mv "${claude_config}.tmp" "$claude_config"
+        
         # Clean up temp file if it exists (only relevant for remote mode)
         if [ "$INSTALL_MODE" = "remote" ]; then
             [ -n "${temp_file:-}" ] && [ -f "${temp_file:-}" ] && rm "$temp_file" 2>/dev/null || true
         fi
-        print_info "Continuing to configure Claude settings..."
-        # Don't return here - we still need to configure settings.json!
+        
+        print_success "Port 42 integration updated with latest features!"
+        print_info "Backup saved to ${claude_config}.backup.*"
     else
-        # Append with markers
+        # No existing integration - add it
         if [ -f "$claude_config" ]; then
             print_info "Appending Port 42 integration to existing Claude config"
         else
             print_info "Creating new Claude config with Port 42 integration"
         fi
         
-        {
-            echo ""
-            echo "<!-- PORT42_INTEGRATION_START -->"
-            cat "$p42_instructions"
-            echo "<!-- PORT42_INTEGRATION_END -->"
-        } >> "$claude_config"
+        # Just append the content
+        cat "$p42_instructions" >> "$claude_config"
         
         # Clean up temp file if we used one
         [ "$INSTALL_MODE" = "remote" ] && [ -n "${temp_file:-}" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
@@ -469,7 +488,7 @@ configure_claude_settings() {
         if ! command -v jq &> /dev/null; then
             print_warning "jq is not installed. Cannot automatically update Claude Code settings."
             print_info "Please install jq or manually add these to $settings_file:"
-            echo "  allowedCommands: port42, port42:*, port42 search:*, etc."
+            echo "  allowedTools: [\"Bash(port42:*)\", \"Bash(port42)\", \"Bash(port42 search:*)\", etc.]"
             echo "  env.BASH_DEFAULT_TIMEOUT_MS: \"1800000\""
             echo "  env.BASH_MAX_TIMEOUT_MS: \"7200000\""
             return
@@ -478,27 +497,29 @@ configure_claude_settings() {
         # Update with jq - merge and deduplicate
         print_info "Merging Port42 commands into existing settings..."
         if jq '
-            # Ensure allowedCommands array exists
-            if .allowedCommands == null then .allowedCommands = [] else . end |
-            # Add Port42 commands
-            .allowedCommands += [
-                "port42",
-                "port42:*",
-                "port42 cat:*",
-                "port42 info:*",
-                "port42 possess:*",
-                "port42 search:*",
-                "port42 ls:*",
-                "port42 memory:*",
-                "port42 status:*",
-                "port42 daemon:*",
-                "port42 declare:*",
-                "port42 reality:*",
-                "port42 help:*",
-                "port42 watch:*"
+            # Ensure allowedTools array exists
+            if .allowedTools == null then .allowedTools = [] else . end |
+            # Add Port42 commands with Bash() wrapper - put broadest match first
+            .allowedTools += [
+                "Bash(port42:*)",
+                "Bash(port42)",
+                "Bash(port42 cat:*)",
+                "Bash(port42 cat /*)",
+                "Bash(port42 info:*)",
+                "Bash(port42 info /*)",
+                "Bash(port42 possess:*)",
+                "Bash(port42 search:*)",
+                "Bash(port42 ls:*)",
+                "Bash(port42 ls /*)",
+                "Bash(port42 memory:*)",
+                "Bash(port42 status:*)",
+                "Bash(port42 daemon:*)",
+                "Bash(port42 declare:*)",
+                "Bash(port42 reality:*)",
+                "Bash(port42 help:*)"
             ] |
             # Remove duplicates
-            .allowedCommands |= unique |
+            .allowedTools |= unique |
             # Ensure env object exists
             if .env == null then .env = {} else . end |
             # Set timeout values
@@ -517,7 +538,7 @@ configure_claude_settings() {
             return
         fi
     else
-        # Create new settings file
+        # Create new settings file with new allowedTools format
         cat > "$settings_file" << 'EOF'
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -525,21 +546,23 @@ configure_claude_settings() {
     "BASH_DEFAULT_TIMEOUT_MS": "1800000",
     "BASH_MAX_TIMEOUT_MS": "7200000"
   },
-  "allowedCommands": [
-    "port42",
-    "port42:*",
-    "port42 search:*",
-    "port42 ls:*",
-    "port42 cat:*",
-    "port42 info:*",
-    "port42 possess:*",
-    "port42 memory:*",
-    "port42 status:*",
-    "port42 daemon:*",
-    "port42 declare:*",
-    "port42 reality:*",
-    "port42 help:*",
-    "port42 watch:*"
+  "allowedTools": [
+    "Bash(port42:*)",
+    "Bash(port42)",
+    "Bash(port42 search:*)",
+    "Bash(port42 ls:*)",
+    "Bash(port42 ls /*)",
+    "Bash(port42 cat:*)",
+    "Bash(port42 cat /*)",
+    "Bash(port42 info:*)",
+    "Bash(port42 info /*)",
+    "Bash(port42 possess:*)",
+    "Bash(port42 memory:*)",
+    "Bash(port42 status:*)",
+    "Bash(port42 daemon:*)",
+    "Bash(port42 declare:*)",
+    "Bash(port42 reality:*)",
+    "Bash(port42 help:*)"
   ]
 }
 EOF
@@ -548,8 +571,8 @@ EOF
     # Verify the update worked
     if [ -f "$settings_file" ]; then
         if command -v jq &> /dev/null; then
-            # Use jq to verify JSON structure
-            if jq -e '.allowedCommands | map(select(. == "port42")) | length > 0' "$settings_file" >/dev/null 2>&1 && \
+            # Use jq to verify JSON structure - check for allowedTools with Bash wrapper
+            if jq -e '.allowedTools | map(select(. == "Bash(port42)" or . == "Bash(port42:*)")) | length > 0' "$settings_file" >/dev/null 2>&1 && \
                jq -e '.env.BASH_DEFAULT_TIMEOUT_MS' "$settings_file" >/dev/null 2>&1; then
                 print_success "Claude Code settings configured for Port42!"
                 print_info "Port42 commands will now run without approval prompts"
