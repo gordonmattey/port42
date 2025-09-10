@@ -260,6 +260,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleGetMetadata(req)
 	case "search":
 		return d.handleSearch(req)
+	case "get_last_session":
+		return d.handleGetLastSession(req)
 	case "declare_relation":
 		return d.handleDeclareRelation(req)
 	case "get_relation":
@@ -589,6 +591,7 @@ func (d *Daemon) handleGetMetadata(req Request) Response {
 func (d *Daemon) handleSearch(req Request) Response {
 	var payload struct {
 		Query   string        `json:"query"`
+		Mode    string        `json:"mode,omitempty"`
 		Filters SearchFilters `json:"filters"`
 	}
 
@@ -596,8 +599,13 @@ func (d *Daemon) handleSearch(req Request) Response {
 		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
 	}
 
-	// Perform search
-	results, err := d.storage.SearchObjects(payload.Query, payload.Filters)
+	// Default to OR mode if not specified
+	if payload.Mode == "" {
+		payload.Mode = "or"
+	}
+
+	// Perform search with mode
+	results, err := d.storage.SearchObjects(payload.Query, payload.Mode, payload.Filters)
 	if err != nil {
 		return NewErrorResponse(req.ID, fmt.Sprintf("Search failed: %v", err))
 	}
@@ -605,10 +613,62 @@ func (d *Daemon) handleSearch(req Request) Response {
 	resp := NewResponse(req.ID, true)
 	resp.SetData(map[string]interface{}{
 		"query":   payload.Query,
+		"mode":    payload.Mode,
 		"filters": payload.Filters,
 		"results": results,
 		"count":   len(results),
 	})
+	return resp
+}
+
+func (d *Daemon) handleGetLastSession(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	// Parse payload
+	var payload struct {
+		Agent string `json:"agent"`
+	}
+	
+	if err := json.Unmarshal(req.Payload, &payload); err != nil {
+		resp.SetError("Invalid payload: " + err.Error())
+		return resp
+	}
+	
+	if payload.Agent == "" {
+		resp.SetError("agent parameter required")
+		return resp
+	}
+	
+	// Normalize agent name (remove @ if present)
+	agent := strings.TrimPrefix(payload.Agent, "@")
+	
+	// Get most recent session from storage for this agent
+	if d.storage == nil {
+		resp.SetError("Storage not initialized")
+		return resp
+	}
+	
+	sessionID, err := d.storage.GetLastSession(agent)
+	if err != nil {
+		resp.SetError(fmt.Sprintf("No sessions found for %s: %v", agent, err))
+		return resp
+	}
+	
+	// Load session to get metadata (returns PersistentSession)
+	session, err := d.storage.LoadSession(sessionID)
+	if err != nil {
+		resp.SetError(fmt.Sprintf("Failed to load session: %v", err))
+		return resp
+	}
+	
+	data := map[string]interface{}{
+		"session_id":    session.ID,
+		"agent":         session.Agent,
+		"last_activity": session.LastActivity.Format(time.RFC3339),
+		"message_count": len(session.Messages),
+	}
+	
+	resp.SetData(data)
 	return resp
 }
 
@@ -1561,7 +1621,7 @@ func (d *Daemon) initializeResolutionManager() error {
 			}
 			
 			// Execute search using storage system
-			results, err := d.storage.SearchObjects(query, filters)
+			results, err := d.storage.SearchObjects(query, "or", filters)
 			if err != nil {
 				log.Printf("❌ Search failed: %v", err)
 				return []resolution.SearchResult{}, nil // Return empty results, don't fail resolution
@@ -2466,7 +2526,7 @@ func (d *Daemon) handleP42SearchPath(p42Path string) (*resolution.FileContent, e
 	searchTerm = strings.ReplaceAll(searchTerm, "/", " ")
 	
 	// Search for content
-	results, err := d.storage.SearchObjects(searchTerm, SearchFilters{
+	results, err := d.storage.SearchObjects(searchTerm, "or", SearchFilters{
 		Limit: 3,
 	})
 	if err != nil {

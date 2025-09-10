@@ -309,6 +309,7 @@ impl Port42Shell {
                 search::handle_search(
                     &mut client,
                     query,
+                    "or",      // default mode
                     None,      // path
                     None,      // type_filter
                     None,      // after

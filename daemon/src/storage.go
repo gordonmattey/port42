@@ -15,6 +15,90 @@ import (
 	"time"
 )
 
+// AgentSessions manages last session tracking per agent
+type AgentSessions struct {
+	mu       sync.RWMutex
+	sessions map[string]string // agent -> sessionID
+	filePath string
+}
+
+// NewAgentSessions creates a new agent session tracker
+func NewAgentSessions(baseDir string) *AgentSessions {
+	return &AgentSessions{
+		sessions: make(map[string]string),
+		filePath: filepath.Join(baseDir, "agent_sessions.json"),
+	}
+}
+
+// Load reads agent sessions from disk
+func (as *AgentSessions) Load() error {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	
+	data, err := os.ReadFile(as.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist yet, not an error
+			return nil
+		}
+		return fmt.Errorf("failed to read agent sessions: %w", err)
+	}
+	
+	if err := json.Unmarshal(data, &as.sessions); err != nil {
+		return fmt.Errorf("failed to parse agent sessions: %w", err)
+	}
+	
+	log.Printf("📌 [AGENT_SESSIONS] Loaded sessions for %d agents", len(as.sessions))
+	return nil
+}
+
+// Save writes agent sessions to disk
+func (as *AgentSessions) Save() error {
+	as.mu.RLock()
+	defer as.mu.RUnlock()
+	
+	data, err := json.MarshalIndent(as.sessions, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal agent sessions: %w", err)
+	}
+	
+	if err := os.WriteFile(as.filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write agent sessions: %w", err)
+	}
+	
+	return nil
+}
+
+// GetLastSession returns the last session for an agent
+func (as *AgentSessions) GetLastSession(agent string) (string, bool) {
+	as.mu.RLock()
+	defer as.mu.RUnlock()
+	
+	sessionID, exists := as.sessions[agent]
+	return sessionID, exists
+}
+
+// SetLastSession updates the last session for an agent
+func (as *AgentSessions) SetLastSession(agent, sessionID string) error {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	
+	as.sessions[agent] = sessionID
+	
+	// Save immediately for persistence
+	data, err := json.MarshalIndent(as.sessions, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal agent sessions: %w", err)
+	}
+	
+	if err := os.WriteFile(as.filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write agent sessions: %w", err)
+	}
+	
+	log.Printf("📌 [AGENT_SESSIONS] Updated %s -> %s", agent, sessionID)
+	return nil
+}
+
 // Storage provides unified storage for all Port 42 data
 type Storage struct {
 	baseDir     string
@@ -24,6 +108,9 @@ type Storage struct {
 	// Session index for quick lookups
 	sessionIndex map[string]SessionReference
 	indexMutex   sync.RWMutex
+	
+	// Agent-specific session tracking
+	agentSessions *AgentSessions
 	
 	// Relations integration for virtual filesystem
 	relationStore RelationStore
@@ -63,11 +150,19 @@ func NewStorage(baseDir string, relationStore RelationStore) (*Storage, error) {
 		}
 	}
 	
+	// Initialize agent sessions
+	agentSessions := NewAgentSessions(baseDir)
+	if err := agentSessions.Load(); err != nil {
+		log.Printf("⚠️ [STORAGE] Failed to load agent sessions: %v", err)
+		// Continue anyway, will create new file on first save
+	}
+	
 	s := &Storage{
 		baseDir:       baseDir,
 		objectsDir:    objectsDir,
 		metadataDir:   metadataDir,
 		sessionIndex:  make(map[string]SessionReference),
+		agentSessions: agentSessions,
 		relationStore: relationStore,
 		stats:         StorageStats{LastUpdated: time.Now()},
 	}
@@ -329,6 +424,13 @@ func (s *Storage) SaveSession(session *Session) error {
 		log.Printf("Warning: Failed to save session index: %v", err)
 	}
 	
+	// Update last session tracker for this agent
+	if session.Agent != "" {
+		if err := s.UpdateLastSession(session.Agent, session.ID); err != nil {
+			log.Printf("Warning: Failed to update last session for agent %s: %v", session.Agent, err)
+		}
+	}
+	
 	log.Printf("✅ [STORAGE] Session %s saved with object ID %s", session.ID, objectID[:12]+"...")
 	return nil
 }
@@ -405,6 +507,49 @@ func (s *Storage) LoadRecentSessions(days int) ([]*PersistentSession, error) {
 	}
 	
 	return sessions, nil
+}
+
+// GetLastSession returns the ID of the most recently active session for an agent
+func (s *Storage) GetLastSession(agent string) (string, error) {
+	if agent == "" {
+		return "", fmt.Errorf("agent parameter required")
+	}
+	
+	// Normalize agent name (remove @ if present)
+	agent = strings.TrimPrefix(agent, "@")
+	
+	// Check agent-specific sessions
+	sessionID, exists := s.agentSessions.GetLastSession(agent)
+	if !exists {
+		return "", fmt.Errorf("no sessions found for agent %s", agent)
+	}
+	
+	// Verify session still exists
+	s.indexMutex.RLock()
+	defer s.indexMutex.RUnlock()
+	
+	if _, exists := s.sessionIndex[sessionID]; !exists {
+		// Session no longer exists, clean up
+		s.agentSessions.SetLastSession(agent, "")
+		return "", fmt.Errorf("session %s no longer exists", sessionID)
+	}
+	
+	log.Printf("🔍 [STORAGE] Retrieved last session for %s: %s", agent, sessionID)
+	return sessionID, nil
+}
+
+// UpdateLastSession updates a marker for the last active session for an agent
+// Note: This should only be called when already holding the indexMutex lock
+func (s *Storage) UpdateLastSession(agent, sessionID string) error {
+	if agent == "" {
+		return fmt.Errorf("agent parameter required")
+	}
+	
+	// Normalize agent name (remove @ if present)
+	agent = strings.TrimPrefix(agent, "@")
+	
+	// Update agent-specific session
+	return s.agentSessions.SetLastSession(agent, sessionID)
 }
 
 // ==================== Command Management ====================
@@ -1244,7 +1389,7 @@ func generateMemoryID() string {
 }
 
 // SearchObjects searches across all objects and relations in the virtual filesystem
-func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchResult, error) {
+func (s *Storage) SearchObjects(query string, mode string, filters SearchFilters) ([]SearchResult, error) {
 	results := []SearchResult{}
 	
 	// Default limit
@@ -1255,7 +1400,7 @@ func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchRe
 	
 	// Phase D: Search relations first (tools, artifacts defined as relations)
 	if s.relationStore != nil {
-		relationResults, err := s.searchInRelations(query, filters)
+		relationResults, err := s.searchInRelations(query, mode, filters)
 		if err == nil {
 			results = append(results, relationResults...)
 		}
@@ -1288,12 +1433,12 @@ func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchRe
 			continue
 		}
 		
-		// Search in metadata fields
-		score, matchFields, snippet := searchInMetadata(metadata, queryLower)
+		// Search in metadata fields with mode
+		score, matchFields, snippet := searchInMetadata(metadata, queryLower, mode)
 		
 		// If no metadata match and query exists, optionally search in content
 		if score == 0 && query != "" && metadata.Size < 100*1024 { // Only for small files
-			contentScore, contentSnippet := s.searchInContent(objID, queryLower, metadata.Type)
+			contentScore, contentSnippet := s.searchInContent(objID, queryLower, mode, metadata.Type)
 			if contentScore > 0 {
 				score = contentScore * 0.8 // Content matches score lower than metadata
 				matchFields = append(matchFields, "content")
@@ -1355,7 +1500,7 @@ func (s *Storage) SearchObjects(query string, filters SearchFilters) ([]SearchRe
 }
 
 // searchInRelations searches within the relation store for Phase D advanced discovery
-func (s *Storage) searchInRelations(query string, filters SearchFilters) ([]SearchResult, error) {
+func (s *Storage) searchInRelations(query string, mode string, filters SearchFilters) ([]SearchResult, error) {
 	results := []SearchResult{}
 	queryLower := strings.ToLower(query)
 	
@@ -1371,8 +1516,8 @@ func (s *Storage) searchInRelations(query string, filters SearchFilters) ([]Sear
 			continue
 		}
 		
-		// Calculate search score and find matches
-		score, matchFields, snippet := s.scoreRelation(relation, queryLower)
+		// Calculate search score and find matches with mode
+		score, matchFields, snippet := s.scoreRelation(relation, queryLower, mode)
 		
 		// Skip if no match and query is specified
 		if score == 0 && query != "" {
@@ -1419,7 +1564,7 @@ func (s *Storage) searchInRelations(query string, filters SearchFilters) ([]Sear
 }
 
 // scoreRelation calculates search relevance score for a relation
-func (s *Storage) scoreRelation(relation Relation, queryLower string) (float64, []string, string) {
+func (s *Storage) scoreRelation(relation Relation, queryLower string, mode string) (float64, []string, string) {
 	var score float64
 	var matchFields []string
 	var snippet string
@@ -1429,25 +1574,102 @@ func (s *Storage) scoreRelation(relation Relation, queryLower string) (float64, 
 		return 1.0, []string{}, ""
 	}
 	
+	// Split query into terms for OR/AND modes
+	terms := strings.Fields(queryLower)
+	if len(terms) == 0 {
+		return 1.0, []string{}, ""
+	}
+	
 	// Search in name (highest weight)
 	if name, ok := relation.Properties["name"].(string); ok {
-		if strings.Contains(strings.ToLower(name), queryLower) {
-			score += 10.0
-			matchFields = append(matchFields, "name")
-			snippet = extractSnippet(name, queryLower)
+		nameLower := strings.ToLower(name)
+		
+		switch mode {
+		case "phrase", "exact":
+			if strings.Contains(nameLower, queryLower) {
+				score += 10.0
+				matchFields = append(matchFields, "name")
+				snippet = extractSnippet(name, queryLower)
+			}
+		case "and":
+			allMatch := true
+			for _, term := range terms {
+				if !strings.Contains(nameLower, term) {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				score += 10.0
+				matchFields = append(matchFields, "name")
+				snippet = extractSnippet(name, terms[0])
+			}
+		default: // "or"
+			matchCount := 0
+			for _, term := range terms {
+				if strings.Contains(nameLower, term) {
+					matchCount++
+				}
+			}
+			if matchCount > 0 {
+				score += 10.0 * float64(matchCount) / float64(len(terms))
+				matchFields = append(matchFields, "name")
+				for _, term := range terms {
+					if strings.Contains(nameLower, term) {
+						snippet = extractSnippet(name, term)
+						break
+					}
+				}
+			}
 		}
 	}
 	
 	// Search in transforms (high weight for semantic similarity)
 	if transforms, ok := relation.Properties["transforms"].([]interface{}); ok {
+		transformStrs := []string{}
 		for _, transform := range transforms {
 			if transformStr, ok := transform.(string); ok {
-				if strings.Contains(strings.ToLower(transformStr), queryLower) {
-					score += 8.0
-					matchFields = append(matchFields, "transforms")
-					if snippet == "" {
-						snippet = fmt.Sprintf("transforms: %v", transforms)
-					}
+				transformStrs = append(transformStrs, transformStr)
+			}
+		}
+		transformText := strings.ToLower(strings.Join(transformStrs, " "))
+		
+		switch mode {
+		case "phrase", "exact":
+			if strings.Contains(transformText, queryLower) {
+				score += 8.0
+				matchFields = append(matchFields, "transforms")
+				if snippet == "" {
+					snippet = fmt.Sprintf("transforms: %v", transforms)
+				}
+			}
+		case "and":
+			allMatch := true
+			for _, term := range terms {
+				if !strings.Contains(transformText, term) {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				score += 8.0
+				matchFields = append(matchFields, "transforms")
+				if snippet == "" {
+					snippet = fmt.Sprintf("transforms: %v", transforms)
+				}
+			}
+		default: // "or"
+			matchCount := 0
+			for _, term := range terms {
+				if strings.Contains(transformText, term) {
+					matchCount++
+				}
+			}
+			if matchCount > 0 {
+				score += 8.0 * float64(matchCount) / float64(len(terms))
+				matchFields = append(matchFields, "transforms")
+				if snippet == "" {
+					snippet = fmt.Sprintf("transforms: %v", transforms)
 				}
 			}
 		}
@@ -1455,22 +1677,94 @@ func (s *Storage) scoreRelation(relation Relation, queryLower string) (float64, 
 	
 	// Search in description (medium weight)
 	if desc, ok := relation.Properties["description"].(string); ok {
-		if strings.Contains(strings.ToLower(desc), queryLower) {
-			score += 5.0
-			matchFields = append(matchFields, "description")
-			if snippet == "" {
-				snippet = extractSnippet(desc, queryLower)
+		descLower := strings.ToLower(desc)
+		
+		switch mode {
+		case "phrase", "exact":
+			if strings.Contains(descLower, queryLower) {
+				score += 5.0
+				matchFields = append(matchFields, "description")
+				if snippet == "" {
+					snippet = extractSnippet(desc, queryLower)
+				}
+			}
+		case "and":
+			allMatch := true
+			for _, term := range terms {
+				if !strings.Contains(descLower, term) {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				score += 5.0
+				matchFields = append(matchFields, "description")
+				if snippet == "" {
+					snippet = extractSnippet(desc, terms[0])
+				}
+			}
+		default: // "or"
+			matchCount := 0
+			firstMatchTerm := ""
+			for _, term := range terms {
+				if strings.Contains(descLower, term) {
+					matchCount++
+					if firstMatchTerm == "" {
+						firstMatchTerm = term
+					}
+				}
+			}
+			if matchCount > 0 {
+				score += 5.0 * float64(matchCount) / float64(len(terms))
+				matchFields = append(matchFields, "description")
+				if snippet == "" && firstMatchTerm != "" {
+					snippet = extractSnippet(desc, firstMatchTerm)
+				}
 			}
 		}
 	}
 	
 	// Search in parent/spawned_by (medium weight for relationship traversal)
 	if parent, ok := relation.Properties["parent"].(string); ok {
-		if strings.Contains(strings.ToLower(parent), queryLower) {
-			score += 6.0
-			matchFields = append(matchFields, "parent")
-			if snippet == "" {
-				snippet = fmt.Sprintf("spawned by: %s", parent)
+		parentLower := strings.ToLower(parent)
+		
+		switch mode {
+		case "phrase", "exact":
+			if strings.Contains(parentLower, queryLower) {
+				score += 6.0
+				matchFields = append(matchFields, "parent")
+				if snippet == "" {
+					snippet = fmt.Sprintf("spawned by: %s", parent)
+				}
+			}
+		case "and":
+			allMatch := true
+			for _, term := range terms {
+				if !strings.Contains(parentLower, term) {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				score += 6.0
+				matchFields = append(matchFields, "parent")
+				if snippet == "" {
+					snippet = fmt.Sprintf("spawned by: %s", parent)
+				}
+			}
+		default: // "or"
+			matchCount := 0
+			for _, term := range terms {
+				if strings.Contains(parentLower, term) {
+					matchCount++
+				}
+			}
+			if matchCount > 0 {
+				score += 6.0 * float64(matchCount) / float64(len(terms))
+				matchFields = append(matchFields, "parent")
+				if snippet == "" {
+					snippet = fmt.Sprintf("spawned by: %s", parent)
+				}
 			}
 		}
 	}
@@ -1481,11 +1775,49 @@ func (s *Storage) scoreRelation(relation Relation, queryLower string) (float64, 
 			continue // Already searched
 		}
 		if valueStr, ok := value.(string); ok {
-			if strings.Contains(strings.ToLower(valueStr), queryLower) {
-				score += 2.0
-				matchFields = append(matchFields, key)
-				if snippet == "" {
-					snippet = extractSnippet(valueStr, queryLower)
+			valueLower := strings.ToLower(valueStr)
+			
+			switch mode {
+			case "phrase", "exact":
+				if strings.Contains(valueLower, queryLower) {
+					score += 2.0
+					matchFields = append(matchFields, key)
+					if snippet == "" {
+						snippet = extractSnippet(valueStr, queryLower)
+					}
+				}
+			case "and":
+				allMatch := true
+				for _, term := range terms {
+					if !strings.Contains(valueLower, term) {
+						allMatch = false
+						break
+					}
+				}
+				if allMatch {
+					score += 2.0
+					matchFields = append(matchFields, key)
+					if snippet == "" {
+						snippet = extractSnippet(valueStr, terms[0])
+					}
+				}
+			default: // "or"
+				matchCount := 0
+				firstMatchTerm := ""
+				for _, term := range terms {
+					if strings.Contains(valueLower, term) {
+						matchCount++
+						if firstMatchTerm == "" {
+							firstMatchTerm = term
+						}
+					}
+				}
+				if matchCount > 0 {
+					score += 2.0 * float64(matchCount) / float64(len(terms))
+					matchFields = append(matchFields, key)
+					if snippet == "" && firstMatchTerm != "" {
+						snippet = extractSnippet(valueStr, firstMatchTerm)
+					}
 				}
 			}
 		}
@@ -1583,7 +1915,7 @@ func matchesFilters(metadata *Metadata, filters SearchFilters) bool {
 }
 
 // searchInMetadata searches for query in metadata fields and returns score
-func searchInMetadata(metadata *Metadata, queryLower string) (float64, []string, string) {
+func searchInMetadata(metadata *Metadata, queryLower string, mode string) (float64, []string, string) {
 	score := 0.0
 	matchFields := []string{}
 	snippet := ""
@@ -1593,52 +1925,217 @@ func searchInMetadata(metadata *Metadata, queryLower string) (float64, []string,
 		return 1.0, []string{"all"}, metadata.Description
 	}
 	
-	// Search in description (highest weight)
-	if strings.Contains(strings.ToLower(metadata.Description), queryLower) {
-		score += 3.0
-		matchFields = append(matchFields, "description")
-		snippet = extractSnippet(metadata.Description, queryLower)
-	}
-	
-	// Search in title
-	if strings.Contains(strings.ToLower(metadata.Title), queryLower) {
-		score += 2.5
-		matchFields = append(matchFields, "title")
-		if snippet == "" {
-			snippet = metadata.Title
+	// Handle different search modes
+	switch mode {
+	case "phrase", "exact":
+		// Original behavior - exact phrase match
+		if strings.Contains(strings.ToLower(metadata.Description), queryLower) {
+			score += 3.0
+			matchFields = append(matchFields, "description")
+			snippet = extractSnippet(metadata.Description, queryLower)
 		}
-	}
-	
-	// Search in tags
-	for _, tag := range metadata.Tags {
-		if strings.Contains(strings.ToLower(tag), queryLower) {
+		
+		if strings.Contains(strings.ToLower(metadata.Title), queryLower) {
+			score += 2.5
+			matchFields = append(matchFields, "title")
+			if snippet == "" {
+				snippet = metadata.Title
+			}
+		}
+		
+		for _, tag := range metadata.Tags {
+			if strings.Contains(strings.ToLower(tag), queryLower) {
+				score += 2.0
+				matchFields = append(matchFields, "tags")
+				if snippet == "" {
+					snippet = fmt.Sprintf("Tag: %s", tag)
+				}
+				break
+			}
+		}
+		
+	case "and":
+		// All terms must match
+		terms := strings.Fields(queryLower)
+		if len(terms) == 0 {
+			return 1.0, []string{"all"}, metadata.Description
+		}
+		
+		// Check description
+		allMatchInDesc := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(metadata.Description), term) {
+				allMatchInDesc = false
+				break
+			}
+		}
+		if allMatchInDesc {
+			score += 3.0
+			matchFields = append(matchFields, "description")
+			snippet = extractSnippet(metadata.Description, terms[0])
+		}
+		
+		// Check title
+		allMatchInTitle := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(metadata.Title), term) {
+				allMatchInTitle = false
+				break
+			}
+		}
+		if allMatchInTitle {
+			score += 2.5
+			matchFields = append(matchFields, "title")
+			if snippet == "" {
+				snippet = metadata.Title
+			}
+		}
+		
+		// Check tags (all terms must match across all tags)
+		tagText := strings.ToLower(strings.Join(metadata.Tags, " "))
+		allMatchInTags := true
+		for _, term := range terms {
+			if !strings.Contains(tagText, term) {
+				allMatchInTags = false
+				break
+			}
+		}
+		if allMatchInTags {
 			score += 2.0
 			matchFields = append(matchFields, "tags")
 			if snippet == "" {
-				snippet = fmt.Sprintf("Tag: %s", tag)
+				snippet = fmt.Sprintf("Tags: %s", strings.Join(metadata.Tags, ", "))
 			}
-			break
+		}
+		
+	case "or":
+		fallthrough
+	default:
+		// Any term matches (OR mode)
+		terms := strings.Fields(queryLower)
+		if len(terms) == 0 {
+			return 1.0, []string{"all"}, metadata.Description
+		}
+		
+		// Count matches in description
+		descMatches := 0
+		for _, term := range terms {
+			if strings.Contains(strings.ToLower(metadata.Description), term) {
+				descMatches++
+			}
+		}
+		if descMatches > 0 {
+			// Score based on percentage of terms matched
+			score += 3.0 * float64(descMatches) / float64(len(terms))
+			matchFields = append(matchFields, "description")
+			// Find first matching term for snippet
+			for _, term := range terms {
+				if strings.Contains(strings.ToLower(metadata.Description), term) {
+					snippet = extractSnippet(metadata.Description, term)
+					break
+				}
+			}
+		}
+		
+		// Count matches in title
+		titleMatches := 0
+		for _, term := range terms {
+			if strings.Contains(strings.ToLower(metadata.Title), term) {
+				titleMatches++
+			}
+		}
+		if titleMatches > 0 {
+			score += 2.5 * float64(titleMatches) / float64(len(terms))
+			matchFields = append(matchFields, "title")
+			if snippet == "" {
+				snippet = metadata.Title
+			}
+		}
+		
+		// Count matches in tags
+		tagText := strings.ToLower(strings.Join(metadata.Tags, " "))
+		tagMatches := 0
+		for _, term := range terms {
+			if strings.Contains(tagText, term) {
+				tagMatches++
+			}
+		}
+		if tagMatches > 0 {
+			score += 2.0 * float64(tagMatches) / float64(len(terms))
+			matchFields = append(matchFields, "tags")
+			if snippet == "" {
+				snippet = fmt.Sprintf("Tags: %s", strings.Join(metadata.Tags, ", "))
+			}
 		}
 	}
 	
-	// Search in session ID
-	if strings.Contains(strings.ToLower(metadata.Session), queryLower) {
-		score += 1.5
-		matchFields = append(matchFields, "session")
-	}
-	
-	// Search in agent
-	if strings.Contains(strings.ToLower(metadata.Agent), queryLower) {
-		score += 1.5
-		matchFields = append(matchFields, "agent")
-	}
-	
-	// Search in paths (lowest weight)
-	for _, path := range metadata.Paths {
-		if strings.Contains(strings.ToLower(path), queryLower) {
+	// For phrase mode, search session ID, agent, paths with full query
+	if mode == "phrase" || mode == "exact" {
+		if strings.Contains(strings.ToLower(metadata.Session), queryLower) {
+			score += 1.5
+			matchFields = append(matchFields, "session")
+		}
+		
+		if strings.Contains(strings.ToLower(metadata.Agent), queryLower) {
+			score += 1.5
+			matchFields = append(matchFields, "agent")
+		}
+		
+		for _, path := range metadata.Paths {
+			if strings.Contains(strings.ToLower(path), queryLower) {
+				score += 0.5
+				matchFields = append(matchFields, "path")
+				break
+			}
+		}
+	} else {
+		// For AND/OR modes, check each term
+		terms := strings.Fields(queryLower)
+		
+		// Session ID
+		sessionMatches := 0
+		for _, term := range terms {
+			if strings.Contains(strings.ToLower(metadata.Session), term) {
+				sessionMatches++
+			}
+		}
+		if mode == "and" && sessionMatches == len(terms) && sessionMatches > 0 {
+			score += 1.5
+			matchFields = append(matchFields, "session")
+		} else if mode == "or" && sessionMatches > 0 {
+			score += 1.5 * float64(sessionMatches) / float64(len(terms))
+			matchFields = append(matchFields, "session")
+		}
+		
+		// Agent
+		agentMatches := 0
+		for _, term := range terms {
+			if strings.Contains(strings.ToLower(metadata.Agent), term) {
+				agentMatches++
+			}
+		}
+		if mode == "and" && agentMatches == len(terms) && agentMatches > 0 {
+			score += 1.5
+			matchFields = append(matchFields, "agent")
+		} else if mode == "or" && agentMatches > 0 {
+			score += 1.5 * float64(agentMatches) / float64(len(terms))
+			matchFields = append(matchFields, "agent")
+		}
+		
+		// Paths
+		pathText := strings.ToLower(strings.Join(metadata.Paths, " "))
+		pathMatches := 0
+		for _, term := range terms {
+			if strings.Contains(pathText, term) {
+				pathMatches++
+			}
+		}
+		if mode == "and" && pathMatches == len(terms) && pathMatches > 0 {
 			score += 0.5
 			matchFields = append(matchFields, "path")
-			break
+		} else if mode == "or" && pathMatches > 0 {
+			score += 0.5 * float64(pathMatches) / float64(len(terms))
+			matchFields = append(matchFields, "path")
 		}
 	}
 	
@@ -1654,7 +2151,7 @@ func searchInMetadata(metadata *Metadata, queryLower string) (float64, []string,
 }
 
 // searchInContent searches in the actual content of an object
-func (s *Storage) searchInContent(objID, queryLower, objType string) (float64, string) {
+func (s *Storage) searchInContent(objID, queryLower, mode, objType string) (float64, string) {
 	content, err := s.Read(objID)
 	if err != nil {
 		return 0, ""
@@ -1663,21 +2160,90 @@ func (s *Storage) searchInContent(objID, queryLower, objType string) (float64, s
 	contentStr := string(content)
 	contentLower := strings.ToLower(contentStr)
 	
-	if !strings.Contains(contentLower, queryLower) {
-		return 0, ""
+	score := 0.0
+	snippet := ""
+	
+	switch mode {
+	case "phrase", "exact":
+		// Original behavior - exact phrase match
+		if !strings.Contains(contentLower, queryLower) {
+			return 0, ""
+		}
+		
+		// Base score for content match
+		score = 1.0
+		
+		// Count occurrences (max 5 for scoring)
+		count := strings.Count(contentLower, queryLower)
+		if count > 5 {
+			count = 5
+		}
+		score += float64(count) * 0.2
+		snippet = extractSnippet(contentStr, queryLower)
+		
+	case "and":
+		// All terms must match
+		terms := strings.Fields(queryLower)
+		if len(terms) == 0 {
+			return 0, ""
+		}
+		
+		for _, term := range terms {
+			if !strings.Contains(contentLower, term) {
+				return 0, ""  // Missing required term
+			}
+		}
+		
+		// All terms found
+		score = 1.0
+		// Count total occurrences
+		totalCount := 0
+		for _, term := range terms {
+			count := strings.Count(contentLower, term)
+			if count > 5 {
+				count = 5
+			}
+			totalCount += count
+		}
+		score += float64(totalCount) * 0.1
+		snippet = extractSnippet(contentStr, terms[0])
+		
+	case "or":
+		fallthrough
+	default:
+		// Any term matches
+		terms := strings.Fields(queryLower)
+		if len(terms) == 0 {
+			return 0, ""
+		}
+		
+		matchCount := 0
+		totalCount := 0
+		firstMatch := ""
+		
+		for _, term := range terms {
+			if strings.Contains(contentLower, term) {
+				matchCount++
+				if firstMatch == "" {
+					firstMatch = term
+				}
+				count := strings.Count(contentLower, term)
+				if count > 5 {
+					count = 5
+				}
+				totalCount += count
+			}
+		}
+		
+		if matchCount == 0 {
+			return 0, ""
+		}
+		
+		// Score based on percentage of terms matched
+		score = 1.0 * float64(matchCount) / float64(len(terms))
+		score += float64(totalCount) * 0.1
+		snippet = extractSnippet(contentStr, firstMatch)
 	}
-	
-	// Base score for content match
-	score := 1.0
-	
-	// Count occurrences (max 5 for scoring)
-	count := strings.Count(contentLower, queryLower)
-	if count > 5 {
-		count = 5
-	}
-	score += float64(count) * 0.2
-	
-	snippet := extractSnippet(contentStr, queryLower)
 	
 	return score, snippet
 }

@@ -29,6 +29,8 @@ pub struct SearchFilters {
 #[derive(Debug, Serialize)]
 pub struct SearchRequest {
     pub query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
     pub filters: SearchFilters,
 }
 
@@ -36,6 +38,7 @@ impl SearchRequest {
     pub fn new(query: String) -> Self {
         Self {
             query,
+            mode: None,
             filters: SearchFilters::default(),
         }
     }
@@ -48,13 +51,20 @@ impl SearchRequest {
 
 impl RequestBuilder for SearchRequest {
     fn build_request(&self, id: String) -> Result<DaemonRequest> {
+        let mut payload = json!({
+            "query": &self.query,
+            "filters": &self.filters
+        });
+        
+        // Include mode if specified
+        if let Some(ref mode) = self.mode {
+            payload["mode"] = json!(mode);
+        }
+        
         Ok(DaemonRequest {
             request_type: "search".to_string(),
             id,
-            payload: json!({
-                "query": &self.query,
-                "filters": &self.filters
-            }),
+            payload,
             references: None,
             session_context: None,
             user_prompt: None,

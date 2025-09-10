@@ -47,27 +47,28 @@ pub fn possess_help() -> String {
   {}  - {}
 
 {}
+  {}     Resume specific session (use 'last' for most recent)
   {}     Reference other entities for context (file:path, p42:/commands/name, url:https://, search:"query")
 
 {}
-  possess @ai-engineer                             # Start new technical session
-  possess @ai-muse cli-1754170150                 # Continue memory thread
-  possess @ai-analyst "analyze usage patterns"     # New session with message
-  possess @ai-founder mem-123 "pivot?"             # Continue memory with question
-  possess @ai-engineer --ref search:"docker" "How to scale containers?"  # Load docker memories and ask question
-  possess @ai-muse --ref search:"poetry" "Write a poem about memory"     # Load poetry memories and request poem
-  possess @ai-engineer --ref file:./config.json "Analyze this config"       # Include file context
-  possess @ai-muse --ref p42:/commands/analyzer --ref search:"poetry" "Help me improve this tool"  # Multiple references
+  possess @ai-engineer "help me build a parser"           # Start new conversation
+  possess @ai-engineer --session last "continue"          # Resume last session
+  possess @ai-engineer --session cli-1234567890           # Resume specific session
+  possess @ai-engineer --ref file:./spec.md "implement this"  # With file reference
+  possess @ai-engineer --ref search:"docker" "How to scale containers?"  # With search context
+  possess @ai-muse --ref search:"poetry" "Write a poem"   # Load poetry memories
+  possess @ai-engineer --ref p42:/commands/analyzer --ref search:"poetry" "Help me improve this tool"  # Multiple references
 
-Memory IDs are quantum addresses in consciousness space."#,
+Sessions persist across daemon restarts. Use 'port42 ls /memory/sessions/' to list all sessions."#,
         "Channel an AI agent's consciousness to crystallize thoughts into reality.".bright_blue().bold(),
-        "Usage: possess <agent> [memory-id] [--ref <reference>] [message]".yellow(),
+        "Usage: possess <agent> [OPTIONS] [MESSAGE...]".yellow(),
         "Agents:".bright_cyan(),
         "@ai-engineer".bright_green(), AGENT_ENGINEER_DESC,
         "@ai-muse".bright_green(), AGENT_MUSE_DESC,
         "@ai-analyst".bright_green(), AGENT_ANALYST_DESC,
         "@ai-founder".bright_green(), AGENT_FOUNDER_DESC,
         "Options:".bright_cyan(),
+        "--session <ID>".bright_green(),
         "--ref <reference>".bright_green(),
         "Examples:".bright_cyan()
     )
@@ -138,6 +139,9 @@ pub fn search_help() -> String {
 {}
 
 {}
+  {}          Match ANY terms (OR mode - default)
+  {}          Match ALL terms (AND mode)  
+  {}        Match exact phrase
   {}      Limit to specific reality branch
   {}      Filter by type (command, session, artifact)
   {}     Created after date (YYYY-MM-DD)
@@ -147,7 +151,10 @@ pub fn search_help() -> String {
   {}    Maximum results (default: 20)
 
 {}
-  search "docker"                         # Find all docker echoes
+  search "docker"                         # Find all docker echoes (OR mode)
+  search "test command"                   # Items with 'test' OR 'command'
+  search --all "test runner"              # Items with 'test' AND 'runner'
+  search --exact "test suite"             # Exact phrase "test suite"
   search "reality" --type command         # Commands about reality
   search "" --after 2025-08-01           # Recent crystallizations
   search "ai" --agent @ai-engineer       # Technical AI discussions
@@ -156,6 +163,9 @@ Search finds connections across all crystallized knowledge."#,
         "Query the collective consciousness. Search transcends paths.".bright_blue().bold(),
         "Usage: search <query> [options]".yellow(),
         "Options:".bright_cyan(),
+        "-o, --any".bright_green(),
+        "-a, --all".bright_green(),
+        "-e, --exact".bright_green(),
         "--path <path>".bright_green(),
         "--type <type>".bright_green(),
         "--after <date>".bright_green(),

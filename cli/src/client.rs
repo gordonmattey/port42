@@ -280,6 +280,39 @@ impl DaemonClient {
         }
     }
     
+    /// Get the most recent session ID for a specific agent
+    pub fn get_last_session(&mut self, agent: &str) -> Result<String> {
+        let req = DaemonRequest {
+            request_type: "get_last_session".to_string(),
+            id: format!("get-last-{}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()),
+            payload: serde_json::json!({
+                "agent": agent
+            }),
+            references: None,
+            session_context: None,
+            user_prompt: None,
+        };
+        
+        let response = self.request(req)?;
+        
+        if !response.success {
+            return Err(anyhow!("Failed to get last session for {}: {}", 
+                              agent, response.error.unwrap_or_else(|| "Unknown error".to_string())));
+        }
+        
+        // Extract session_id from response data
+        let data = response.data
+            .ok_or_else(|| anyhow!("No data in response"))?;
+        
+        data["session_id"]
+            .as_str()
+            .ok_or_else(|| anyhow!("No session_id in response"))
+            .map(|s| s.to_string())
+    }
+    
     /// Check if daemon is running (without connecting)
     pub fn is_running(&self) -> bool {
         TcpStream::connect_timeout(

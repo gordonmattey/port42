@@ -7,6 +7,7 @@ use crate::display::{Displayable, OutputFormat};
 pub fn handle_search(
     client: &mut DaemonClient,
     query: String,
+    mode: &str,
     path: Option<String>,
     type_filter: Option<String>,
     after: Option<String>,
@@ -18,6 +19,7 @@ pub fn handle_search(
     handle_search_with_format(
         client,
         query,
+        mode,
         path,
         type_filter,
         after,
@@ -32,6 +34,7 @@ pub fn handle_search(
 pub fn handle_search_with_format(
     client: &mut DaemonClient,
     query: String,
+    mode: &str,
     path: Option<String>,
     type_filter: Option<String>,
     after: Option<String>,
@@ -63,8 +66,10 @@ pub fn handle_search_with_format(
     
     filters.limit = limit.or(Some(20));
     
-    // Create request
-    let request = SearchRequest::new(query.clone()).with_filters(filters);
+    // Create request with mode
+    let mut request = SearchRequest::new(query.clone());
+    request.mode = Some(mode.to_string());
+    request = request.with_filters(filters);
     let daemon_request = request.build_request(format!("search-{}", chrono::Utc::now().timestamp_millis()))?;
     
     // Send request and get response

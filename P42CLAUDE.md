@@ -39,7 +39,10 @@ Possess is a pure function that requires complete context via references.
 - Debugging and fixing existing tools
 - Adding comprehensive validation and edge cases
 </use_when>
-<example>port42 possess @ai-engineer "create robust log parser with error recovery"</example>
+<example>
+port42 possess @ai-engineer "create robust log parser with error recovery"
+# Continue later: port42 possess @ai-engineer --session last "add JSON log support"
+</example>
 </agent>
 
 <agent name="@ai-muse">
@@ -51,7 +54,10 @@ Possess is a pure function that requires complete context via references.
 - Exploring unconventional solutions
 - Adding personality to tool outputs
 </use_when>
-<example>port42 possess @ai-muse "create a tool that generates git commit haikus"</example>
+<example>
+port42 possess @ai-muse "create a tool that generates git commit haikus"
+# Continue later: port42 possess @ai-muse --session last "make the haikus more whimsical"
+</example>
 </agent>
 
 <agent name="@ai-analyst">
@@ -65,7 +71,10 @@ Possess is a pure function that requires complete context via references.
 - Analyzing usage patterns and metrics
 - Understanding architectural decisions
 </use_when>
-<example>port42 possess @ai-analyst "analyze performance patterns" --ref file:logs.txt</example>
+<example>
+port42 possess @ai-analyst "analyze performance patterns" --ref file:logs.txt
+# Continue later: port42 possess @ai-analyst --session last "what were the main bottlenecks?"
+</example>
 </agent>
 
 <agent name="@ai-founder">
@@ -77,7 +86,10 @@ Possess is a pure function that requires complete context via references.
 - Generating strategic reports
 - Analyzing market opportunities
 </use_when>
-<example>port42 possess @ai-founder "create market analysis tool for SaaS metrics"</example>
+<example>
+port42 possess @ai-founder "create market analysis tool for SaaS metrics"
+# Continue later: port42 possess @ai-founder --session last "add cohort analysis features"
+</example>
 </agent>
 
 
@@ -234,6 +246,35 @@ USE regular commands for:
 <api_clients>port42 search "http rest api client"</api_clients>
 <text_analysis>port42 search "text extract pattern analyze"</text_analysis>
 </discovery_examples>
+
+<search_modes>
+<description>Port42 search supports three modes for flexible query matching</description>
+
+<mode name="OR" flag="--any or -o (default)">
+<behavior>Finds items matching ANY of the search terms</behavior>
+<example>port42 search "test command" # finds items with 'test' OR 'command'</example>
+<use_when>Broad discovery, exploring related concepts, finding alternatives</use_when>
+</mode>
+
+<mode name="AND" flag="--all or -a">
+<behavior>Finds items matching ALL search terms</behavior>
+<example>port42 search --all "daemon log analyzer" # only items with all three terms</example>
+<use_when>Specific tool discovery, finding exact functionality</use_when>
+</mode>
+
+<mode name="PHRASE" flag="--exact or -e">
+<behavior>Finds items with the exact phrase</behavior>
+<example>port42 search --exact "performance metrics" # exact phrase match</example>
+<use_when>Finding specific documentation, exact error messages, known tool names</use_when>
+</mode>
+
+<best_practices>
+- Start with OR mode (default) for broad discovery
+- Use AND mode when you know multiple required attributes
+- Use PHRASE mode when searching for exact tool names or error messages
+- Combine with filters: port42 search --all "test runner" --type tool
+</best_practices>
+</search_modes>
 </tool_discovery_workflow>
 
 <tool_creation_guidance>
@@ -312,10 +353,18 @@ BEFORE calling possess to create ANY tool:
    - It will NOT search, explore, or make decisions
    - You are the orchestrator
 
+4. SESSION CONTEXT:
+   When working on complex multi-day projects:
+   - Use --session last to maintain continuity
+   - Session context reduces need for --ref to previous conversations
+   - Each session maintains its own context with the agent
+   - Sessions are per-agent (engineer sessions separate from analyst)
+
 Examples:
 - Creating new tool: port42 possess @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
 - Analyzing with context: port42 possess @ai-engineer --ref file:/data.csv "analyze this sales data"
 - Improving existing: port42 possess @ai-engineer --ref p42:/commands/my-tool "add error handling"
+- Continuing work: port42 possess @ai-engineer --session last "implement the optimization we discussed"
 </orchestration_requirements>
 
 <practical_examples>
@@ -328,18 +377,29 @@ Examples:
 
 <scenario>User: "I need to analyze our API response times from server logs"</scenario>
 <port42_approach>
-1. port42 search "log analyze response time api"
-2. port42 ls /tools/by-transform/log/
-3. port42 ls /tools/by-transform/analyze/  
-4. port42 ls /similar/log-analyzer/
-5. port42 ls /artifacts/document/ | grep -i "api\|log\|performance"
-6. port42 search "api performance analysis patterns"
-7. port42 info /commands/log-analyzer
-8. port42 cat /artifacts/document/api-performance-spec  # Get domain knowledge
-9. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref p42:/artifacts/document/api-performance-spec --ref file:/path/to/sample-log.txt --ref search:"response time analysis" "create api-response-analyzer that extracts and analyzes API response times"
-10. api-response-analyzer --help
-11. Result: Tool created with existing patterns AND domain knowledge
-12. Value: Incorporates both code patterns and architectural specs
+1. port42 search "log analyze response time api"  # Broad OR search for discovery
+2. port42 search --all "log analyzer api"  # Specific AND search for API log tools
+3. port42 ls /tools/by-transform/log/
+4. port42 ls /tools/by-transform/analyze/  
+5. port42 ls /similar/log-analyzer/
+6. port42 ls /artifacts/document/ | grep -i "api\|log\|performance"
+7. port42 search --exact "api performance" # Find exact phrase in docs
+8. port42 info /commands/log-analyzer
+9. port42 cat /artifacts/document/api-performance-spec  # Get domain knowledge
+10. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref p42:/artifacts/document/api-performance-spec --ref file:/path/to/sample-log.txt --ref search:"response time analysis" "create api-response-analyzer that extracts and analyzes API response times"
+11. api-response-analyzer --help
+12. Result: Tool created with existing patterns AND domain knowledge
+13. Value: Incorporates both code patterns and architectural specs
+</port42_approach>
+
+<scenario>User: "Find all test-related tools in the system"</scenario>
+<port42_approach>
+1. port42 search "test"  # Broad search for anything test-related
+2. port42 search --all "test runner"  # Find tools that are specifically test runners
+3. port42 search --exact "test suite"  # Find exact "test suite" tools
+4. port42 ls /tools/by-transform/test/  # Browse test transform category
+5. Result: Complete view of testing ecosystem
+6. Value: Different search modes reveal different aspects
 </port42_approach>
 
 <scenario>User: "Create a tool to validate product requirements against user feedback"</scenario>
@@ -491,17 +551,72 @@ port42 possess @ai-engineer "specific request" \
 </multi_step_workflows>
 
 <conversation_continuity>
-Possess supports session continuation, but still does ONE thing:
+<session_management>
+Port42 possess now supports explicit session management for better continuity:
 
-# Continue previous discussion - but possess still does ONE action
-port42 memory  # Review what was discussed
-port42 possess @ai-engineer cli-session-123 "implement what we discussed"
+# Resume the last session (most common use case)
+port42 possess @ai-engineer --session last "continue our discussion"
 
-# With explicit memory reference
-port42 possess @ai-engineer "enhance the tool" --ref p42:/memory/session-123
+# Resume a specific session by ID  
+port42 possess @ai-engineer --session cli-1757387099794 "what were we working on?"
 
-Remember: Even with context, possess performs ONE action per call.
+# Start a fresh session (default behavior)
+port42 possess @ai-engineer "new topic"
+
+# Check available sessions
+port42 ls /memory  # List all memory sessions
+port42 info /memory/cli-xxxxx  # Get session details
+</session_management>
+
+<session_behavior>
+- Sessions preserve full conversation history across daemon restarts
+- Each agent maintains separate session contexts
+- --session last automatically finds your most recent session
+- Session IDs are shown in output: "✨ Consciousness thread woven: cli-xxxxx"
+- Use 'memory' command to review current session
+</session_behavior>
+
+<best_practices>
+- Use --session last when continuing work after a break
+- Start fresh sessions for unrelated topics
+- Reference previous sessions with --ref p42:/memory/session-id
+- Sessions auto-save after each interaction
+- Remember: Even with context, possess performs ONE action per call
+</best_practices>
 </conversation_continuity>
+
+<multi_session_workflows>
+<pattern-iterative-development>
+# Day 1: Start designing a tool
+port42 possess @ai-engineer "design a comprehensive log analyzer"
+# Note session ID: cli-xxxxx
+
+# Day 2: Continue with implementation
+port42 possess @ai-engineer --session last "let's implement the parser module"
+
+# Day 3: Add features
+port42 possess @ai-engineer --session last "add support for JSON logs"
+</pattern-iterative-development>
+
+<pattern-parallel-sessions>
+# Work on multiple independent topics with different sessions
+port42 possess @ai-engineer "create test framework"  # Session A
+port42 possess @ai-muse "design creative CLI output"  # Session B
+
+# Resume specific work streams
+port42 possess @ai-engineer --session last "add parallel execution"
+port42 possess @ai-muse --session last "add more animations"
+</pattern-parallel-sessions>
+
+<pattern-agent-handoff>
+# Start analysis with analyst
+port42 possess @ai-analyst "analyze codebase architecture" --ref file:src/
+
+# Hand off to engineer with context
+port42 possess @ai-engineer "implement the refactoring we discussed" \
+  --ref p42:/memory/cli-xxxxx  # Reference analyst's session
+</pattern-agent-handoff>
+</multi_session_workflows>
 
 <common_mistakes>
 <mistake-skipping-discovery>
@@ -541,5 +656,15 @@ port42 possess @ai-analyst "analyze log patterns" --ref file:logs.txt
 port42 possess @ai-engineer "create log tool" --ref search:"analysis"  
 port42 possess @ai-muse "create creative documentation" --ref p42:/commands/log-tool
 </mistake-too-much-in-one-call>
+
+<mistake-forgetting-session>
+❌ WRONG - Starting new session when you meant to continue:
+port42 possess @ai-engineer "implement what we discussed"
+# Creates new session with no context
+
+✅ RIGHT - Explicitly resume session:
+port42 possess @ai-engineer --session last "implement what we discussed"
+# Continues with full context
+</mistake-forgetting-session>
 </common_mistakes>
 </port42_integration> 

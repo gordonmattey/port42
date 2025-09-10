@@ -473,6 +473,7 @@ impl InteractiveSession {
         match crate::commands::search::handle_search_with_format(
             &mut client,
             query.to_string(),
+            "or", // default mode
             None, // path
             None, // type_filter  
             None, // after

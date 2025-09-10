@@ -127,7 +127,7 @@ func main() {
 
 	// Wait for shutdown signal
 	<-sigChan
-	log.Println("\n🐬 The dolphins are returning to the depths...")
+	log.Println("🐬 The dolphins are returning to the depths...")
 	
 	// Graceful shutdown
 	daemon.Shutdown()

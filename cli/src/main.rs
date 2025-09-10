@@ -79,13 +79,17 @@ pub enum Commands {
         /// AI agent to possess (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder)
         agent: String,
         
+        /// Session ID to resume, or 'last' for most recent
+        #[arg(long, help = "Session ID to resume, or 'last' for most recent")]
+        session: Option<String>,
+        
         /// Reference entities for context (file:path, p42:/commands/name, url:https://, search:"query")
         #[arg(long = "ref", action = clap::ArgAction::Append, help = "Reference other entities for context in conversation (can be used multiple times)\n\nAvailable reference types:\n• file:./path/to/file    - Include local file content\n• p42:/commands/name     - Reference existing command or tool\n• url:https://api.docs   - Fetch web content for context\n• search:\"query terms\"   - Load relevant memories/tools\n\nExample: --ref file:./config.json --ref search:\"error patterns\"")]
         references: Option<Vec<String>>,
         
-        /// Memory ID or initial message
-        /// (If it looks like an ID, continues that session; otherwise treats as message)
-        args: Vec<String>,
+        /// Message to send to the AI
+        #[arg(trailing_var_arg = true)]
+        message: Vec<String>,
     },
     
     /// Declare that something should exist in reality
@@ -128,6 +132,18 @@ pub enum Commands {
     Search {
         /// Search query
         query: String,
+        
+        /// Match ALL terms (AND mode)
+        #[arg(long = "all", short = 'a', conflicts_with_all = &["any", "exact"])]
+        all: bool,
+        
+        /// Match ANY terms (OR mode - default)
+        #[arg(long = "any", short = 'o', conflicts_with_all = &["all", "exact"])]
+        any: bool,
+        
+        /// Match exact phrase
+        #[arg(long = "exact", short = 'e', conflicts_with_all = &["all", "any"])]
+        exact: bool,
         
         /// Limit search to paths under this prefix
         #[arg(long)]
@@ -325,53 +341,42 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Possess { agent, references, args }) => {
-            // Parse args to determine if it's a memory ID or message
-            let (session, message) = match args.len() {
-                0 => (None, None),
-                1 => {
-                    let arg = &args[0];
-                    // Better heuristic: memory IDs contain numbers or start with special patterns
-                    let looks_like_id = arg.len() <= 20 && 
-                        !arg.contains(' ') && 
-                        (arg.contains(char::is_numeric) || 
-                         arg.starts_with("cli-") || 
-                         arg.contains('-') ||
-                         arg.contains('_'));
-                    
-                    if looks_like_id {
-                        // Looks like a memory ID
-                        (Some(arg.clone()), None)
-                    } else {
-                        // It's a message
-                        (None, Some(arg.clone()))
-                    }
-                }
-                _ => {
-                    // Multiple args - check if first is memory ID
-                    let first = &args[0];
-                    let looks_like_id = first.len() <= 20 && 
-                        !first.contains(' ') && 
-                        (first.contains(char::is_numeric) || 
-                         first.starts_with("cli-") || 
-                         first.contains('-') ||
-                         first.contains('_'));
-                    
-                    if looks_like_id {
-                        // First arg is memory ID, rest is message
-                        (Some(first.clone()), Some(args[1..].join(" ")))
-                    } else {
-                        // All args are the message
-                        (None, Some(args.join(" ")))
-                    }
-                }
+        Some(Commands::Possess { agent, session, references, message }) => {
+            // Simple: session is explicit, message is always the args
+            let message_text = if message.is_empty() { 
+                None 
+            } else { 
+                Some(message.join(" ")) 
             };
+            
+            // Handle special "last" value with agent context
+            let session_id = match session.as_deref() {
+                Some("last") => {
+                    // Query daemon for last session for this specific agent
+                    let mut client = crate::client::DaemonClient::new(port);
+                    match client.get_last_session(&agent) {
+                        Ok(id) => {
+                            eprintln!("🔄 Resuming last session for {}: {}", agent, id);
+                            Some(id)
+                        },
+                        Err(_) => {
+                            eprintln!("❌ No previous sessions found for {}", agent);
+                            std::process::exit(1);
+                        }
+                    }
+                },
+                Some(id) => Some(id.to_string()),
+                None => None,
+            };
+            
             if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG possess: agent={}, references={:?}, session={:?}, message={:?}", agent, references, session, message);
+                eprintln!("DEBUG possess: agent={}, session={:?}, message={:?}", 
+                         agent, session_id, message_text);
             }
+            
             // Auto-detect output mode: show boot only for interactive mode (no message)
-            let show_boot = message.is_none();
-            commands::possess::handle_possess_with_references(port, agent, message, session, references, show_boot)?;
+            let show_boot = message_text.is_none();
+            commands::possess::handle_possess_with_references(port, agent, message_text, session_id, references, show_boot)?;
         }
         
         Some(Commands::Declare { command }) => {
@@ -453,12 +458,22 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Search { query, path, type_filter, after, before, agent, tags, limit }) => {
+        Some(Commands::Search { query, all, any, exact, path, type_filter, after, before, agent, tags, limit }) => {
             let mut client = client::DaemonClient::new(port);
-            if cli.json {
-                search::handle_search_with_format(&mut client, query, path, type_filter, after, before, agent, tags, limit, display::OutputFormat::Json)?;
+            
+            // Determine search mode
+            let mode = if all {
+                "and"
+            } else if exact {
+                "phrase"
             } else {
-                search::handle_search(&mut client, query, path, type_filter, after, before, agent, tags, limit)?;
+                "or"  // default, also covers explicit --any
+            };
+            
+            if cli.json {
+                search::handle_search_with_format(&mut client, query, mode, path, type_filter, after, before, agent, tags, limit, display::OutputFormat::Json)?;
+            } else {
+                search::handle_search(&mut client, query, mode, path, type_filter, after, before, agent, tags, limit)?;
             }
         }
         
