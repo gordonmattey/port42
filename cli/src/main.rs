@@ -84,6 +84,14 @@ pub enum Commands {
         /// Compact single-line format
         #[arg(long)]
         compact: bool,
+        
+        /// Watch mode - live updates
+        #[arg(long)]
+        watch: bool,
+        
+        /// Refresh rate in milliseconds for watch mode (default: 1 second)
+        #[arg(long, default_value = "1000")]
+        refresh: u64,
     },
     
     #[command(about = crate::help_text::POSSESS_DESC)]
@@ -354,43 +362,55 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Context { pretty, compact }) => {
+        Some(Commands::Context { pretty, compact, watch, refresh }) => {
             use crate::context::formatters::{ContextFormatter, JsonFormatter, PrettyFormatter, CompactFormatter};
             
             let mut client = crate::client::DaemonClient::new(port);
-            let response = client.request(crate::protocol::DaemonRequest {
-                request_type: "context".to_string(),
-                id: format!("context-{}", std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()),
-                payload: serde_json::json!({}),
-                references: None,
-                session_context: None,
-                user_prompt: None,
-            })?;
             
-            if !response.success {
-                eprintln!("❌ Failed to get context: {}", 
-                    response.error.unwrap_or_else(|| "Unknown error".to_string()));
-                std::process::exit(1);
-            }
-            
-            if let Some(data) = response.data {
-                // Parse into typed structure
-                let context_data: crate::context::ContextData = serde_json::from_value(data)?;
+            if watch {
+                // Launch watch mode
+                use crate::context::watch::WatchMode;
+                let mut watcher = WatchMode::new(client, refresh);
+                if let Err(e) = watcher.run() {
+                    eprintln!("❌ Watch mode error: {}", e);
+                    std::process::exit(1);
+                }
+            } else {
+                // Single shot mode
+                let response = client.request(crate::protocol::DaemonRequest {
+                    request_type: "context".to_string(),
+                    id: format!("context-{}", std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis()),
+                    payload: serde_json::json!({}),
+                    references: None,
+                    session_context: None,
+                    user_prompt: None,
+                })?;
                 
-                // Choose formatter based on flags
-                let formatter: Box<dyn ContextFormatter> = if compact {
-                    Box::new(CompactFormatter)
-                } else if pretty {
-                    Box::new(PrettyFormatter)
-                } else {
-                    Box::new(JsonFormatter)
-                };
+                if !response.success {
+                    eprintln!("❌ Failed to get context: {}", 
+                        response.error.unwrap_or_else(|| "Unknown error".to_string()));
+                    std::process::exit(1);
+                }
                 
-                // Format and print
-                println!("{}", formatter.format(&context_data));
+                if let Some(data) = response.data {
+                    // Parse into typed structure
+                    let context_data: crate::context::ContextData = serde_json::from_value(data)?;
+                    
+                    // Choose formatter based on flags
+                    let formatter: Box<dyn ContextFormatter> = if compact {
+                        Box::new(CompactFormatter)
+                    } else if pretty {
+                        Box::new(PrettyFormatter)
+                    } else {
+                        Box::new(JsonFormatter)
+                    };
+                    
+                    // Format and print
+                    println!("{}", formatter.format(&context_data));
+                }
             }
         }
         
