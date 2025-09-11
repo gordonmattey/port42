@@ -73,6 +73,18 @@ pub enum Commands {
         agent: Option<String>,
     },
     
+    #[command(about = "View current Port42 context and active session")]
+    /// Show context information
+    Context {
+        /// Pretty-print for human reading (default is JSON)
+        #[arg(long)]
+        pretty: bool,
+        
+        /// Compact single-line format
+        #[arg(long)]
+        compact: bool,
+    },
+    
     #[command(about = crate::help_text::POSSESS_DESC)]
     /// Channel an AI agent's consciousness
     Possess {
@@ -338,6 +350,68 @@ fn main() -> Result<()> {
                 reality::handle_reality_with_format(port, verbose, agent, display::OutputFormat::Json)?;
             } else {
                 reality::handle_reality(port, verbose, agent)?;
+            }
+        }
+        
+        Some(Commands::Context { pretty, compact }) => {
+            let mut client = crate::client::DaemonClient::new(port);
+            let response = client.request(crate::protocol::DaemonRequest {
+                request_type: "context".to_string(),
+                id: format!("context-{}", std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()),
+                payload: serde_json::json!({}),
+                references: None,
+                session_context: None,
+                user_prompt: None,
+            })?;
+            
+            if !response.success {
+                eprintln!("❌ Failed to get context: {}", 
+                    response.error.unwrap_or_else(|| "Unknown error".to_string()));
+                std::process::exit(1);
+            }
+            
+            if let Some(data) = response.data {
+                if compact {
+                    // Compact format
+                    if let Some(session) = data["active_session"].as_object() {
+                        print!("{}[{}]", 
+                            session.get("agent").and_then(|a| a.as_str()).unwrap_or("no-agent"),
+                            session.get("message_count").and_then(|c| c.as_u64()).unwrap_or(0));
+                    } else {
+                        print!("no-session");
+                    }
+                    println!();
+                } else if pretty {
+                    // Pretty format for humans
+                    if let Some(session) = data["active_session"].as_object() {
+                        println!("🔄 Active: {} session ({} messages)",
+                            session.get("agent").and_then(|a| a.as_str()).unwrap_or("unknown"),
+                            session.get("message_count").and_then(|c| c.as_u64()).unwrap_or(0));
+                        if let Some(id) = session.get("id").and_then(|i| i.as_str()) {
+                            println!("   Session ID: {}", id);
+                        }
+                        if let Some(start) = session.get("start_time").and_then(|t| t.as_str()) {
+                            println!("   Started: {}", start);
+                        }
+                        if let Some(last) = session.get("last_activity").and_then(|t| t.as_str()) {
+                            println!("   Last activity: {}", last);
+                        }
+                        if let Some(state) = session.get("state").and_then(|s| s.as_str()) {
+                            println!("   State: {}", state);
+                        }
+                        if let Some(cmd) = session.get("command_generated").and_then(|c| c.as_str()) {
+                            println!("   🛠 Tool created: {}", cmd);
+                        }
+                    } else {
+                        println!("💤 No active session");
+                    }
+                } else {
+                    // Default: JSON for Claude/scripts
+                    println!("{}", serde_json::to_string_pretty(&data)?);
+                }
             }
         }
         

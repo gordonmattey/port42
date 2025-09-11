@@ -270,6 +270,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 		return d.handleListRelations(req)
 	case "delete_relation":
 		return d.handleDeleteRelation(req)
+	case "context":
+		return d.handleGetContext(req)
 	default:
 		resp := NewResponse(req.ID, false)
 		resp.SetError(fmt.Sprintf("Unknown request type: %s", req.Type))
@@ -669,6 +671,52 @@ func (d *Daemon) handleGetLastSession(req Request) Response {
 	}
 	
 	resp.SetData(data)
+	return resp
+}
+
+// handleGetContext returns current session context information
+func (d *Daemon) handleGetContext(req Request) Response {
+	resp := NewResponse(req.ID, true)
+	
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	
+	// Build context response
+	contextData := map[string]interface{}{}
+	
+	// Find the most recent active session
+	var activeSession *Session
+	var latestTime time.Time
+	
+	for _, session := range d.sessions {
+		if session.State == SessionActive && session.LastActivity.After(latestTime) {
+			activeSession = session
+			latestTime = session.LastActivity
+		}
+	}
+	
+	// Add active session info if present
+	if activeSession != nil {
+		sessionData := map[string]interface{}{
+			"id":            activeSession.ID,
+			"agent":         activeSession.Agent,
+			"message_count": len(activeSession.Messages),
+			"start_time":    activeSession.CreatedAt,
+			"last_activity": activeSession.LastActivity,
+			"state":         string(activeSession.State),
+		}
+		
+		// Add command generated info if present
+		if activeSession.CommandGenerated != nil {
+			sessionData["command_generated"] = activeSession.CommandGenerated.Name
+		}
+		
+		contextData["active_session"] = sessionData
+	} else {
+		contextData["active_session"] = nil
+	}
+	
+	resp.SetData(contextData)
 	return resp
 }
 
