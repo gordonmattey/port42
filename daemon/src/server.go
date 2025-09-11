@@ -678,13 +678,16 @@ func (d *Daemon) handleGetLastSession(req Request) Response {
 func (d *Daemon) handleGetContext(req Request) Response {
 	resp := NewResponse(req.ID, true)
 	
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	
-	// Build context response
-	contextData := map[string]interface{}{}
+	// Build typed context response
+	contextData := &ContextData{
+		RecentCommands:   []CommandRecord{},
+		CreatedTools:     []ToolRecord{},
+		AccessedMemories: []MemoryAccess{},
+		Suggestions:      []ContextSuggestion{},
+	}
 	
 	// Find the most recent active session
+	d.mu.RLock()
 	var activeSession *Session
 	var latestTime time.Time
 	
@@ -694,26 +697,24 @@ func (d *Daemon) handleGetContext(req Request) Response {
 			latestTime = session.LastActivity
 		}
 	}
+	d.mu.RUnlock()
 	
 	// Add active session info if present
 	if activeSession != nil {
-		sessionData := map[string]interface{}{
-			"id":            activeSession.ID,
-			"agent":         activeSession.Agent,
-			"message_count": len(activeSession.Messages),
-			"start_time":    activeSession.CreatedAt,
-			"last_activity": activeSession.LastActivity,
-			"state":         string(activeSession.State),
+		contextData.ActiveSession = &ActiveSessionInfo{
+			ID:           activeSession.ID,
+			Agent:        activeSession.Agent,
+			MessageCount: len(activeSession.Messages),
+			StartTime:    activeSession.CreatedAt,
+			LastActivity: activeSession.LastActivity,
+			State:        string(activeSession.State),
 		}
 		
 		// Add command generated info if present
 		if activeSession.CommandGenerated != nil {
-			sessionData["command_generated"] = activeSession.CommandGenerated.Name
+			toolName := activeSession.CommandGenerated.Name
+			contextData.ActiveSession.ToolCreated = &toolName
 		}
-		
-		contextData["active_session"] = sessionData
-	} else {
-		contextData["active_session"] = nil
 	}
 	
 	resp.SetData(contextData)
