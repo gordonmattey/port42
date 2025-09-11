@@ -9,22 +9,26 @@ import (
 
 // ContextCollector collects and manages context data for the daemon
 type ContextCollector struct {
-	mu             sync.RWMutex
-	daemon         *Daemon
-	recentCommands []CommandRecord
-	createdTools   []ToolRecord
-	maxCommands    int
-	maxTools       int
+	mu               sync.RWMutex
+	daemon           *Daemon
+	recentCommands   []CommandRecord
+	createdTools     []ToolRecord
+	accessedMemories map[string]*MemoryAccess // path -> access info
+	maxCommands      int
+	maxTools         int
+	maxMemories      int
 }
 
 // NewContextCollector creates a new context collector
 func NewContextCollector(daemon *Daemon) *ContextCollector {
 	return &ContextCollector{
-		daemon:         daemon,
-		maxCommands:    20,
-		maxTools:       10,
-		recentCommands: make([]CommandRecord, 0, 20),
-		createdTools:   make([]ToolRecord, 0, 10),
+		daemon:           daemon,
+		maxCommands:      20,
+		maxTools:         10,
+		maxMemories:      15,
+		recentCommands:   make([]CommandRecord, 0, 20),
+		createdTools:     make([]ToolRecord, 0, 10),
+		accessedMemories: make(map[string]*MemoryAccess),
 	}
 }
 
@@ -73,6 +77,39 @@ func (cc *ContextCollector) TrackToolCreation(name string, toolType string, tran
 	log.Printf("🛠 Tracked tool creation: %s (type: %s)", name, toolType)
 }
 
+// TrackMemoryAccess records when a memory or artifact is accessed
+func (cc *ContextCollector) TrackMemoryAccess(path string, accessType string) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	
+	// Update or create memory access record
+	if access, exists := cc.accessedMemories[path]; exists {
+		access.AccessCount++
+	} else {
+		cc.accessedMemories[path] = &MemoryAccess{
+			Path:        path,
+			Type:        accessType,
+			AccessCount: 1,
+		}
+	}
+	
+	// Trim if we have too many tracked memories
+	if len(cc.accessedMemories) > cc.maxMemories {
+		// Find and remove least accessed memory
+		var minPath string
+		minCount := int(^uint(0) >> 1) // Max int
+		for path, access := range cc.accessedMemories {
+			if access.AccessCount < minCount {
+				minCount = access.AccessCount
+				minPath = path
+			}
+		}
+		if minPath != "" {
+			delete(cc.accessedMemories, minPath)
+		}
+	}
+}
+
 // Collect gathers all context data
 func (cc *ContextCollector) Collect() *ContextData {
 	data := &ContextData{
@@ -114,7 +151,23 @@ func (cc *ContextCollector) Collect() *ContextData {
 	// Get created tools
 	cc.mu.RLock()
 	data.CreatedTools = append(data.CreatedTools, cc.createdTools...)
+	
+	// Get accessed memories (convert map to slice)
+	for _, access := range cc.accessedMemories {
+		data.AccessedMemories = append(data.AccessedMemories, *access)
+	}
 	cc.mu.RUnlock()
+	
+	// Sort accessed memories by access count (most accessed first)
+	if len(data.AccessedMemories) > 1 {
+		for i := 0; i < len(data.AccessedMemories)-1; i++ {
+			for j := i + 1; j < len(data.AccessedMemories); j++ {
+				if data.AccessedMemories[j].AccessCount > data.AccessedMemories[i].AccessCount {
+					data.AccessedMemories[i], data.AccessedMemories[j] = data.AccessedMemories[j], data.AccessedMemories[i]
+				}
+			}
+		}
+	}
 	
 	// Generate contextual suggestions
 	data.Suggestions = cc.generateSuggestions(data)

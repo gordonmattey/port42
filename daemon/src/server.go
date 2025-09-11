@@ -447,6 +447,19 @@ func (d *Daemon) handleListPath(req Request) Response {
 		path = "/"
 	}
 
+	// Track path access (browsing)
+	if d.contextCollector != nil && path != "/" {
+		accessType := "browse"
+		if strings.HasPrefix(path, "/commands/") {
+			accessType = "browse-commands"
+		} else if strings.HasPrefix(path, "/tools/") {
+			accessType = "browse-tools"
+		} else if strings.HasPrefix(path, "/memory/") {
+			accessType = "browse-memory"
+		}
+		d.contextCollector.TrackMemoryAccess(path, accessType)
+	}
+
 	// Get directory listing
 	entries := d.listVirtualPath(path)
 	
@@ -468,6 +481,19 @@ func (d *Daemon) handleReadPath(req Request) Response {
 
 	if err := json.Unmarshal(req.Payload, &payload); err != nil {
 		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Track artifact access
+	if d.contextCollector != nil {
+		accessType := "artifact"
+		if strings.HasPrefix(payload.Path, "/commands/") {
+			accessType = "command"
+		} else if strings.HasPrefix(payload.Path, "/tools/") {
+			accessType = "tool"
+		} else if strings.HasPrefix(payload.Path, "/memory/") {
+			accessType = "memory"
+		}
+		d.contextCollector.TrackMemoryAccess(payload.Path, accessType)
 	}
 
 	// Resolve path to object ID
@@ -522,6 +548,19 @@ func (d *Daemon) handleGetMetadata(req Request) Response {
 
 	if err := json.Unmarshal(req.Payload, &payload); err != nil {
 		return NewErrorResponse(req.ID, "Invalid payload: "+err.Error())
+	}
+
+	// Track metadata access
+	if d.contextCollector != nil {
+		accessType := "info"
+		if strings.HasPrefix(payload.Path, "/commands/") {
+			accessType = "info-command"
+		} else if strings.HasPrefix(payload.Path, "/tools/") {
+			accessType = "info-tool"
+		} else if strings.HasPrefix(payload.Path, "/memory/") {
+			accessType = "info-memory"
+		}
+		d.contextCollector.TrackMemoryAccess(payload.Path, accessType)
 	}
 
 	// Resolve path to object ID
@@ -1205,6 +1244,12 @@ func (d *Daemon) handleMemoryShow(req Request, sessionID string) Response {
 	resp := NewResponse(req.ID, true)
 	
 	log.Printf("🔍 [DEBUG] handleMemoryShow - looking for session: %s", sessionID)
+	
+	// Track memory access
+	if d.contextCollector != nil {
+		memoryPath := fmt.Sprintf("/memory/%s", sessionID)
+		d.contextCollector.TrackMemoryAccess(memoryPath, "session")
+	}
 	
 	// First check in-memory sessions
 	d.mu.RLock()

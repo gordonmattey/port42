@@ -57,6 +57,27 @@ impl ContextFormatter for PrettyFormatter {
             }
         }
         
+        // Show accessed memories/artifacts
+        if !data.accessed_memories.is_empty() {
+            output.push_str("\n📚 Recently Accessed:\n");
+            for access in data.accessed_memories.iter().take(5) {
+                let icon = match access.access_type.as_str() {
+                    "command" => "🔧",
+                    "tool" => "⚙️",
+                    "memory" | "session" => "🧠",
+                    "info" | "info-command" | "info-tool" | "info-memory" => "ℹ️",
+                    "browse" | "browse-commands" | "browse-tools" | "browse-memory" => "👁",
+                    _ => "📄",
+                };
+                let times = if access.access_count > 1 {
+                    format!(" ({}x)", access.access_count)
+                } else {
+                    String::new()
+                };
+                output.push_str(&format!("   {} {}{}\n", icon, access.path, times));
+            }
+        }
+        
         // Show suggestions
         if !data.suggestions.is_empty() {
             output.push_str("\n💡 Suggestions:\n");
