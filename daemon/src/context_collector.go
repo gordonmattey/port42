@@ -12,7 +12,9 @@ type ContextCollector struct {
 	mu             sync.RWMutex
 	daemon         *Daemon
 	recentCommands []CommandRecord
+	createdTools   []ToolRecord
 	maxCommands    int
+	maxTools       int
 }
 
 // NewContextCollector creates a new context collector
@@ -20,7 +22,9 @@ func NewContextCollector(daemon *Daemon) *ContextCollector {
 	return &ContextCollector{
 		daemon:         daemon,
 		maxCommands:    20,
+		maxTools:       10,
 		recentCommands: make([]CommandRecord, 0, 20),
+		createdTools:   make([]ToolRecord, 0, 10),
 	}
 }
 
@@ -44,6 +48,29 @@ func (cc *ContextCollector) TrackCommand(cmd string, exitCode int) {
 	}
 	
 	log.Printf("📝 Tracked command: %s (exit: %d)", cmd, exitCode)
+}
+
+// TrackToolCreation records when a tool is created
+func (cc *ContextCollector) TrackToolCreation(name string, toolType string, transforms []string) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	
+	record := ToolRecord{
+		Name:      name,
+		Type:      toolType,
+		Transforms: transforms,
+		CreatedAt: time.Now(),
+	}
+	
+	// Add to front of slice (most recent first)
+	cc.createdTools = append([]ToolRecord{record}, cc.createdTools...)
+	
+	// Trim to max size
+	if len(cc.createdTools) > cc.maxTools {
+		cc.createdTools = cc.createdTools[:cc.maxTools]
+	}
+	
+	log.Printf("🛠 Tracked tool creation: %s (type: %s)", name, toolType)
 }
 
 // Collect gathers all context data
@@ -83,6 +110,11 @@ func (cc *ContextCollector) Collect() *ContextData {
 	
 	// Get recent commands with age calculation
 	data.RecentCommands = cc.getRecentCommands()
+	
+	// Get created tools
+	cc.mu.RLock()
+	data.CreatedTools = append(data.CreatedTools, cc.createdTools...)
+	cc.mu.RUnlock()
 	
 	// Generate contextual suggestions
 	data.Suggestions = cc.generateSuggestions(data)

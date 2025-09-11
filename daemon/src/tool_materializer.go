@@ -12,17 +12,19 @@ import (
 
 // ToolMaterializer implements Materializer for Tool relations
 type ToolMaterializer struct {
-	aiClient *AnthropicClient
-	storage  *Storage // Use existing storage system
-	matStore MaterializationStore
+	aiClient         *AnthropicClient
+	storage          *Storage // Use existing storage system
+	matStore         MaterializationStore
+	contextCollector *ContextCollector
 }
 
 // NewToolMaterializer creates a new tool materializer
-func NewToolMaterializer(aiClient *AnthropicClient, storage *Storage, matStore MaterializationStore) (*ToolMaterializer, error) {
+func NewToolMaterializer(aiClient *AnthropicClient, storage *Storage, matStore MaterializationStore, contextCollector *ContextCollector) (*ToolMaterializer, error) {
 	return &ToolMaterializer{
-		aiClient: aiClient,
-		storage:  storage,
-		matStore: matStore,
+		aiClient:         aiClient,
+		storage:          storage,
+		matStore:         matStore,
+		contextCollector: contextCollector,
 	}, nil
 }
 
@@ -64,6 +66,14 @@ func (tm *ToolMaterializer) Materialize(relation Relation) (*MaterializedEntity,
 	// Store using existing storage system (creates object store + symlink)
 	if err := tm.storage.StoreCommand(spec, code); err != nil {
 		return nil, fmt.Errorf("failed to store tool in object store: %w", err)
+	}
+	
+	// Track tool creation in context collector
+	if tm.contextCollector != nil {
+		log.Printf("🛠 Tracking tool creation: %s", name)
+		tm.contextCollector.TrackToolCreation(name, "command", transforms)
+	} else {
+		log.Printf("⚠️ Context collector is nil, cannot track tool: %s", name)
 	}
 	
 	// Get the canonical object ID for the executable

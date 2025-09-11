@@ -105,7 +105,12 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 		},
 	}
 	
-	// Initialize Reality Compiler
+	// Initialize Context Collector FIRST (before Reality Compiler needs it)
+	log.Printf("📊 Initializing Context Collector...")
+	daemon.contextCollector = NewContextCollector(daemon)
+	log.Printf("✅ Context Collector initialized")
+	
+	// Initialize Reality Compiler (now has access to context collector)
 	log.Printf("🌟 Initializing Reality Compiler...")
 	if err := daemon.initializeRealityCompiler(); err != nil {
 		log.Printf("⚠️ Failed to initialize Reality Compiler: %v", err)
@@ -132,11 +137,6 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	log.Printf("🔗 Initializing Reference Handler...")
 	daemon.referenceHandler = NewReferenceHandler(daemon.resolutionService)
 	log.Printf("✅ Reference Handler initialized successfully")
-	
-	// Initialize Context Collector (Step 2)
-	log.Printf("📊 Initializing Context Collector...")
-	daemon.contextCollector = NewContextCollector(daemon)
-	log.Printf("✅ Context Collector initialized")
 	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
 	return daemon
@@ -190,7 +190,6 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	
 	clientAddr := conn.RemoteAddr().String()
-	log.Printf("◊ New consciousness connected from %s", clientAddr)
 	
 	decoder := json.NewDecoder(conn)
 	encoder := json.NewEncoder(conn)
@@ -208,18 +207,25 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 		return
 	}
 	
-	log.Printf("◊ Request [%s] type: %s", req.ID, req.Type)
+	// Only log non-context requests to reduce noise
+	if req.Type != "context" {
+		log.Printf("◊ New consciousness connected from %s", clientAddr)
+		log.Printf("◊ Request [%s] type: %s", req.ID, req.Type)
+	}
 	
 	// Process request
 	resp := d.handleRequest(req)
 	
-	// Debug: Check response size
-	respJSON, _ := json.Marshal(resp)
-	log.Printf("🔍 Response size for [%s]: %d bytes", resp.ID, len(respJSON))
-	
-	// For very large responses, log a warning
-	if len(respJSON) > 1024*1024 { // 1MB
-		log.Printf("⚠️ Large response detected: %.2f MB", float64(len(respJSON))/(1024*1024))
+	// Debug: Check response size (skip for context)
+	var respJSON []byte
+	if req.Type != "context" {
+		respJSON, _ = json.Marshal(resp)
+		log.Printf("🔍 Response size for [%s]: %d bytes", resp.ID, len(respJSON))
+		
+		// For very large responses, log a warning
+		if len(respJSON) > 1024*1024 { // 1MB
+			log.Printf("⚠️ Large response detected: %.2f MB", float64(len(respJSON))/(1024*1024))
+		}
 	}
 	
 	// Send response
@@ -228,8 +234,11 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 		return
 	}
 	
-	log.Printf("◊ Response sent [%s] success: %v", resp.ID, resp.Success)
-	log.Printf("◊ Consciousness disconnected: %s", clientAddr)
+	// Only log non-context responses
+	if req.Type != "context" {
+		log.Printf("◊ Response sent [%s] success: %v", resp.ID, resp.Success)
+		log.Printf("◊ Consciousness disconnected: %s", clientAddr)
+	}
 }
 
 // handleRequest routes requests to appropriate handlers
@@ -1524,8 +1533,9 @@ func (d *Daemon) initializeRealityCompiler() error {
 	// Initialize AI client for tool generation
 	aiClient := NewAnthropicClient()
 	
-	// Initialize tool materializer
-	toolMaterializer, err := NewToolMaterializer(aiClient, d.storage, matStore)
+	// Initialize tool materializer with context collector
+	log.Printf("🔧 Creating tool materializer with context collector: %v", d.contextCollector != nil)
+	toolMaterializer, err := NewToolMaterializer(aiClient, d.storage, matStore, d.contextCollector)
 	if err != nil {
 		return fmt.Errorf("failed to initialize tool materializer: %w", err)
 	}

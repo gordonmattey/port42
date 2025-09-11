@@ -36,6 +36,35 @@ impl ContextFormatter for PrettyFormatter {
             output.push_str("No active session\n");
         }
         
+        // Show recent commands
+        if !data.recent_commands.is_empty() {
+            output.push_str("\n📝 Recent Commands:\n");
+            for cmd in data.recent_commands.iter().take(5) {
+                let age = if cmd.age_seconds < 60 {
+                    format!("{}s ago", cmd.age_seconds)
+                } else {
+                    format!("{}m ago", cmd.age_seconds / 60)
+                };
+                output.push_str(&format!("   • {} ({})\n", cmd.command, age));
+            }
+        }
+        
+        // Show created tools
+        if !data.created_tools.is_empty() {
+            output.push_str("\n🛠  Created Tools:\n");
+            for tool in &data.created_tools {
+                output.push_str(&format!("   • {}\n", tool.name));
+            }
+        }
+        
+        // Show suggestions
+        if !data.suggestions.is_empty() {
+            output.push_str("\n💡 Suggestions:\n");
+            for suggestion in data.suggestions.iter().take(3) {
+                output.push_str(&format!("   • {}\n", suggestion.command));
+            }
+        }
+        
         output
     }
 }
