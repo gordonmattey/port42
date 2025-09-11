@@ -106,7 +106,7 @@ type Storage struct {
 	metadataDir string
 	
 	// Session index for quick lookups
-	sessionIndex map[string]SessionReference
+	sessionIndex *SessionIndex
 	indexMutex   sync.RWMutex
 	
 	// Agent-specific session tracking
@@ -161,7 +161,7 @@ func NewStorage(baseDir string, relationStore RelationStore) (*Storage, error) {
 		baseDir:       baseDir,
 		objectsDir:    objectsDir,
 		metadataDir:   metadataDir,
-		sessionIndex:  make(map[string]SessionReference),
+		sessionIndex:  nil, // Will be loaded below
 		agentSessions: agentSessions,
 		relationStore: relationStore,
 		stats:         StorageStats{LastUpdated: time.Now()},
@@ -341,7 +341,7 @@ func (s *Storage) SaveSession(session *Session) error {
 	defer s.indexMutex.Unlock()
 	
 	// Check if session already exists in index
-	if existing, exists := s.sessionIndex[session.ID]; exists {
+	if existing, exists := s.sessionIndex.Sessions[session.ID]; exists {
 		log.Printf("🔍 [STORAGE] Session %s already exists with object ID %s", 
 			session.ID, existing.ObjectID[:12]+"...")
 	}
@@ -404,16 +404,24 @@ func (s *Storage) SaveSession(session *Session) error {
 		return fmt.Errorf("failed to store session: %v", err)
 	}
 	
+	// Normalize agent name (remove @ prefix for consistency)
+	normalizedAgent := strings.TrimPrefix(session.Agent, "@")
+	
 	// Update index
-	s.sessionIndex[session.ID] = SessionReference{
+	s.sessionIndex.Sessions[session.ID] = SessionReference{
 		ObjectID:         objectID,
 		SessionID:        session.ID,
-		Agent:            session.Agent,
+		Agent:            normalizedAgent,  // Store without @ for consistency
 		CreatedAt:        session.CreatedAt,
 		LastUpdated:      time.Now(),
 		CommandGenerated: session.CommandGenerated != nil,
 		State:            string(session.State),
 		MessageCount:     len(session.Messages),
+	}
+	
+	// Update last session for this agent in the consolidated index
+	if normalizedAgent != "" {
+		s.sessionIndex.LastSessions[normalizedAgent] = session.ID
 	}
 	
 	// Update stats
@@ -424,13 +432,6 @@ func (s *Storage) SaveSession(session *Session) error {
 		log.Printf("Warning: Failed to save session index: %v", err)
 	}
 	
-	// Update last session tracker for this agent
-	if session.Agent != "" {
-		if err := s.UpdateLastSession(session.Agent, session.ID); err != nil {
-			log.Printf("Warning: Failed to update last session for agent %s: %v", session.Agent, err)
-		}
-	}
-	
 	log.Printf("✅ [STORAGE] Session %s saved with object ID %s", session.ID, objectID[:12]+"...")
 	return nil
 }
@@ -438,7 +439,7 @@ func (s *Storage) SaveSession(session *Session) error {
 // LoadSession loads a session from storage
 func (s *Storage) LoadSession(sessionID string) (*Session, error) {
 	s.indexMutex.RLock()
-	ref, exists := s.sessionIndex[sessionID]
+	ref, exists := s.sessionIndex.Sessions[sessionID]
 	s.indexMutex.RUnlock()
 	
 	if !exists {
@@ -487,7 +488,7 @@ func (s *Storage) LoadRecentSessions(days int) ([]*PersistentSession, error) {
 	cutoff := time.Now().AddDate(0, 0, -days)
 	var sessions []*PersistentSession
 	
-	for _, ref := range s.sessionIndex {
+	for _, ref := range s.sessionIndex.Sessions {
 		if ref.CreatedAt.After(cutoff) {
 			// Load session data
 			data, err := s.Read(ref.ObjectID)
@@ -518,19 +519,18 @@ func (s *Storage) GetLastSession(agent string) (string, error) {
 	// Normalize agent name (remove @ if present)
 	agent = strings.TrimPrefix(agent, "@")
 	
-	// Check agent-specific sessions
-	sessionID, exists := s.agentSessions.GetLastSession(agent)
+	s.indexMutex.RLock()
+	defer s.indexMutex.RUnlock()
+	
+	// Use consolidated index
+	sessionID, exists := s.sessionIndex.LastSessions[agent]
 	if !exists {
 		return "", fmt.Errorf("no sessions found for agent %s", agent)
 	}
 	
 	// Verify session still exists
-	s.indexMutex.RLock()
-	defer s.indexMutex.RUnlock()
-	
-	if _, exists := s.sessionIndex[sessionID]; !exists {
-		// Session no longer exists, clean up
-		s.agentSessions.SetLastSession(agent, "")
+	if _, exists := s.sessionIndex.Sessions[sessionID]; !exists {
+		delete(s.sessionIndex.LastSessions, agent)
 		return "", fmt.Errorf("session %s no longer exists", sessionID)
 	}
 	
@@ -538,19 +538,6 @@ func (s *Storage) GetLastSession(agent string) (string, error) {
 	return sessionID, nil
 }
 
-// UpdateLastSession updates a marker for the last active session for an agent
-// Note: This should only be called when already holding the indexMutex lock
-func (s *Storage) UpdateLastSession(agent, sessionID string) error {
-	if agent == "" {
-		return fmt.Errorf("agent parameter required")
-	}
-	
-	// Normalize agent name (remove @ if present)
-	agent = strings.TrimPrefix(agent, "@")
-	
-	// Update agent-specific session
-	return s.agentSessions.SetLastSession(agent, sessionID)
-}
 
 // ==================== Command Management ====================
 
@@ -1011,23 +998,42 @@ func (s *Storage) loadSessionIndex() error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// No index yet, start fresh
+			s.sessionIndex = &SessionIndex{
+				Sessions:     make(map[string]SessionReference),
+				LastSessions: make(map[string]string),
+				Metadata: SessionIndexMetadata{
+					Version:     "2.0",
+					LastUpdated: time.Now(),
+				},
+			}
 			return nil
 		}
 		return err
 	}
 	
-	var index map[string]SessionReference
+	// Try to parse as new format
+	var index SessionIndex
 	if err := json.Unmarshal(data, &index); err != nil {
-		return err
+		return fmt.Errorf("failed to parse session index - run migration: go run daemon/migrate-session-index.go")
 	}
 	
-	s.sessionIndex = index
+	// Verify it's v2.0
+	if index.Metadata.Version != "2.0" {
+		return fmt.Errorf("session-index.json needs migration - run: go run daemon/migrate-session-index.go")
+	}
+	
+	s.sessionIndex = &index
 	return nil
 }
 
 // saveSessionIndex saves the session index to disk
 func (s *Storage) saveSessionIndex() error {
 	indexPath := filepath.Join(s.baseDir, "session-index.json")
+	
+	// Update metadata
+	s.sessionIndex.Metadata.LastUpdated = time.Now()
+	s.sessionIndex.Metadata.TotalSessions = len(s.sessionIndex.Sessions)
+	
 	data, err := json.MarshalIndent(s.sessionIndex, "", "  ")
 	if err != nil {
 		return err
@@ -1041,7 +1047,7 @@ func (s *Storage) updateStats() {
 	active := 0
 	completed := 0
 	
-	for _, ref := range s.sessionIndex {
+	for _, ref := range s.sessionIndex.Sessions {
 		switch ref.State {
 		case "active", "idle":
 			active++
@@ -1050,7 +1056,7 @@ func (s *Storage) updateStats() {
 		}
 	}
 	
-	s.stats.TotalSessions = len(s.sessionIndex)
+	s.stats.TotalSessions = len(s.sessionIndex.Sessions)
 	s.stats.ActiveSessions = active
 	s.stats.CompletedSessions = completed
 	s.stats.LastUpdated = time.Now()

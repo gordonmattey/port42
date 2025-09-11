@@ -122,3 +122,17 @@ type SearchResult struct {
 	Metadata    Metadata `json:"metadata"`     // Full metadata
 	MatchFields []string `json:"match_fields"` // Which fields matched
 }
+
+// SessionIndex represents the complete session storage (v2.0 format)
+type SessionIndex struct {
+	Sessions     map[string]SessionReference `json:"sessions"`
+	LastSessions map[string]string           `json:"last_sessions"`
+	Metadata     SessionIndexMetadata        `json:"metadata"`
+}
+
+// SessionIndexMetadata contains index-level metadata
+type SessionIndexMetadata struct {
+	Version       string    `json:"version"`
+	LastUpdated   time.Time `json:"last_updated"`
+	TotalSessions int       `json:"total_sessions"`
+}

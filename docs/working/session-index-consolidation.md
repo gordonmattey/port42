@@ -44,36 +44,15 @@ Consolidate all session tracking into a single enhanced `session-index.json` fil
 }
 ```
 
-## Implementation Phases
+## Implementation Steps
 
-### Phase 1: Remove All Deprecated Code
+### Step 1: Verify Deprecated Code Already Removed ✅
+- Remove `lastSessionID string` field if it exists - **Already done**
+- Remove all references to `s.lastSessionID` - **Already done**
+- Remove loading of `last_session` file - **Already done**
+- **KEEP AgentSessions** - it's the current working implementation
 
-#### 1.1 Remove from Storage struct (`daemon/src/storage.go`)
-- Remove `lastSessionID string` field (line ~113)
-- Remove all references to `s.lastSessionID`
-
-#### 1.2 Remove deprecated file operations
-From `NewStorage()`:
-- Remove loading of `last_session` file (lines ~179-184)
-- Remove `lastSessionFile := filepath.Join(s.baseDir, "last_session")`
-- Remove reading and logging of deprecated last session
-
-From file system: User will manyally remove this `~/.port42/last_session` file
-
-#### 1.3 Remove AgentSessions struct entirely
-Remove completely:
-- `type AgentSessions struct` (lines 18-100)
-- `NewAgentSessions` function
-- `Load()` method
-- `Save()` method  
-- `GetLastSession()` method
-- `SetLastSession()` method
-- `agentSessions` field from Storage struct (line ~116)
-- `agentSessions` initialization in NewStorage (lines ~156-161)
-
-### Phase 2: Restructure session-index.json
-
-#### 2.1 Create new types (`daemon/src/types.go`)
+### Step 2: Add New Types to daemon/src/types.go
 ```go
 // SessionIndex represents the complete session storage
 type SessionIndex struct {
@@ -90,28 +69,8 @@ type SessionIndexMetadata struct {
 }
 ```
 
-#### 2.2 Update Storage struct (`daemon/src/storage.go`)
-```go
-type Storage struct {
-    baseDir     string
-    objectsDir  string
-    metadataDir string
-    
-    // Single unified session index
-    sessionIndex *SessionIndex  // Changed from map to struct
-    indexMutex   sync.RWMutex
-    
-    // Relations integration
-    relationStore RelationStore
-    
-    // Stats
-    stats StorageStats
-}
-```
-
-### Phase 2.5: Create Migration Script
-
-#### Create standalone migration script (`daemon/migrate-session-index.go`)
+### Step 3: Create Migration Script (but don't run yet)
+Create `daemon/migrate-session-index.go`:
 ```go
 // +build ignore
 
@@ -224,11 +183,23 @@ func main() {
 }
 ```
 
-Run with: `go run daemon/migrate-session-index.go`
+Run with: `go run daemon/migrate-session-index.go` (but not yet!)
 
-### Phase 3: Reimplement Core Functions
+### Step 4: Update Storage struct
+Change the sessionIndex field type in `daemon/src/storage.go`:
+```go
+type Storage struct {
+    // ... existing fields ...
+    sessionIndex  *SessionIndex    // CHANGED from map[string]SessionReference
+    agentSessions *AgentSessions   // Keep for now (will remove later)
+    
+    indexMutex   sync.RWMutex
+    // ... rest ...
+}
+```
 
-#### 3.1 Update loadSessionIndex (`daemon/src/storage.go`)
+### Step 5: Update loadSessionIndex function
+Replace the existing loadSessionIndex in `daemon/src/storage.go`:
 ```go
 func (s *Storage) loadSessionIndex() error {
     indexPath := filepath.Join(s.baseDir, "session-index.json")
@@ -250,20 +221,15 @@ func (s *Storage) loadSessionIndex() error {
         return err
     }
     
-    // Parse as v2.0 format
+    // Try to parse as new format
     var index SessionIndex
     if err := json.Unmarshal(data, &index); err != nil {
-        // Check if it's old format
-        var oldTest map[string]SessionReference
-        if err2 := json.Unmarshal(data, &oldTest); err2 == nil {
-            return fmt.Errorf("session-index.json is in old format - run: go run daemon/migrate-session-index.go")
-        }
-        return fmt.Errorf("failed to parse session index: %w", err)
+        return fmt.Errorf("failed to parse session index - run migration: go run daemon/migrate-session-index.go")
     }
     
     // Verify it's v2.0
     if index.Metadata.Version != "2.0" {
-        return fmt.Errorf("unsupported session index version: %s", index.Metadata.Version)
+        return fmt.Errorf("session-index.json needs migration - run: go run daemon/migrate-session-index.go")
     }
     
     s.sessionIndex = &index
@@ -271,7 +237,8 @@ func (s *Storage) loadSessionIndex() error {
 }
 ```
 
-#### 3.3 Update saveSessionIndex
+### Step 6: Update saveSessionIndex function
+Replace the existing saveSessionIndex:
 ```go
 func (s *Storage) saveSessionIndex() error {
     indexPath := filepath.Join(s.baseDir, "session-index.json")
@@ -289,58 +256,8 @@ func (s *Storage) saveSessionIndex() error {
 }
 ```
 
-#### 3.4 Reimplement GetLastSession
-```go
-func (s *Storage) GetLastSession(agent string) (string, error) {
-    if agent == "" {
-        return "", fmt.Errorf("agent parameter required")
-    }
-    
-    // Normalize agent name
-    agent = strings.TrimPrefix(agent, "@")
-    
-    s.indexMutex.RLock()
-    defer s.indexMutex.RUnlock()
-    
-    // O(1) lookup from last_sessions
-    sessionID, exists := s.sessionIndex.LastSessions[agent]
-    if !exists {
-        return "", fmt.Errorf("no sessions found for agent %s", agent)
-    }
-    
-    // Verify session still exists
-    if _, exists := s.sessionIndex.Sessions[sessionID]; !exists {
-        // Clean up stale reference
-        delete(s.sessionIndex.LastSessions, agent)
-        return "", fmt.Errorf("session %s no longer exists", sessionID)
-    }
-    
-    log.Printf("🔍 [STORAGE] Retrieved last session for %s: %s", agent, sessionID)
-    return sessionID, nil
-}
-```
-
-#### 3.5 Reimplement UpdateLastSession
-```go
-func (s *Storage) UpdateLastSession(agent, sessionID string) error {
-    if agent == "" {
-        return fmt.Errorf("agent parameter required")
-    }
-    
-    // Normalize agent name
-    agent = strings.TrimPrefix(agent, "@")
-    
-    // Note: Caller should already hold the lock
-    // Update in-memory
-    s.sessionIndex.LastSessions[agent] = sessionID
-    
-    // Save will happen when SaveSession completes
-    log.Printf("📌 [STORAGE] Updated last session for %s -> %s", agent, sessionID)
-    return nil
-}
-```
-
-#### 3.6 Update SaveSession
+### Step 7: Update SaveSession
+Modify SaveSession to use the new structure:
 ```go
 func (s *Storage) SaveSession(session *Session) error {
     s.indexMutex.Lock()
@@ -348,7 +265,7 @@ func (s *Storage) SaveSession(session *Session) error {
     
     // ... existing save logic ...
     
-    // Update session in index
+    // Update session in consolidated index
     s.sessionIndex.Sessions[session.ID] = SessionReference{
         ObjectID:         objectID,
         SessionID:        session.ID,
@@ -360,43 +277,97 @@ func (s *Storage) SaveSession(session *Session) error {
         MessageCount:     len(session.Messages),
     }
     
-    // Update last session for this agent
+    // Update last session for this agent in the consolidated index
     if session.Agent != "" {
         agent := strings.TrimPrefix(session.Agent, "@")
         s.sessionIndex.LastSessions[agent] = session.ID
     }
     
-    // Save the updated index
+    // Save the consolidated index
     if err := s.saveSessionIndex(); err != nil {
         log.Printf("Warning: Failed to save session index: %v", err)
+    }
+    
+    // TEMPORARILY keep updating AgentSessions until we switch over
+    if session.Agent != "" {
+        s.UpdateLastSession(session.Agent, session.ID)
     }
     
     return nil
 }
 ```
 
-### Phase 4: No Daemon Cleanup Needed
-The migration script handles all file cleanup - removing `agent_sessions.json` and `last_session` files after successful migration. The daemon doesn't need any cleanup code.
+### Step 8: Run Migration Script
+Now run the migration to create v2.0 format:
+```bash
+go run daemon/migrate-session-index.go
+```
+This will:
+- Backup existing session-index.json
+- Create new v2.0 format with sessions, last_sessions, and metadata
+- Clean up agent_sessions.json and last_session files
 
-### Phase 5: No CLI Changes Needed
-The CLI already uses `get_last_session` with agent parameter, so it will work seamlessly with the new implementation.
+### Step 9: Update GetLastSession
+Replace GetLastSession to use the consolidated index:
+```go
+func (s *Storage) GetLastSession(agent string) (string, error) {
+    if agent == "" {
+        return "", fmt.Errorf("agent parameter required")
+    }
+    
+    agent = strings.TrimPrefix(agent, "@")
+    
+    s.indexMutex.RLock()
+    defer s.indexMutex.RUnlock()
+    
+    // Use consolidated index
+    sessionID, exists := s.sessionIndex.LastSessions[agent]
+    if !exists {
+        return "", fmt.Errorf("no sessions found for agent %s", agent)
+    }
+    
+    // Verify session still exists
+    if _, exists := s.sessionIndex.Sessions[sessionID]; !exists {
+        delete(s.sessionIndex.LastSessions, agent)
+        return "", fmt.Errorf("session %s no longer exists", sessionID)
+    }
+    
+    log.Printf("🔍 [STORAGE] Retrieved last session for %s: %s", agent, sessionID)
+    return sessionID, nil
+}
+```
 
-## Implementation Order
+### Step 10: Test Everything Works
+- Test `--session last` for each agent
+- Create new sessions and verify they're tracked
+- Restart daemon and verify persistence
 
-1. **Step 1**: Create and run migration script
-   - Run `go run daemon/migrate-session-index.go`
-   - Verify session-index.json is in v2.0 format
-   - Verify backup was created
-   
-2. **Step 2**: Add new types (SessionIndex, SessionIndexMetadata) to daemon
-3. **Step 3**: Update Storage struct to use new SessionIndex type
-4. **Step 4**: Update load/save functions to work with v2.0 format only
-5. **Step 5**: Update GetLastSession/UpdateLastSession to use new structure
-6. **Step 6**: Update SaveSession to maintain last_sessions
-7. **Step 7**: Remove AgentSessions struct completely
-8. **Step 8**: Remove deprecated lastSessionID code  
-9. **Step 9**: Test with migrated data
-10. **Step 10**: Test fresh installations
+### Step 11: Remove AgentSessions
+Once confirmed working, remove:
+- `type AgentSessions struct` and all its methods
+- `agentSessions` field from Storage
+- Remove AgentSessions initialization in NewStorage
+- Remove UpdateLastSession calls from SaveSession
+
+### Step 12: Clean up any remaining references
+- Remove any remaining references to AgentSessions
+- Remove the temporary UpdateLastSession call in SaveSession
+- Verify all session tracking goes through the consolidated index
+
+## Summary
+
+Simplified plan with 12 steps:
+- Steps 1-3: Preparation (types, migration script)
+- Steps 4-7: Update daemon to use new consolidated structure
+- Step 8: Run migration to convert data
+- Step 9: Update GetLastSession to use consolidated index
+- Step 10: Test everything
+- Steps 11-12: Remove AgentSessions and cleanup
+
+**Key simplifications:**
+- No "V2" labeling - just update the types directly
+- No dual system - migrate and switch over
+- Clean, direct replacement without backward compatibility code
 
 ## Benefits
 
