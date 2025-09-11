@@ -30,6 +30,7 @@ type Daemon struct {
 	resolutionService resolution.ResolutionService // Phase 2: Reference resolution service
 	validator       *validation.RequestValidator // Step 5: Request validation
 	referenceHandler *ReferenceHandler // Common reference resolution logic
+	contextCollector *ContextCollector // Step 2: Context tracking and suggestions
 }
 
 // Session represents an active possession session
@@ -132,6 +133,11 @@ func NewDaemon(listener net.Listener, port string) *Daemon {
 	daemon.referenceHandler = NewReferenceHandler(daemon.resolutionService)
 	log.Printf("✅ Reference Handler initialized successfully")
 	
+	// Initialize Context Collector (Step 2)
+	log.Printf("📊 Initializing Context Collector...")
+	daemon.contextCollector = NewContextCollector(daemon)
+	log.Printf("✅ Context Collector initialized")
+	
 	log.Printf("DEBUG: Created daemon with config.Port = '%s'", daemon.config.Port)
 	return daemon
 }
@@ -228,6 +234,11 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 
 // handleRequest routes requests to appropriate handlers
 func (d *Daemon) handleRequest(req Request) Response {
+	// Track command execution (except context and ping)
+	if d.contextCollector != nil && req.Type != "context" && req.Type != "ping" {
+		d.contextCollector.TrackCommand(req.Type, 0)
+	}
+	
 	switch req.Type {
 	case RequestStatus:
 		return d.handleStatus(req)
@@ -678,46 +689,21 @@ func (d *Daemon) handleGetLastSession(req Request) Response {
 func (d *Daemon) handleGetContext(req Request) Response {
 	resp := NewResponse(req.ID, true)
 	
-	// Build typed context response
-	contextData := &ContextData{
-		RecentCommands:   []CommandRecord{},
-		CreatedTools:     []ToolRecord{},
-		AccessedMemories: []MemoryAccess{},
-		Suggestions:      []ContextSuggestion{},
+	// Use the context collector if available
+	if d.contextCollector != nil {
+		contextData := d.contextCollector.Collect()
+		resp.SetData(contextData)
+	} else {
+		// Fallback to basic implementation if collector not initialized
+		contextData := &ContextData{
+			RecentCommands:   []CommandRecord{},
+			CreatedTools:     []ToolRecord{},
+			AccessedMemories: []MemoryAccess{},
+			Suggestions:      []ContextSuggestion{},
+		}
+		resp.SetData(contextData)
 	}
 	
-	// Find the most recent active session
-	d.mu.RLock()
-	var activeSession *Session
-	var latestTime time.Time
-	
-	for _, session := range d.sessions {
-		if session.State == SessionActive && session.LastActivity.After(latestTime) {
-			activeSession = session
-			latestTime = session.LastActivity
-		}
-	}
-	d.mu.RUnlock()
-	
-	// Add active session info if present
-	if activeSession != nil {
-		contextData.ActiveSession = &ActiveSessionInfo{
-			ID:           activeSession.ID,
-			Agent:        activeSession.Agent,
-			MessageCount: len(activeSession.Messages),
-			StartTime:    activeSession.CreatedAt,
-			LastActivity: activeSession.LastActivity,
-			State:        string(activeSession.State),
-		}
-		
-		// Add command generated info if present
-		if activeSession.CommandGenerated != nil {
-			toolName := activeSession.CommandGenerated.Name
-			contextData.ActiveSession.ToolCreated = &toolName
-		}
-	}
-	
-	resp.SetData(contextData)
 	return resp
 }
 
