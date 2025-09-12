@@ -820,6 +820,7 @@ func (d *Daemon) listVirtualPath(path string) []map[string]interface{} {
 
 // Session management methods
 func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
+	log.Printf("🔐 getOrCreateSession called with ID=%s, Agent=%s", sessionID, agent)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	
@@ -1157,6 +1158,7 @@ func (d *Daemon) handleWatchRules(req Request) Response {
 
 func (d *Daemon) handlePossess(req Request) Response {
 	// Use the AI-powered possession handler
+	log.Printf("🔮 handlePossess called for request: %s", req.ID)
 	return d.handlePossessWithAI(req)
 }
 

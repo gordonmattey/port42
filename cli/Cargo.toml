@@ -33,9 +33,10 @@ prettytable-rs = "0.10"
 crossterm = "0.27"
 ctrlc = "3.4"
 uuid = { version = "1.0", features = ["v4"] }
+ratatui = "0.26"
 
 # We'll add tokio later when we need async for streaming
-tokio = { version = "1.40", features = ["net", "io-util", "macros", "rt-multi-thread"] }
+tokio = { version = "1.40", features = ["net", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -368,10 +368,13 @@ fn main() -> Result<()> {
             let mut client = crate::client::DaemonClient::new(port);
             
             if watch {
-                // Launch watch mode
-                use crate::context::watch::WatchMode;
-                let mut watcher = WatchMode::new(client, refresh);
-                if let Err(e) = watcher.run() {
+                // Launch TUI watch mode with async runtime
+                use crate::context::watch_tui::WatchMode;
+                let watcher = WatchMode::new(client, refresh);
+                
+                // Create a tokio runtime for the TUI
+                let runtime = tokio::runtime::Runtime::new()?;
+                if let Err(e) = runtime.block_on(watcher.run()) {
                     eprintln!("❌ Watch mode error: {}", e);
                     std::process::exit(1);
                 }
