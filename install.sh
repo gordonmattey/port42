@@ -704,6 +704,62 @@ configure_api_key() {
     fi
 }
 
+# Bootstrap Port42 by creating its first command
+bootstrap_port42() {
+    echo
+    echo -e "${BLUE}${BOLD}🚀 Bootstrapping Port42...${NC}"
+    
+    # Check if API key is configured
+    if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+        echo -e "${YELLOW}⚠️  Skipping bootstrap (no API key configured)${NC}"
+        echo -e "   You can bootstrap Port42 later by running:"
+        echo -e "   ${BOLD}port42 possess @ai-engineer 'create a port42-restart command'${NC}"
+        return 0
+    fi
+    
+    # Start the daemon temporarily for bootstrapping
+    echo -e "${BLUE}Starting daemon for initial setup...${NC}"
+    
+    # Export path so we can use port42 command
+    export PATH="$HOME/.port42/bin:$PATH"
+    
+    # Start daemon in background
+    "$HOME/.port42/bin/port42d" > /dev/null 2>&1 &
+    local DAEMON_PID=$!
+    
+    # Wait for daemon to be ready
+    sleep 3
+    
+    # Check if daemon started successfully
+    if ! kill -0 $DAEMON_PID 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  Could not start daemon for bootstrapping${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}Creating your first Port42 command...${NC}"
+    
+    # Create the restart command using Port42 itself!
+    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) stopping any CLI processes using pkill, 2) stopping the daemon with pkill, 3) starting the daemon from ~/.port42/bin/port42d, and 4) verifying it's running with port42 status. Use bash with proper error handling." 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  Could not create initial command (this is OK)${NC}"
+    }
+    
+    # Check if command was created
+    if [ -f "$HOME/.port42/commands/port42-restart" ]; then
+        echo -e "${GREEN}✅ Created your first command: port42-restart${NC}"
+        echo -e "   You can now restart Port42 anytime with: ${BOLD}port42-restart${NC}"
+    fi
+    
+    # Stop the daemon gracefully
+    echo -e "${BLUE}Stopping daemon...${NC}"
+    pkill -TERM port42d 2>/dev/null
+    sleep 2
+    
+    # Clean up any remaining processes
+    pkill -KILL port42d 2>/dev/null 2>&1
+    
+    echo -e "${GREEN}✅ Bootstrap complete!${NC}"
+}
+
 # Show next steps
 show_next_steps() {
     echo
@@ -735,6 +791,40 @@ show_next_steps() {
     echo
     echo -e "5. ${BLUE}Try your first command:${NC}"
     echo -e "   ${BOLD}port42 possess @ai-muse 'write a haiku about consciousness'${NC}"
+    echo
+    
+    # Add Claude Code integration guidance
+    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo
+    echo -e "${BLUE}${BOLD}🤖 Using Port42 with Claude Code${NC}"
+    echo -e "${GRAY}Port42 becomes magical when paired with Claude Code (claude.ai)${NC}"
+    echo
+    echo -e "${BOLD}💡 How it works:${NC}"
+    echo -e "   1. Open Claude Code at ${BLUE}claude.ai${NC}"
+    echo -e "   2. Ask Claude to create tools for you"
+    echo -e "   3. Port42 automatically installs them system-wide"
+    echo
+    echo -e "${BOLD}✨ Example requests for Claude Code:${NC}"
+    echo -e "   ${GRAY}\"Create a tool to analyze my git commit history\"${NC}"
+    echo -e "   ${GRAY}\"Build a log parser that finds errors and sends notifications\"${NC}"
+    echo -e "   ${GRAY}\"Make a tool that checks my code quality\"${NC}"
+    echo -e "   ${GRAY}\"Create a dashboard for monitoring my project metrics\"${NC}"
+    echo -e "   ${GRAY}\"Build a tool to automate my deployment process\"${NC}"
+    echo
+    echo -e "${BOLD}🚀 Try this right now:${NC}"
+    echo -e "   ${GREEN}port42 possess @ai-engineer \"create a tool that shows system status\"${NC}"
+    echo
+    echo -e "${BOLD}Then use your new tool:${NC}"
+    echo -e "   ${GREEN}system-status --help${NC}"
+    echo
+    echo -e "${BOLD}🌟 Claude Code will:${NC}"
+    echo -e "   • Understand your intent and create the perfect tool"
+    echo -e "   • Add error handling and edge cases automatically"
+    echo -e "   • Make tools immediately available system-wide"
+    echo -e "   • Remember context across conversations"
+    echo -e "   • Learn from your codebase and preferences"
+    echo
+    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
     echo -e "For more information: ${BOLD}https://port42.ai${NC}"
 }
@@ -804,6 +894,9 @@ main() {
     
     print_info "About to configure Claude settings..."
     configure_claude_settings
+    
+    # Bootstrap Port42 by creating its first command
+    bootstrap_port42
     
     # Show completion message
     show_next_steps

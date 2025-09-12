@@ -383,6 +383,33 @@ pub const INSTALL_RUN_COMMAND: &str = "💫 Invoke this incantation:";
 pub const INSTALL_THEN_START: &str = "🌊 Then awaken the gateway:";
 pub const INSTALL_START_NOW: &str = "💫 Awaken the gateway:";
 
+// Claude Code Integration
+pub const CLAUDE_CODE_HEADER: &str = "🤖 Using Port42 with Claude Code";
+pub const CLAUDE_CODE_INTRO: &str = "Port42 becomes magical when paired with Claude Code (claude.ai)";
+pub const CLAUDE_CODE_HOW: &str = "💡 How it works:";
+pub const CLAUDE_CODE_STEP1: &str = "1. Open Claude Code at claude.ai";
+pub const CLAUDE_CODE_STEP2: &str = "2. Ask Claude to create tools for you";
+pub const CLAUDE_CODE_STEP3: &str = "3. Port42 automatically installs them system-wide";
+
+pub const CLAUDE_CODE_EXAMPLES: &str = "✨ Example requests for Claude Code:";
+pub const CLAUDE_CODE_EX1: &str = "\"Create a tool to analyze my git commit history\"";
+pub const CLAUDE_CODE_EX2: &str = "\"Build a log parser that finds errors and sends notifications\"";
+pub const CLAUDE_CODE_EX3: &str = "\"Make a tool that checks my code quality and suggests improvements\"";
+pub const CLAUDE_CODE_EX4: &str = "\"Create a dashboard for monitoring my project metrics\"";
+pub const CLAUDE_CODE_EX5: &str = "\"Build a tool to automate my deployment process\"";
+
+pub const CLAUDE_CODE_TRY: &str = "🚀 Try this right now:";
+pub const CLAUDE_CODE_TRY_CMD: &str = "port42 possess @ai-engineer \"create a tool that shows system status\"";
+pub const CLAUDE_CODE_THEN: &str = "Then use your new tool:";
+pub const CLAUDE_CODE_USE: &str = "system-status --help";
+
+pub const CLAUDE_CODE_MORE: &str = "🌟 Claude Code will:";
+pub const CLAUDE_CODE_MORE1: &str = "• Understand your intent and create the perfect tool";
+pub const CLAUDE_CODE_MORE2: &str = "• Add error handling and edge cases automatically";
+pub const CLAUDE_CODE_MORE3: &str = "• Make tools that are immediately available system-wide";
+pub const CLAUDE_CODE_MORE4: &str = "• Remember context across conversations";
+pub const CLAUDE_CODE_MORE5: &str = "• Learn from your codebase and preferences";
+
 // Directory Creation
 pub const MSG_CREATED_LABEL: &str = "Manifested:";
 pub const MSG_DIR_COMMANDS: &str = "~/.port42/commands/   - Your crystallized thoughts";
