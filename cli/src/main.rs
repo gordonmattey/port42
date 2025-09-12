@@ -63,6 +63,10 @@ pub enum Commands {
         detailed: bool,
     },
     
+    #[command(about = "Display Port42 version information")]
+    /// Show version information
+    Version,
+    
     #[command(about = crate::help_text::REALITY_DESC)]
     /// View your crystallized commands
     Reality {
@@ -359,6 +363,27 @@ fn main() -> Result<()> {
             }
         }
         
+        Some(Commands::Version) => {
+            // Get version from build script or fallback
+            let version = env!("PORT42_VERSION");
+            
+            if cli.json {
+                let version_info = serde_json::json!({
+                    "version": version,
+                    "platform": std::env::consts::OS,
+                    "arch": std::env::consts::ARCH,
+                });
+                println!("{}", serde_json::to_string_pretty(&version_info)?);
+            } else {
+                println!("Port42 Reality Compiler");
+                println!("Version: {}", version.bright_cyan());
+                println!("Platform: {}-{}", 
+                    std::env::consts::OS,
+                    std::env::consts::ARCH
+                );
+            }
+        }
+        
         Some(Commands::Reality { verbose, agent }) => {
             if cli.json {
                 reality::handle_reality_with_format(port, verbose, agent, display::OutputFormat::Json)?;
@@ -428,8 +453,8 @@ fn main() -> Result<()> {
                     // Try TUI mode first, fallback to text if it fails
                     use crate::context::safe_tui;
                     
-                    // Convert refresh seconds to milliseconds for the TUI
-                    let refresh_ms = refresh * 1000;
+                    // refresh is already in milliseconds, use directly
+                    let refresh_ms = refresh;
                     
                     if let Err(e) = safe_tui::run_safe_watch(client, refresh_ms) {
                         eprintln!("⚠️  TUI mode not available ({}), using text mode...", e);
