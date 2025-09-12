@@ -1,0 +1,115 @@
+name: Release macOS Binaries
+
+on:
+  release:
+    types: [published]
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Run in test mode (draft release)'
+        required: false
+        default: 'false'
+
+jobs:
+  build-macos:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon runner
+            target: darwin-aarch64
+            go_arch: arm64
+          - os: macos-13          # Intel runner  
+            target: darwin-x86_64
+            go_arch: amd64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          
+      - name: Build binaries
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.go_arch }}
+        run: |
+          echo "🔨 Building for ${{ matrix.target }}"
+          ./build.sh
+          
+      - name: Verify binaries
+        run: |
+          echo "📦 Checking binaries..."
+          ls -lh bin/
+          file bin/port42
+          file bin/port42d
+          
+      - name: Package binaries
+        run: |
+          echo "📦 Creating release package..."
+          mkdir -p release
+          
+          # Include binaries and config
+          tar -czf release/port42-${{ matrix.target }}.tar.gz \
+            bin/port42 \
+            bin/port42d \
+            daemon/agents.json
+          
+          # Show package info
+          echo "📦 Package created:"
+          ls -lh release/
+          tar -tzf release/port42-${{ matrix.target }}.tar.gz
+          
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: release/port42-${{ matrix.target }}.tar.gz
+          asset_name: port42-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
+          
+      - name: Upload as artifact (for testing)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v3
+        with:
+          name: port42-${{ matrix.target }}
+          path: release/port42-${{ matrix.target }}.tar.gz
+          
+  test-installation:
+    needs: build-macos
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: port42-darwin-aarch64
+          
+      - name: Test installation
+        run: |
+          echo "🧪 Testing binary installation..."
+          ls -lh port42-darwin-aarch64.tar.gz
+          
+          # Test the install script with local binary
+          ./install.sh --binaries port42-darwin-aarch64.tar.gz
+          
+          # Verify installation
+          ~/.port42/bin/port42 --version || true
+          ~/.port42/bin/port42 status || true
