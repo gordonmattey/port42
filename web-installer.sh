@@ -36,13 +36,22 @@ case $ARCH in
 esac
 
 # Check if binaries exist for this platform
-BINARY_URL="https://github.com/gordonmattey/port42/releases/latest/download/port42-${PLATFORM}.tar.gz"
+# Try repo releases first, then GitHub releases
+REPO_BINARY_URL="https://raw.githubusercontent.com/gordonmattey/port42/main/releases/port42-${PLATFORM}.tar.gz"
+RELEASE_BINARY_URL="https://github.com/gordonmattey/port42/releases/latest/download/port42-${PLATFORM}.tar.gz"
+
 echo "🔍 Checking for pre-built binaries..."
 
-# Use curl -I to check if the URL exists without downloading
-if curl -sI "$BINARY_URL" | head -n 1 | grep -q "200\|302"; then
+# Check repo first
+if curl -sI "$REPO_BINARY_URL" | head -n 1 | grep -q "200\|302"; then
     echo "✅ Pre-built binaries available for $PLATFORM"
     INSTALL_METHOD="binary"
+    BINARY_URL="$REPO_BINARY_URL"
+# Then check GitHub releases
+elif curl -sI "$RELEASE_BINARY_URL" | head -n 1 | grep -q "200\|302"; then
+    echo "✅ Pre-built binaries available for $PLATFORM"
+    INSTALL_METHOD="binary"
+    BINARY_URL="$RELEASE_BINARY_URL"
 else
     echo "⚠️  No pre-built binaries available yet for $PLATFORM"
     echo "🔨 Will build from source instead..."
