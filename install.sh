@@ -780,8 +780,21 @@ bootstrap_port42() {
 show_next_steps() {
     echo
     echo -e "${GREEN}${BOLD}🐬 Port 42 installation complete!${NC}"
+    
+    # Check if daemon is running from bootstrap
+    local daemon_running=false
+    if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+        daemon_running=true
+    fi
+    
+    # Check if port42-restart was created
+    local has_restart_cmd=false
+    if [ -f "$HOME/.port42/commands/port42-restart" ]; then
+        has_restart_cmd=true
+    fi
+    
     echo
-    echo -e "${BOLD}Next steps:${NC}"
+    echo -e "${BOLD}Getting Started:${NC}"
     echo
     
     echo -e "1. ${BLUE}Activate Port 42 in this shell:${NC}"
@@ -791,41 +804,51 @@ show_next_steps() {
     if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
         echo -e "2. ${BLUE}Set your Anthropic API key:${NC}"
         echo -e "   ${BOLD}export PORT42_ANTHROPIC_API_KEY='your-key-here'${NC}"
-        echo -e "   or"
-        echo -e "   ${BOLD}export ANTHROPIC_API_KEY='your-key-here'${NC}"
         echo
         echo -e "3. ${BLUE}Start the daemon:${NC}"
-        echo -e "   ${BOLD}port42 daemon start${NC}"
-    else
+        echo -e "   ${BOLD}port42 daemon start -b${NC}"
+        echo
+    elif [ "$daemon_running" = "false" ]; then
         echo -e "2. ${BLUE}Start the daemon:${NC}"
-        echo -e "   ${BOLD}port42 daemon start${NC}"
+        echo -e "   ${BOLD}port42 daemon start -b${NC}"
+        echo
+    else
+        echo -e "   ${GREEN}✅ Daemon is already running!${NC}"
+        if [ "$has_restart_cmd" = "true" ]; then
+            echo -e "   ${GRAY}You can restart it anytime with: ${BOLD}port42-restart${NC}"
+        fi
+        echo
     fi
     
-    echo
-    echo -e "4. ${BLUE}Check status:${NC}"
+    echo -e "2. ${BLUE}Test your installation:${NC}"
     echo -e "   ${BOLD}port42 status${NC}"
     echo
-    echo -e "5. ${BLUE}Try your first command:${NC}"
+    echo -e "3. ${BLUE}Try creating something directly:${NC}"
     echo -e "   ${BOLD}port42 possess @ai-muse 'write a haiku about consciousness'${NC}"
     echo
     
     # Add Claude Code integration guidance
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
-    echo -e "${BLUE}${BOLD}🤖 Using Port42 with Claude Code${NC}"
-    echo -e "${GRAY}Port42 becomes magical when paired with Claude Code (claude.ai)${NC}"
+    echo -e "${BLUE}${BOLD}🚀 The Real Magic: Using Port42 with Claude Code${NC}"
     echo
-    echo -e "${BOLD}💡 How it works:${NC}"
-    echo -e "   1. Open Claude Code at ${BLUE}claude.ai${NC}"
-    echo -e "   2. Ask Claude to create tools for you"
-    echo -e "   3. Port42 automatically installs them system-wide"
+    echo -e "${BOLD}Port42 is designed to work seamlessly with Claude Code!${NC}"
+    echo -e "${GRAY}Claude Code becomes your personal AI developer that creates custom tools instantly.${NC}"
     echo
-    echo -e "${BOLD}✨ Example requests for Claude Code:${NC}"
-    echo -e "   ${GRAY}\"Create a tool to analyze my git commit history\"${NC}"
-    echo -e "   ${GRAY}\"Build a log parser that finds errors and sends notifications\"${NC}"
-    echo -e "   ${GRAY}\"Make a tool that checks my code quality\"${NC}"
-    echo -e "   ${GRAY}\"Create a dashboard for monitoring my project metrics\"${NC}"
-    echo -e "   ${GRAY}\"Build a tool to automate my deployment process\"${NC}"
+    echo -e "${BOLD}🎯 How to activate Port42 in Claude Code:${NC}"
+    echo -e "   1. Open ${BLUE}claude.ai/code${NC} in your browser"
+    echo -e "   2. Claude Code will ${GREEN}automatically detect${NC} Port42 is installed"
+    echo -e "   3. Just ask Claude to create any tool you need!"
+    echo
+    echo -e "${BOLD}✨ Try these in Claude Code:${NC}"
+    echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
+    echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
+    echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
+    echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
+    echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+    echo
+    echo -e "${BOLD}💡 Pro tip:${NC} Claude Code uses Port42 to install tools ${GREEN}system-wide${NC},"
+    echo -e "   so everything you create is available from any terminal!"
     echo
     echo -e "${BOLD}🚀 Try this right now:${NC}"
     echo -e "   ${GREEN}port42 possess @ai-engineer \"create a tool that shows system status\"${NC}"
