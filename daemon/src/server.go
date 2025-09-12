@@ -247,15 +247,15 @@ func (d *Daemon) handleRequest(req Request) Response {
 	if d.contextCollector != nil {
 		commandName := ""
 		switch req.Type {
-		case "possess":
+		case "swim":
 			// Extract agent from payload if available
 			var payload struct {
 				Agent string `json:"agent"`
 			}
 			if err := json.Unmarshal(req.Payload, &payload); err == nil && payload.Agent != "" {
-				commandName = fmt.Sprintf("possess %s", payload.Agent)
+				commandName = fmt.Sprintf("swim %s", payload.Agent)
 			} else {
-				commandName = "possess"
+				commandName = "swim"
 			}
 		case "search":
 			// Extract query from payload if available
@@ -293,8 +293,8 @@ func (d *Daemon) handleRequestInternal(req Request) Response {
 	switch req.Type {
 	case RequestStatus:
 		return d.handleStatus(req)
-	case RequestPossess:
-		return d.handlePossess(req)
+	case RequestSwim:
+		return d.handleSwim(req)
 	case RequestList:
 		return d.handleList(req)
 	case RequestMemory:
@@ -1150,9 +1150,9 @@ func (d *Daemon) handleWatchRules(req Request) Response {
 	return resp
 }
 
-func (d *Daemon) handlePossess(req Request) Response {
-	// Use the AI-powered possession handler
-	return d.handlePossessWithAI(req)
+func (d *Daemon) handleSwim(req Request) Response {
+	// Use the AI-powered swim handler
+	return d.handleSwimWithAI(req)
 }
 
 func (d *Daemon) handleList(req Request) Response {
@@ -1964,7 +1964,7 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 				"name":        spec.Name,
 				"description": spec.Description,
 				"language":    spec.Language,
-				"source":      "possess", // Track creation method
+				"source":      "swim", // Track creation method
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -1985,12 +1985,12 @@ func (d *Daemon) generateCommand(spec *CommandSpec) error {
 			relation.Properties["agent"] = spec.Agent
 		}
 		
-		log.Printf("🔗 Creating relation for possess-generated command: %s", relation.ID)
+		log.Printf("🔗 Creating relation for swim-generated command: %s", relation.ID)
 		if _, err := d.realityCompiler.DeclareRelation(relation); err != nil {
 			log.Printf("⚠️ Failed to create relation for command %s: %v", spec.Name, err)
 			// Don't fail the command generation, just log the issue
 		} else {
-			log.Printf("✅ Relation created for possess-generated command: %s", spec.Name)
+			log.Printf("✅ Relation created for swim-generated command: %s", spec.Name)
 		}
 	}
 	
@@ -2783,7 +2783,7 @@ func (d *Daemon) handleRelationInfo(requestID, path, objID string) Response {
 		// Context
 		"agent":       agent,
 		"session":     relation.Properties["session_id"],
-		"source":      relation.Properties["source"], // "declare" or "possess"
+		"source":      relation.Properties["source"], // "declare" or "swim"
 		"language":    relation.Properties["language"],
 		"transforms":  relation.Properties["transforms"],
 	}

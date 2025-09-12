@@ -99,8 +99,8 @@ func (rh *ReferenceHandler) ResolveReferences(references []Reference, mode strin
 	return result
 }
 
-// FormatForPossess formats resolved reference context for possess mode (inject into prompt)
-func (rh *ReferenceHandler) FormatForPossess(resolvedText string) string {
+// FormatForSwim formats resolved reference context for swim mode (inject into prompt)
+func (rh *ReferenceHandler) FormatForSwim(resolvedText string) string {
 	if resolvedText == "" {
 		return ""
 	}

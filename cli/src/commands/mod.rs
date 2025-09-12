@@ -2,7 +2,7 @@ pub mod daemon;
 pub mod evolve;
 pub mod reality;
 pub mod memory;
-pub mod possess;
+pub mod swim;
 pub mod status;
 pub mod ls;
 pub mod cat;

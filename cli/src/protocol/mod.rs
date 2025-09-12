@@ -46,7 +46,7 @@ pub trait ResponseParser {
 }
 
 // Re-export submodules
-pub mod possess;
+pub mod swim;
 pub mod status;
 pub mod reality;
 pub mod memory;
@@ -55,7 +55,7 @@ pub mod file_ops;
 pub mod search;
 pub mod relations;
 
-pub use possess::*;
+pub use swim::*;
 pub use status::*;
 pub use reality::*;
 pub use memory::*;

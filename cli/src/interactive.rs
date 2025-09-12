@@ -9,8 +9,8 @@ use crossterm::{
 };
 use crossterm::style::{Color, SetForegroundColor, ResetColor};
 use crate::client::DaemonClient;
-use crate::possess::{SessionHandler, AnimatedDisplay};
-use crate::protocol::possess::PossessResponse;
+use crate::swim::{SessionHandler, AnimatedDisplay};
+use crate::protocol::swim::SwimResponse;
 use crate::display::{StatusIndicator, format_timestamp_relative};
 use crate::help_text;
 
@@ -71,7 +71,7 @@ impl InteractiveSession {
     }
     
     pub fn run(&mut self) -> Result<()> {
-        // Boot sequence already shown in handle_possess
+        // Boot sequence already shown in handle_swim
         self.show_welcome()?;
         
         // Show session info through handler
@@ -351,7 +351,7 @@ impl InteractiveSession {
         }
     }
     
-    fn send_message(&mut self, message: &str) -> Result<PossessResponse> {
+    fn send_message(&mut self, message: &str) -> Result<SwimResponse> {
         if std::env::var("PORT42_DEBUG").is_ok() {
             eprintln!("DEBUG: Interactive send_message: session_id={}, agent={}, depth={}", 
                       self.session_id, self.agent, self.depth);

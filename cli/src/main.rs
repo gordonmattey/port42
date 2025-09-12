@@ -12,7 +12,7 @@ mod shell;
 mod help_text;
 mod help_handler;
 mod protocol;
-mod possess;
+mod swim;
 mod common;
 mod ui;
 mod display;
@@ -103,9 +103,9 @@ pub enum Commands {
         text: bool,
     },
     
-    #[command(about = crate::help_text::POSSESS_DESC)]
-    /// Channel an AI agent's consciousness
-    Possess {
+    #[command(about = crate::help_text::SWIM_DESC)]
+    /// Swim into an AI agent's consciousness stream
+    Swim {
         /// AI agent to possess (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder)
         agent: String,
         
@@ -548,7 +548,7 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Possess { agent, session, references, message }) => {
+        Some(Commands::Swim { agent, session, references, message }) => {
             // Simple: session is explicit, message is always the args
             let message_text = if message.is_empty() { 
                 None 
@@ -577,13 +577,13 @@ fn main() -> Result<()> {
             };
             
             if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG possess: agent={}, session={:?}, message={:?}", 
+                eprintln!("DEBUG swim: agent={}, session={:?}, message={:?}", 
                          agent, session_id, message_text);
             }
             
             // Auto-detect output mode: show boot only for interactive mode (no message)
             let show_boot = message_text.is_none();
-            commands::possess::handle_possess_with_references(port, agent, message_text, session_id, references, show_boot)?;
+            commands::swim::handle_swim_with_references(port, agent, message_text, session_id, references, show_boot)?;
         }
         
         Some(Commands::Declare { command }) => {

@@ -4,10 +4,10 @@ use crate::client::DaemonClient;
 use crate::interactive::InteractiveSession;
 use crate::boot::{show_boot_sequence, show_connection_progress};
 use crate::help_text;
-use crate::possess::{SessionHandler, determine_session_id};
+use crate::swim::{SessionHandler, determine_session_id};
 use crate::common::{errors::Port42Error, references::parse_references};
 
-pub fn handle_possess(
+pub fn handle_swim(
     port: u16, 
     agent: String, 
     message: Option<String>, 
@@ -15,10 +15,10 @@ pub fn handle_possess(
 ) -> Result<()> {
     // Auto-detect output mode: show boot only for interactive mode (no message)
     let show_boot = message.is_none();
-    handle_possess_with_references(port, agent, message, session, None, show_boot)
+    handle_swim_with_references(port, agent, message, session, None, show_boot)
 }
 
-pub fn handle_possess_with_references(
+pub fn handle_swim_with_references(
     port: u16, 
     agent: String, 
     message: Option<String>, 
@@ -44,30 +44,30 @@ pub fn handle_possess_with_references(
     };
     
     // Use unified flow with references - no manual memory context loading
-    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, Vec::new(), parsed_refs)
+    handle_swim_with_boot_and_context(port, agent, message, session, show_boot, Vec::new(), parsed_refs)
 }
 
 
-pub fn handle_possess_no_boot(
+pub fn handle_swim_no_boot(
     port: u16, 
     agent: String, 
     message: Option<String>, 
     session: Option<String>
 ) -> Result<()> {
-    handle_possess_with_boot(port, agent, message, session, false)
+    handle_swim_with_boot(port, agent, message, session, false)
 }
 
-fn handle_possess_with_boot(
+fn handle_swim_with_boot(
     port: u16, 
     agent: String, 
     message: Option<String>, 
     session: Option<String>,
     show_boot: bool
 ) -> Result<()> {
-    handle_possess_with_boot_and_context(port, agent, message, session, show_boot, Vec::new(), None)
+    handle_swim_with_boot_and_context(port, agent, message, session, show_boot, Vec::new(), None)
 }
 
-fn handle_possess_with_boot_and_context(
+fn handle_swim_with_boot_and_context(
     port: u16, 
     agent: String, 
     message: Option<String>, 
@@ -101,7 +101,7 @@ fn handle_possess_with_boot_and_context(
         // Show minimal connection info for CLI mode, full session info for interactive
         if !show_boot {
             // CLI mode: just show channeling message, no session details
-            println!("{}", help_text::format_possessing(&agent).blue().bold());
+            println!("{}", help_text::format_swimming(&agent).blue().bold());
         } else {
             // Interactive mode: show full session info
             handler.display_session_info(&session_id, is_new);
@@ -152,7 +152,7 @@ fn handle_possess_with_boot_and_context(
     } else {
         // Interactive mode (no need to repeat "Channeling" message if boot was shown)
         if !show_boot {
-            println!("{}", help_text::format_possessing(&agent).blue().bold());
+            println!("{}", help_text::format_swimming(&agent).blue().bold());
         }
         
         // Check if terminal supports interactive features

@@ -1,7 +1,7 @@
 use crate::client::DaemonClient;
-use crate::possess::display::PossessDisplay;
-use crate::possess::{SimpleDisplay, AnimatedDisplay};
-use crate::protocol::{RequestBuilder, ResponseParser, possess::{PossessRequest, PossessResponse}};
+use crate::swim::display::SwimDisplay;
+use crate::swim::{SimpleDisplay, AnimatedDisplay};
+use crate::protocol::{RequestBuilder, ResponseParser, swim::{SwimRequest, SwimResponse}};
 use crate::common::{generate_id, errors::Port42Error};
 use crate::display::{OutputFormat, Displayable};
 use crate::ui::SpinnerGuard;
@@ -11,13 +11,13 @@ use colored::*;
 
 pub struct SessionHandler {
     pub(crate) client: DaemonClient,
-    display: Box<dyn PossessDisplay>,
+    display: Box<dyn SwimDisplay>,
     output_format: OutputFormat,
 }
 
 impl SessionHandler {
     pub fn new(client: DaemonClient, interactive: bool) -> Self {
-        let display: Box<dyn PossessDisplay> = if interactive {
+        let display: Box<dyn SwimDisplay> = if interactive {
             Box::new(AnimatedDisplay::new())
         } else {
             Box::new(SimpleDisplay::new())
@@ -30,7 +30,7 @@ impl SessionHandler {
         }
     }
     
-    pub fn with_display(client: DaemonClient, display: Box<dyn PossessDisplay>) -> Self {
+    pub fn with_display(client: DaemonClient, display: Box<dyn SwimDisplay>) -> Self {
         Self { 
             client, 
             display,
@@ -43,13 +43,13 @@ impl SessionHandler {
         self
     }
     
-    pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<PossessResponse> {
+    pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<SwimResponse> {
         self.send_message_with_context(session_id, agent, message, None, None)
     }
     
-    pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>, references: Option<Vec<crate::protocol::relations::Reference>>) -> Result<PossessResponse> {
+    pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>, references: Option<Vec<crate::protocol::relations::Reference>>) -> Result<SwimResponse> {
         // Build request using protocol traits
-        let possess_req = PossessRequest {
+        let swim_req = SwimRequest {
             agent: agent.to_string(),
             message: message.to_string(),
             memory_context,
@@ -57,7 +57,7 @@ impl SessionHandler {
         };
         
         let request_id = generate_id();
-        let mut request = possess_req.build_request(request_id)?;
+        let mut request = swim_req.build_request(request_id)?;
         
         // Add session_id to payload
         if let Some(obj) = request.payload.as_object_mut() {
@@ -65,7 +65,7 @@ impl SessionHandler {
         }
         
         // Show spinner while waiting for AI response
-        let spinner = SpinnerGuard::new("Channeling consciousness...");
+        let spinner = SpinnerGuard::new("Swimming into consciousness stream...");
         
         // Send to daemon
         let response = self.client.request(request)?;
@@ -98,29 +98,29 @@ impl SessionHandler {
         
         // Parse response using protocol trait
         let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
-        let possess_response = PossessResponse::parse_response(&data)?;
+        let swim_response = SwimResponse::parse_response(&data)?;
         
         // Display results based on output format
         match self.output_format {
             OutputFormat::Json => {
                 // For JSON, use the Displayable trait
-                possess_response.display(OutputFormat::Json)?;
+                swim_response.display(OutputFormat::Json)?;
             }
             OutputFormat::Plain | OutputFormat::Table => {
                 // For Plain and Table, use the custom display trait for animations in interactive mode
-                self.display.show_ai_message(agent, &possess_response.message);
+                self.display.show_ai_message(agent, &swim_response.message);
                 
-                if let Some(ref spec) = possess_response.command_spec {
+                if let Some(ref spec) = swim_response.command_spec {
                     self.display.show_command_created(spec);
                 }
                 
-                if let Some(ref spec) = possess_response.artifact_spec {
+                if let Some(ref spec) = swim_response.artifact_spec {
                     self.display.show_artifact_created(spec);
                 }
             }
         }
         
-        Ok(possess_response)
+        Ok(swim_response)
     }
     
     pub fn display_session_info(&self, session_id: &str, is_new: bool) {

@@ -38,7 +38,7 @@ type Response struct {
 
 // Request types
 const (
-	RequestPossess = "possess"
+	RequestSwim = "swim"
 	RequestList    = "list"
 	RequestStatus  = "status"
 	RequestMemory  = "memory"
@@ -46,8 +46,8 @@ const (
 	RequestEnd     = "end"
 )
 
-// PossessPayload for possession requests
-type PossessPayload struct {
+// SwimPayload for swim requests
+type SwimPayload struct {
 	Agent         string   `json:"agent"`
 	Message       string   `json:"message"`
 	SessionID     string   `json:"session_id,omitempty"`

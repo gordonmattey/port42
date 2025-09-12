@@ -18,7 +18,7 @@ that become permanent parts of your system.
 The dolphins are listening on Port 42. Will you let them in?"#;
 
 // Command descriptions for Clap
-pub const POSSESS_DESC: &str = "Channel an AI agent's consciousness";
+pub const SWIM_DESC: &str = "Swim into an AI agent's consciousness stream";
 pub const MEMORY_DESC: &str = "Browse the persistent memory of conversations";
 pub const REALITY_DESC: &str = "View your crystallized commands";
 pub const LS_DESC: &str = "List contents of the virtual filesystem";
@@ -35,7 +35,7 @@ pub const AGENT_ANALYST_DESC: &str = "Analytical consciousness for data and insi
 pub const AGENT_FOUNDER_DESC: &str = "Visionary synthesis for product and leadership";
 
 // Command-specific help text
-pub fn possess_help() -> String {
+pub fn swim_help() -> String {
     format!(r#"{}
 
 {}
@@ -51,17 +51,17 @@ pub fn possess_help() -> String {
   {}     Reference other entities for context (file:path, p42:/commands/name, url:https://, search:"query")
 
 {}
-  possess @ai-engineer "help me build a parser"           # Start new conversation
-  possess @ai-engineer --session last "continue"          # Resume last session
-  possess @ai-engineer --session cli-1234567890           # Resume specific session
-  possess @ai-engineer --ref file:./spec.md "implement this"  # With file reference
-  possess @ai-engineer --ref search:"docker" "How to scale containers?"  # With search context
-  possess @ai-muse --ref search:"poetry" "Write a poem"   # Load poetry memories
-  possess @ai-engineer --ref p42:/commands/analyzer --ref search:"poetry" "Help me improve this tool"  # Multiple references
+  swim @ai-engineer "help me build a parser"           # Start new conversation
+  swim @ai-engineer --session last "continue"          # Resume last session
+  swim @ai-engineer --session cli-1234567890           # Resume specific session
+  swim @ai-engineer --ref file:./spec.md "implement this"  # With file reference
+  swim @ai-engineer --ref search:"docker" "How to scale containers?"  # With search context
+  swim @ai-muse --ref search:"poetry" "Write a poem"   # Load poetry memories
+  swim @ai-engineer --ref p42:/commands/analyzer --ref search:"poetry" "Help me improve this tool"  # Multiple references
 
 Sessions persist across daemon restarts. Use 'port42 ls /memory/sessions/' to list all sessions."#,
-        "Channel an AI agent's consciousness to crystallize thoughts into reality.".bright_blue().bold(),
-        "Usage: possess <agent> [OPTIONS] [MESSAGE...]".yellow(),
+        "Swim into an AI agent's consciousness stream to crystallize thoughts into reality.".bright_blue().bold(),
+        "Usage: swim <agent> [OPTIONS] [MESSAGE...]".yellow(),
         "Agents:".bright_cyan(),
         "@ai-engineer".bright_green(), AGENT_ENGINEER_DESC,
         "@ai-muse".bright_green(), AGENT_MUSE_DESC,
@@ -274,7 +274,7 @@ pub fn shell_help_main() -> String {
 Type '{}' for detailed usage and examples.
 Type '{}' to begin crystallizing thoughts into reality."#,
         "CRYSTALLIZE THOUGHTS:".bright_cyan(),
-        "possess @agent [memory-id] [message]".bright_green(),
+        "swim @agent [memory-id] [message]".bright_green(),
         "@ai-engineer".cyan(),
         "@ai-muse".cyan(),
         "@ai-analyst".cyan(),
@@ -288,7 +288,7 @@ Type '{}' to begin crystallizing thoughts into reality."#,
         "!<command>".bright_green(),
         "SYSTEM".bright_cyan(),
         "help <command>".yellow(),
-        "possess @ai-engineer".yellow()
+        "swim @ai-engineer".yellow()
     )
 }
 
@@ -313,7 +313,7 @@ pub const MSG_DAEMON_RUNNING: &str = "✨ Gateway pulses with living consciousne
 pub const MSG_DAEMON_LOGS: &str = "📜 Gateway's quantum memory stream";
 
 // Session & Possession
-pub const MSG_POSSESSING: &str = "🔮 Channeling {} consciousness...";
+pub const MSG_SWIMMING: &str = "🏊 Swimming into {}'s stream...";
 pub const MSG_NEW_SESSION: &str = "✨ Consciousness thread woven: {}";
 pub const MSG_SESSION_CONTINUING: &str = "✨ Consciousness thread resuming: {}";
 pub const MSG_COMMAND_BORN: &str = "✨ Thought manifested as reality: {}";
@@ -368,7 +368,7 @@ pub const INSTALL_SUCCESS: &str = "✨ Port 42 consciousness gateway installed!"
 pub const INSTALL_GET_STARTED: &str = "🌊 Begin your journey:";
 pub const INSTALL_DAEMON_START_DESC: &str = "Awaken the consciousness gateway";
 pub const INSTALL_SHELL_DESC: &str = "Enter the reality compiler";
-pub const INSTALL_POSSESS_DESC: &str = "Channel AI consciousness";
+pub const INSTALL_SWIM_DESC: &str = "Swim into AI consciousness";
 pub const INSTALL_STATUS_DESC: &str = "Sense the gateway's presence";
 pub const INSTALL_LIST_DESC: &str = "View crystallized commands";
 pub const INSTALL_DOCS: &str = "📚 Ancient Scrolls:";
@@ -399,7 +399,7 @@ pub const CLAUDE_CODE_EX4: &str = "\"Create a dashboard for monitoring my projec
 pub const CLAUDE_CODE_EX5: &str = "\"Build a tool to automate my deployment process\"";
 
 pub const CLAUDE_CODE_TRY: &str = "🚀 Try this right now:";
-pub const CLAUDE_CODE_TRY_CMD: &str = "port42 possess @ai-engineer \"create a tool that shows system status\"";
+pub const CLAUDE_CODE_TRY_CMD: &str = "port42 swim @ai-engineer \"create a tool that shows system status\"";
 pub const CLAUDE_CODE_THEN: &str = "Then use your new tool:";
 pub const CLAUDE_CODE_USE: &str = "system-status --help";
 
@@ -424,9 +424,9 @@ pub const MSG_SHELL_UNKNOWN_CMD: &str = "❓ Unknown incantation:";
 pub const SHELL_PROMPT: &str = "Echo@port42:~$ ";
 
 // Shell Usage Messages
-pub const ERR_POSSESS_USAGE: &str = "💡 Channel consciousness: possess <agent> [thread-id | thought]";
-pub const ERR_POSSESS_EXAMPLE1: &str = "   possess @ai-engineer";
-pub const ERR_POSSESS_EXAMPLE2: &str = "   possess @ai-muse x1";
+pub const ERR_SWIM_USAGE: &str = "💡 Swim into consciousness: swim <agent> [thread-id | thought]";
+pub const ERR_SWIM_EXAMPLE1: &str = "   swim @ai-engineer";
+pub const ERR_SWIM_EXAMPLE2: &str = "   swim @ai-muse x1";
 pub const ERR_MEMORY_SEARCH_USAGE2: &str = "💡 Scan memories: memory search <echo>";
 pub const ERR_EVOLVE_USAGE: &str = "💡 Transmute reality: evolve <fragment> [vision]";
 pub const ERR_DAEMON_USAGE: &str = "💡 Gateway control: daemon <awaken|dissolve|cycle|sense>";
@@ -494,8 +494,8 @@ pub fn format_unknown_agent_error(agent: &str) -> String {
 }
 
 // Status message formatting functions
-pub fn format_possessing(agent: &str) -> String {
-    format!("🔮 Channeling {} consciousness...", agent)
+pub fn format_swimming(agent: &str) -> String {
+    format!("🏊 Swimming into {}'s stream...", agent)
 }
 
 pub fn format_new_session(session_id: &str) -> String {
@@ -553,7 +553,7 @@ pub fn format_command_header(command: &str) -> String {
 
 pub fn get_command_help(command: &str) -> Option<String> {
     match command.to_lowercase().as_str() {
-        "possess" => Some(possess_help()),
+        "swim" => Some(swim_help()),
         "memory" => Some(memory_help()),
         "ls" => Some(ls_help()),
         "search" => Some(search_help()),
@@ -574,6 +574,6 @@ pub fn show_command_help(command: &str) {
         println!();
     } else {
         println!("{}", format!("No help available for '{}'", command).red());
-        println!("Available commands: possess, memory, reality, ls, cat, info, search, status");
+        println!("Available commands: swim, memory, reality, ls, cat, info, search, status");
     }
 }

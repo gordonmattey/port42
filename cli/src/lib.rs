@@ -2,7 +2,7 @@
 pub mod protocol;
 pub mod client;
 pub mod types;
-pub mod possess;
+pub mod swim;
 pub mod help_text;
 pub mod common;
 pub mod display;

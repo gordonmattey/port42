@@ -59,7 +59,7 @@ fn show_main_help() {
     println!();
     
     println!("{}", "CONSCIOUSNESS OPERATIONS:".bright_cyan());
-    println!("  {} - {}", "possess <agent>".bright_green(), help_text::POSSESS_DESC);
+    println!("  {} - {}", "swim <agent>".bright_green(), help_text::SWIM_DESC);
     println!("  {} - {}", "memory".bright_green(), help_text::MEMORY_DESC);
     println!("  {} - {}", "reality".bright_green(), help_text::REALITY_DESC);
     println!();

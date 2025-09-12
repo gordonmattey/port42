@@ -6,7 +6,7 @@ use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
 
-pub trait PossessDisplay {
+pub trait SwimDisplay {
     fn show_ai_message(&self, agent: &str, message: &str);
     fn show_command_created(&self, spec: &CommandSpec);
     fn show_artifact_created(&self, spec: &ArtifactSpec);
@@ -23,7 +23,7 @@ impl SimpleDisplay {
     }
 }
 
-impl PossessDisplay for SimpleDisplay {
+impl SwimDisplay for SimpleDisplay {
     fn show_ai_message(&self, agent: &str, message: &str) {
         println!("\n{}", agent.bright_blue());
         println!("{}", message);
@@ -46,7 +46,7 @@ impl PossessDisplay for SimpleDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", format!("✨ Consciousness thread weaving: {}", session_id).bright_cyan());
+            println!("{}", format!("✨ Consciousness thread woven: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
@@ -96,7 +96,7 @@ impl AnimatedDisplay {
     }
 }
 
-impl PossessDisplay for AnimatedDisplay {
+impl SwimDisplay for AnimatedDisplay {
     fn show_ai_message(&self, agent: &str, message: &str) {
         // Show thinking animation
         self.show_thinking();
@@ -120,7 +120,7 @@ impl PossessDisplay for AnimatedDisplay {
         thread::sleep(Duration::from_millis(500));
         
         // Progress animation
-        let mut progress = ProgressIndicator::new("Crystallizing thought into reality");
+        let mut progress = ProgressIndicator::new("Crystallizing swim into reality");
         for _ in 0..8 {
             progress.tick();
             thread::sleep(Duration::from_millis(150));
@@ -141,7 +141,7 @@ impl PossessDisplay for AnimatedDisplay {
         thread::sleep(Duration::from_millis(500));
         
         // Progress animation
-        let mut progress = ProgressIndicator::new("Manifesting artifact in reality");
+        let mut progress = ProgressIndicator::new("Surfacing artifact from stream");
         for _ in 0..8 {
             progress.tick();
             thread::sleep(Duration::from_millis(150));
@@ -159,7 +159,7 @@ impl PossessDisplay for AnimatedDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", format!("✨ Consciousness thread weaving: {}", session_id).bright_cyan());
+            println!("{}", format!("✨ Consciousness thread woven: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }

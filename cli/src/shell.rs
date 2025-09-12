@@ -124,11 +124,11 @@ impl Port42Shell {
                     .map(|&s| s.to_string());
                 reality::handle_reality(self.port, verbose, agent)?;
             }
-            "possess" => {
+            "swim" => {
                 if parts.len() < 2 {
-                    println!("{}", ERR_POSSESS_USAGE.red());
-                    println!("{}", ERR_POSSESS_EXAMPLE1.dimmed());
-                    println!("{}", ERR_POSSESS_EXAMPLE2.dimmed());
+                    println!("{}", ERR_SWIM_USAGE.red());
+                    println!("{}", ERR_SWIM_EXAMPLE1.dimmed());
+                    println!("{}", ERR_SWIM_EXAMPLE2.dimmed());
                     return Ok(());
                 }
                 
@@ -199,9 +199,9 @@ impl Port42Shell {
                 
                 // Use the reference-aware handler if we have references
                 if ref_option.is_some() {
-                    possess::handle_possess_with_references(self.port, agent, message, session, ref_option, false)?;
+                    swim::handle_swim_with_references(self.port, agent, message, session, ref_option, false)?;
                 } else {
-                    possess::handle_possess_no_boot(self.port, agent, message, session)?;
+                    swim::handle_swim_no_boot(self.port, agent, message, session)?;
                 }
             }
             "memory" => {

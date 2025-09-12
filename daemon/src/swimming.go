@@ -470,13 +470,13 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 	return nil, fmt.Errorf("failed after %d retries", maxRetries)
 }
 
-// Enhanced possession handler with real AI
-func (d *Daemon) handlePossessWithAI(req Request) Response {
+// Enhanced swim handler with real AI
+func (d *Daemon) handleSwimWithAI(req Request) Response {
 	resp := NewResponse(req.ID, true)
 	
-	var payload PossessPayload
+	var payload SwimPayload
 	if err := json.Unmarshal(req.Payload, &payload); err != nil {
-		resp.SetError("Invalid possess payload")
+		resp.SetError("Invalid swim payload")
 		return resp
 	}
 	
@@ -515,10 +515,10 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Process references using common reference handler
 	if len(req.References) > 0 && d.referenceHandler != nil {
-		result := d.referenceHandler.ResolveReferences(req.References, "possess")
+		result := d.referenceHandler.ResolveReferences(req.References, "swim")
 		if result.Success {
 			// Inject resolved references into system prompt
-			referenceSection := d.referenceHandler.FormatForPossess(result.ResolvedText)
+			referenceSection := d.referenceHandler.FormatForSwim(result.ResolvedText)
 			agentPrompt = agentPrompt + referenceSection
 		} else if result.Error != nil {
 			log.Printf("⚠️ Reference resolution failed, continuing without context: %v", result.Error)
@@ -545,7 +545,7 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	session.mu.Unlock()
 	
 	// Save session after user message
-	log.Printf("🔍 Possess handler: memoryStore != nil: %v", d.storage != nil)
+	log.Printf("🔍 Swim handler: memoryStore != nil: %v", d.storage != nil)
 	if d.storage != nil {
 		log.Printf("🔍 [POSSESSION] Saving session after user message (messages=%d)", len(session.Messages))
 		go d.storage.SaveSession(session)
@@ -683,9 +683,9 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	
 	// Debug: Log response size
 	if jsonBytes, err := json.Marshal(data); err == nil {
-		log.Printf("🔍 Possess response size: %d bytes", len(jsonBytes))
+		log.Printf("🔍 Swim response size: %d bytes", len(jsonBytes))
 		if len(jsonBytes) > 10000 {
-			log.Printf("⚠️  Large possess response detected! Keys: %v", getMapKeys(data))
+			log.Printf("⚠️  Large swim response detected! Keys: %v", getMapKeys(data))
 		}
 	}
 	
@@ -1054,7 +1054,7 @@ func executePort42Command(args []string, stdin string) (string, error) {
 	return strings.TrimSpace(result), nil
 }
 
-// Update the handlePossess in server.go to use the AI version
+// Update the handleSwim in server.go to use the AI version
 func init() {
 	// This will be called when the daemon starts
 	log.Println("🐬 AI consciousness bridge initializing...")

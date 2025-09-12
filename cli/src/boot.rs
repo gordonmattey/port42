@@ -54,7 +54,7 @@ pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
 
 /// Shows connection progress for an agent
 pub fn show_connection_progress(agent: &str) -> Result<()> {
-    println!("{}", format_possessing(agent).yellow());
+    println!("{}", format_swimming(agent).yellow());
     
     // Animated progress bar
     for i in 0..20 {

@@ -8,7 +8,7 @@ use serde_json::json;
 use colored::*;
 
 #[derive(Debug, Serialize)]
-pub struct PossessRequest {
+pub struct SwimRequest {
     pub agent: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -17,7 +17,7 @@ pub struct PossessRequest {
     pub references: Option<Vec<Reference>>,
 }
 
-impl RequestBuilder for PossessRequest {
+impl RequestBuilder for SwimRequest {
     fn build_request(&self, id: String) -> Result<DaemonRequest> {
         let mut payload = json!({
             "agent": &self.agent,
@@ -30,7 +30,7 @@ impl RequestBuilder for PossessRequest {
         }
         
         Ok(DaemonRequest {
-            request_type: "possess".to_string(),
+            request_type: "swim".to_string(),
             id,
             payload,
             references: self.references.clone(),
@@ -41,7 +41,7 @@ impl RequestBuilder for PossessRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct PossessResponse {
+pub struct SwimResponse {
     pub message: String,
     pub session_id: String,
     pub agent: String,
@@ -70,7 +70,7 @@ pub struct ArtifactSpec {
     pub format: String,
 }
 
-impl ResponseParser for PossessResponse {
+impl ResponseParser for SwimResponse {
     type Output = Self;
     
     fn parse_response(data: &serde_json::Value) -> Result<Self> {
@@ -112,7 +112,7 @@ impl ResponseParser for PossessResponse {
             None
         };
         
-        Ok(PossessResponse {
+        Ok(SwimResponse {
             message,
             session_id,
             agent,
@@ -124,7 +124,7 @@ impl ResponseParser for PossessResponse {
     }
 }
 
-impl Displayable for PossessResponse {
+impl Displayable for SwimResponse {
     fn display(&self, format: OutputFormat) -> Result<()> {
         match format {
             OutputFormat::Json => {
