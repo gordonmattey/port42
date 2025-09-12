@@ -52,6 +52,8 @@ pub struct MemoryAccess {
     #[serde(rename = "type")]
     pub access_type: String,
     pub access_count: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 /// Smart command suggestion

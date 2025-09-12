@@ -43,6 +43,7 @@ type MemoryAccess struct {
 	Path        string `json:"path"`
 	Type        string `json:"type"`
 	AccessCount int    `json:"access_count"`
+	DisplayName string `json:"display_name,omitempty"` // Human-readable name
 }
 
 // ContextSuggestion provides smart command suggestions

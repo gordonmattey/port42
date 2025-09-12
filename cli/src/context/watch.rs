@@ -211,8 +211,9 @@ impl WatchMode {
                 } else {
                     String::new()
                 };
+                let display = access.display_name.as_ref().unwrap_or(&access.path);
                 let path_display = format!("{} {}{}", icon, 
-                    Self::truncate(&access.path, 30), times);
+                    Self::truncate(display, 30), times);
                 println!("│ {:<44} │", path_display);
             }
         }

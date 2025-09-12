@@ -74,7 +74,7 @@ pub enum Commands {
         agent: Option<String>,
     },
     
-    #[command(about = "View current Port42 context and active session")]
+    #[command(about = "Track Port42 activity and monitor command usage in real-time")]
     /// Show context information
     Context {
         /// Pretty-print for human reading (default is JSON)
@@ -85,12 +85,12 @@ pub enum Commands {
         #[arg(long)]
         compact: bool,
         
-        /// Watch mode - live updates
-        #[arg(long)]
+        /// Watch mode - monitor live activity with real-time updates
+        #[arg(long, help = "Monitor live Port42 activity with real-time updates")]
         watch: bool,
         
-        /// Refresh rate in milliseconds for watch mode (default: 1 second)
-        #[arg(long, default_value = "1000")]
+        /// Refresh rate in milliseconds for watch mode (default: 1000ms)
+        #[arg(long, default_value = "1000", help = "Update frequency in milliseconds (default: 1000ms)")]
         refresh: u64,
     },
     

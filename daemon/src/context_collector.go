@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -86,10 +87,14 @@ func (cc *ContextCollector) TrackMemoryAccess(path string, accessType string) {
 	if access, exists := cc.accessedMemories[path]; exists {
 		access.AccessCount++
 	} else {
+		// Generate human-readable display name
+		displayName := cc.generateDisplayName(path, accessType)
+		
 		cc.accessedMemories[path] = &MemoryAccess{
 			Path:        path,
 			Type:        accessType,
 			AccessCount: 1,
+			DisplayName: displayName,
 		}
 	}
 	
@@ -275,4 +280,88 @@ func (cc *ContextCollector) generateSuggestions(data *ContextData) []ContextSugg
 	}
 	
 	return suggestions
+}
+
+// generateDisplayName creates a human-readable name for a path
+func (cc *ContextCollector) generateDisplayName(path string, accessType string) string {
+	// Handle memory/session paths
+	if strings.HasPrefix(path, "/memory/") {
+		sessionID := strings.TrimPrefix(path, "/memory/")
+		
+		// Try to get session info for better display name
+		cc.daemon.mu.RLock()
+		if session, exists := cc.daemon.sessions[sessionID]; exists {
+			agent := session.Agent
+			cc.daemon.mu.RUnlock()
+			
+			// For created memories, show agent and action
+			if accessType == "created" {
+				return fmt.Sprintf("New %s session", agent)
+			}
+			
+			// For accessed memories, show agent and first message snippet
+			if len(session.Messages) > 0 {
+				firstMsg := session.Messages[0].Content
+				if len(firstMsg) > 30 {
+					firstMsg = firstMsg[:30] + "..."
+				}
+				return fmt.Sprintf("%s: %s", agent, firstMsg)
+			}
+			
+			return fmt.Sprintf("%s session", agent)
+		}
+		cc.daemon.mu.RUnlock()
+		
+		// Fallback to shorter session ID
+		if len(sessionID) > 20 {
+			return fmt.Sprintf("Session ...%s", sessionID[len(sessionID)-8:])
+		}
+		return sessionID
+	}
+	
+	// Handle command paths
+	if strings.HasPrefix(path, "/commands/") {
+		cmdName := strings.TrimPrefix(path, "/commands/")
+		return cmdName
+	}
+	
+	// Handle tool paths
+	if strings.HasPrefix(path, "/tools/") {
+		toolPath := strings.TrimPrefix(path, "/tools/")
+		// Remove trailing slashes
+		toolPath = strings.TrimSuffix(toolPath, "/")
+		
+		// If it's just browsing /tools/, show that
+		if toolPath == "" {
+			return "Tools directory"
+		}
+		
+		// For specific tools, show the tool name
+		parts := strings.Split(toolPath, "/")
+		if len(parts) > 0 {
+			return parts[0]
+		}
+		return toolPath
+	}
+	
+	// Handle artifact paths
+	if strings.HasPrefix(path, "/artifacts/") {
+		artifactPath := strings.TrimPrefix(path, "/artifacts/")
+		parts := strings.Split(artifactPath, "/")
+		if len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+		return artifactPath
+	}
+	
+	// Default: return the last part of the path
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		lastPart := parts[len(parts)-1]
+		if lastPart != "" {
+			return lastPart
+		}
+	}
+	
+	return path
 }

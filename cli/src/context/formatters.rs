@@ -75,7 +75,8 @@ impl ContextFormatter for PrettyFormatter {
                 } else {
                     String::new()
                 };
-                output.push_str(&format!("   {} {}{}\n", icon, access.path, times));
+                let display = access.display_name.as_ref().unwrap_or(&access.path);
+                output.push_str(&format!("   {} {}{}\n", icon, display, times));
             }
         }
         
