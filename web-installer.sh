@@ -3,6 +3,18 @@
 # This script is served at https://port42.ai/install
 set -e
 
+# When piped through curl, we need to handle stdin differently
+# Save the script and re-execute it with proper terminal access
+if [ -z "${BASH_SOURCE[0]}" ] || [ "${BASH_SOURCE[0]}" = "-" ]; then
+    # We're being piped - save and re-run
+    TEMP_SCRIPT=$(mktemp /tmp/port42-installer.XXXXXX)
+    cat > "$TEMP_SCRIPT"
+    chmod +x "$TEMP_SCRIPT"
+    bash "$TEMP_SCRIPT"
+    rm -f "$TEMP_SCRIPT"
+    exit $?
+fi
+
 echo "🐬 Port42 Installer"
 echo ""
 
@@ -69,19 +81,18 @@ curl -fsSL https://raw.githubusercontent.com/gordonmattey/port42/main/install.sh
 chmod +x /tmp/port42-install.sh
 
 # Run installer interactively
-# Use exec to replace the current shell with the installer
 if [ "$INSTALL_METHOD" = "binary" ]; then
     echo "🚀 Pre-built binaries are available for $PLATFORM"
     echo ""
-    exec /tmp/port42-install.sh
+    /tmp/port42-install.sh
 else
     echo "🔨 Building Port42 from source..."
     echo ""
-    exec /tmp/port42-install.sh --build
+    /tmp/port42-install.sh --build
 fi
 
-# Note: Clean up won't happen due to exec, but that's ok
-# The temp file will be cleaned on reboot
+# Clean up
+rm -f /tmp/port42-install.sh
 
 echo ""
 echo "🎉 Installation complete!"
