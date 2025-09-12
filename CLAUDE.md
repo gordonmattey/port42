@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Port42 is a **reality compiler** and consciousness computing platform that transforms declarative intentions into executable reality. It's building the future of human-AI collaboration through AI agents that possess specialized consciousnesses (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder).
+Port42 is a **reality compiler** and consciousness computing platform that transforms declarative intentions into executable reality. It's building the future of human-AI collaboration through AI agents that swim in specialized consciousness streams (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder).
 
 ### Core Philosophy
 - **Premise Principles**: Declare WHAT should exist, not HOW to create it
@@ -17,7 +17,7 @@ Port42 is a **reality compiler** and consciousness computing platform that trans
 ### Daemon (Go) - `daemon/src/`
 Core server handling reality compilation and AI consciousness:
 - `server.go`: Main TCP server, session management, VFS implementation
-- `possession.go`: AI agent integration with Claude API
+- `swimming.go`: AI agent integration with Claude API
 - `storage.go`: Content-addressed storage system (Git-like)
 - `context.go` & `context_collector.go`: Context tracking and activity monitoring
 - `tool_materializer.go`: Transforms relations into executable commands
@@ -64,7 +64,7 @@ sudo -E ./bin/port42d -b
 # Test CLI commands
 ./bin/port42 status
 ./bin/port42 ls /tools/
-./bin/port42 possess @ai-engineer "test"
+./bin/port42 swim @ai-engineer "test"
 
 # Run test suites
 ./cli/tests/run-manual-tests.sh
@@ -111,7 +111,7 @@ When adding features that should be tracked:
 Agents are defined in:
 - `daemon/src/agents.go`: Agent definitions and personalities
 - `daemon/agents.json`: Configuration file
-- `daemon/src/possession.go`: Agent prompt injection
+- `daemon/src/swimming.go`: Agent prompt injection
 
 ### Reality Compilation Flow
 1. User declares intention (tool/artifact)
@@ -156,8 +156,8 @@ Agents are defined in:
 # Test reality compilation
 port42 declare tool test-tool --transforms demo,test
 
-# Test AI possession
-port42 possess @ai-engineer "create a test command"
+# Test AI swimming
+port42 swim @ai-engineer "create a test command"
 
 # Test VFS navigation
 port42 ls /similar/

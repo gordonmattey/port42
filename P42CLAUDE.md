@@ -6,28 +6,28 @@ ALWAYS use Port42 for:
 3. Pattern finding or insight generation
 4. Creating reusable utilities
 
-Do NOT use Bash/shell commands for analysis - use port42 possess @ai-analyst instead.
+Do NOT use Bash/shell commands for analysis - use port42 swim @ai-analyst instead.
 Do NOT create standalone scripts without first checking Port42's capabilities.
 </primary_directive>
 
-<possess_architecture>
+<swim_architecture>
 <single_purpose_principle>
-Each possess invocation performs exactly ONE action:
+Each swim invocation performs exactly ONE action:
 - CREATE: Build one tool/artifact  
 - ANALYZE: Examine data and provide insights
 - GENERATE: Produce non-executable content
 
-Possess will NOT:
+Swim will NOT:
 - Search for existing tools automatically
 - Explore relationships for you
 - Chain multiple operations
 </single_purpose_principle>
 
 <orchestration_responsibility>
-You MUST orchestrate the complete workflow using Port42's native commands BEFORE calling possess.
-Possess is a pure function that requires complete context via references.
+You MUST orchestrate the complete workflow using Port42's native commands BEFORE calling swim.
+Swim is a pure function that requires complete context via references.
 </orchestration_responsibility>
-</possess_architecture>
+</swim_architecture>
 
 <available_agents>
 <agent name="@ai-engineer">
@@ -40,8 +40,8 @@ Possess is a pure function that requires complete context via references.
 - Adding comprehensive validation and edge cases
 </use_when>
 <example>
-port42 possess @ai-engineer "create robust log parser with error recovery"
-# Continue later: port42 possess @ai-engineer --session last "add JSON log support"
+port42 swim @ai-engineer "create robust log parser with error recovery"
+# Continue later: port42 swim @ai-engineer --session last "add JSON log support"
 </example>
 </agent>
 
@@ -55,8 +55,8 @@ port42 possess @ai-engineer "create robust log parser with error recovery"
 - Adding personality to tool outputs
 </use_when>
 <example>
-port42 possess @ai-muse "create a tool that generates git commit haikus"
-# Continue later: port42 possess @ai-muse --session last "make the haikus more whimsical"
+port42 swim @ai-muse "create a tool that generates git commit haikus"
+# Continue later: port42 swim @ai-muse --session last "make the haikus more whimsical"
 </example>
 </agent>
 
@@ -72,8 +72,8 @@ port42 possess @ai-muse "create a tool that generates git commit haikus"
 - Understanding architectural decisions
 </use_when>
 <example>
-port42 possess @ai-analyst "analyze performance patterns" --ref file:logs.txt
-# Continue later: port42 possess @ai-analyst --session last "what were the main bottlenecks?"
+port42 swim @ai-analyst "analyze performance patterns" --ref file:logs.txt
+# Continue later: port42 swim @ai-analyst --session last "what were the main bottlenecks?"
 </example>
 </agent>
 
@@ -87,8 +87,8 @@ port42 possess @ai-analyst "analyze performance patterns" --ref file:logs.txt
 - Analyzing market opportunities
 </use_when>
 <example>
-port42 possess @ai-founder "create market analysis tool for SaaS metrics"
-# Continue later: port42 possess @ai-founder --session last "add cohort analysis features"
+port42 swim @ai-founder "create market analysis tool for SaaS metrics"
+# Continue later: port42 swim @ai-founder --session last "add cohort analysis features"
 </example>
 </agent>
 
@@ -116,13 +116,13 @@ When user requests any of these, USE @ai-analyst:
 - "Investigate" issues or behaviors
 
 Examples that MUST use Port42:
-- "Analyze my server logs" → port42 possess @ai-analyst "analyze server logs" --ref file:/path/to/logs
-- "Find patterns in this data" → port42 possess @ai-analyst "find patterns" --ref file:data.csv
-- "Review performance issues" → port42 possess @ai-analyst "review performance" --ref search:"performance"
-- "What's causing these errors?" → port42 possess @ai-analyst "diagnose errors" --ref file:error.log
+- "Analyze my server logs" → port42 swim @ai-analyst "analyze server logs" --ref file:/path/to/logs
+- "Find patterns in this data" → port42 swim @ai-analyst "find patterns" --ref file:data.csv
+- "Review performance issues" → port42 swim @ai-analyst "review performance" --ref search:"performance"
+- "What's causing these errors?" → port42 swim @ai-analyst "diagnose errors" --ref file:error.log
 
 DO NOT use Bash commands like: grep, awk, sed, wc, tail, head for analysis
-INSTEAD use: port42 possess @ai-analyst with appropriate references
+INSTEAD use: port42 swim @ai-analyst with appropriate references
 </analysis_triggers>
 </available_agents>
 
@@ -176,10 +176,10 @@ USE regular commands for:
 
 <examples>
 ❌ WRONG: wc -l ~/.port42/daemon.log  
-✅ RIGHT: port42 possess @ai-analyst "analyze daemon log patterns" --ref file:~/.port42/daemon.log
+✅ RIGHT: port42 swim @ai-analyst "analyze daemon log patterns" --ref file:~/.port42/daemon.log
 
 ❌ WRONG: grep ERROR /var/log/app.log | head -20
-✅ RIGHT: port42 possess @ai-analyst "find error patterns" --ref file:/var/log/app.log
+✅ RIGHT: port42 swim @ai-analyst "find error patterns" --ref file:/var/log/app.log
 
 ✅ OK: cat config.json (just viewing)
 ✅ OK: ls -la /tmp (just listing)
@@ -188,7 +188,7 @@ USE regular commands for:
 </why_use_port42>
 
 <tool_discovery_workflow>
-<critical>ALWAYS complete ALL discovery steps BEFORE calling possess</critical>
+<critical>ALWAYS complete ALL discovery steps BEFORE calling swim</critical>
 
 <step priority="1" required="true">
 <action>port42 search "relevant keywords"</action>
@@ -228,9 +228,9 @@ USE regular commands for:
 </step>
 
 <step priority="7">
-<action>port42 possess @ai-engineer "request" --ref [context]</action>
+<action>port42 swim @ai-engineer "request" --ref [context]</action>
 <purpose>Execute SINGLE creation/analysis with full context</purpose>
-<critical>Possess will NOT search or discover - you must provide complete context</critical>
+<critical>Swim will NOT search or discover - you must provide complete context</critical>
 <references>Always include:
 - --ref p42:/commands/similar-tool (for patterns)
 - --ref p42:/artifacts/document/spec-name (for domain knowledge)
@@ -282,15 +282,15 @@ USE regular commands for:
 ALWAYS use Port42 for creating reusable commands, tools, or utilities.
 
 When user says any of these, USE PORT42:
-- "create/make/build a command" → port42 possess @ai-engineer "exact request"
-- "create/make/build a tool" → port42 possess @ai-engineer "exact request"  
-- "create/make/build a bash command" → port42 possess @ai-engineer "exact request"
-- "create/make/build a utility" → port42 possess @ai-engineer "exact request"
-- "create/make/build a script" (without file path) → port42 possess @ai-engineer "exact request"
-- "update/modify/change/fix TOOLNAME" → port42 possess @ai-engineer --ref p42:/commands/TOOLNAME "update request"
+- "create/make/build a command" → port42 swim @ai-engineer "exact request"
+- "create/make/build a tool" → port42 swim @ai-engineer "exact request"  
+- "create/make/build a bash command" → port42 swim @ai-engineer "exact request"
+- "create/make/build a utility" → port42 swim @ai-engineer "exact request"
+- "create/make/build a script" (without file path) → port42 swim @ai-engineer "exact request"
+- "update/modify/change/fix TOOLNAME" → port42 swim @ai-engineer --ref p42:/commands/TOOLNAME "update request"
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                                          Always include --ref for updates!
-- Any request for reusable functionality → port42 possess @ai-engineer
+- Any request for reusable functionality → port42 swim @ai-engineer
 
 When user says these, WRITE FILES DIRECTLY:
 - "write a bash script to ./script.sh" (specific file path given)
@@ -306,16 +306,16 @@ KEY DISTINCTION:
 
 DEFAULT ACTION: When in doubt about "create bash command" or similar:
 1. Ask yourself: "Is this meant to be a reusable tool?"
-2. If YES or UNCLEAR → Use port42 possess
+2. If YES or UNCLEAR → Use port42 swim
 3. If explicitly a project file → Write file
 
 Examples:
-✅ "create a bash command for testing" → port42 possess @ai-engineer "create a bash command for testing"
-✅ "make a tool to analyze logs" → port42 possess @ai-engineer "make a tool to analyze logs"
-✅ "build a notification utility" → port42 possess @ai-engineer "build a notification utility"
-✅ "update TOOL to add feature X" → port42 possess @ai-engineer --ref p42:/commands/TOOL "add feature X"
-✅ "fix the bug in TOOL" → port42 possess @ai-engineer --ref p42:/commands/TOOL "fix the bug"
-✅ "modify TOOL to support Y" → port42 possess @ai-engineer --ref p42:/commands/TOOL "add support for Y"
+✅ "create a bash command for testing" → port42 swim @ai-engineer "create a bash command for testing"
+✅ "make a tool to analyze logs" → port42 swim @ai-engineer "make a tool to analyze logs"
+✅ "build a notification utility" → port42 swim @ai-engineer "build a notification utility"
+✅ "update TOOL to add feature X" → port42 swim @ai-engineer --ref p42:/commands/TOOL "add feature X"
+✅ "fix the bug in TOOL" → port42 swim @ai-engineer --ref p42:/commands/TOOL "fix the bug"
+✅ "modify TOOL to support Y" → port42 swim @ai-engineer --ref p42:/commands/TOOL "add support for Y"
 ❌ "write a script to ./deploy.sh" → Write file directly
 ❌ "create a file called test.sh" → Write file directly
 ❌ "save this bash code" → Write file directly
@@ -323,14 +323,14 @@ Examples:
 IMPORTANT for updates:
 - Always include --ref p42:/commands/TOOLNAME when updating existing tools
 - The --ref provides the current implementation as context
-- DO NOT call possess multiple times for one request
+- DO NOT call swim multiple times for one request
 - DO NOT use cat to view tools first (--ref handles this)
 
 REMEMBER: Port42 tools are installed system-wide and accessible from anywhere. If the user wants that level of reusability, use Port42.
 </tool_creation_rules>
 
 <orchestration_requirements>
-BEFORE calling possess to create ANY tool:
+BEFORE calling swim to create ANY tool:
 
 1. MANDATORY DISCOVERY (you must do this):
    - port42 search "tool keywords"
@@ -349,7 +349,7 @@ BEFORE calling possess to create ANY tool:
    - --ref url:https://docs.example.com/api (include external documentation)
 
 3. SINGLE POSSESS CALL:
-   - possess does ONE thing with the context you provide
+   - swim does ONE thing with the context you provide
    - It will NOT search, explore, or make decisions
    - You are the orchestrator
 
@@ -361,16 +361,16 @@ BEFORE calling possess to create ANY tool:
    - Sessions are per-agent (engineer sessions separate from analyst)
 
 Examples:
-- Creating new tool: port42 possess @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
-- Analyzing with context: port42 possess @ai-engineer --ref file:/data.csv "analyze this sales data"
-- Improving existing: port42 possess @ai-engineer --ref p42:/commands/my-tool "add error handling"
-- Continuing work: port42 possess @ai-engineer --session last "implement the optimization we discussed"
+- Creating new tool: port42 swim @ai-engineer --ref p42:/commands/log-analyzer "create a tool to parse nginx logs"
+- Analyzing with context: port42 swim @ai-engineer --ref file:/data.csv "analyze this sales data"
+- Improving existing: port42 swim @ai-engineer --ref p42:/commands/my-tool "add error handling"
+- Continuing work: port42 swim @ai-engineer --session last "implement the optimization we discussed"
 </orchestration_requirements>
 
 <practical_examples>
 <scenario>User: "Analyze the performance patterns in my server logs ~/.port42/daemon.log"</scenario>
 <port42_approach>
-1. port42 possess @ai-analyst "analyze performance patterns" --ref file:~/.port42/daemon.log
+1. port42 swim @ai-analyst "analyze performance patterns" --ref file:~/.port42/daemon.log
 2. Result: Deep analysis of patterns, bottlenecks, and insights
 3. Value: AI-powered analysis vs simple line counting
 </port42_approach>
@@ -386,7 +386,7 @@ Examples:
 7. port42 search --exact "api performance" # Find exact phrase in docs
 8. port42 info /commands/log-analyzer
 9. port42 cat /artifacts/document/api-performance-spec  # Get domain knowledge
-10. port42 possess @ai-engineer --ref p42:/commands/log-analyzer --ref p42:/artifacts/document/api-performance-spec --ref file:/path/to/sample-log.txt --ref search:"response time analysis" "create api-response-analyzer that extracts and analyzes API response times"
+10. port42 swim @ai-engineer --ref p42:/commands/log-analyzer --ref p42:/artifacts/document/api-performance-spec --ref file:/path/to/sample-log.txt --ref search:"response time analysis" "create api-response-analyzer that extracts and analyzes API response times"
 11. api-response-analyzer --help
 12. Result: Tool created with existing patterns AND domain knowledge
 13. Value: Incorporates both code patterns and architectural specs
@@ -412,7 +412,7 @@ Examples:
 6. port42 search "validation patterns best practices"
 7. port42 info /commands/data-validator
 8. port42 cat /artifacts/document/validation-framework  # Get validation patterns
-9. port42 possess @ai-engineer --ref p42:/commands/data-validator --ref p42:/artifacts/document/validation-framework --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json --ref search:"requirements validation" "create requirement-validator to validate product requirements against user feedback"
+9. port42 swim @ai-engineer --ref p42:/commands/data-validator --ref p42:/artifacts/document/validation-framework --ref file:/path/to/requirements.md --ref file:/path/to/sample-feedback.json --ref search:"requirements validation" "create requirement-validator to validate product requirements against user feedback"
 10. requirement-validator --help
 11. Result: Automated validation with domain-specific patterns
 12. Value: Consistent validation using proven frameworks
@@ -428,7 +428,7 @@ Examples:
 6. port42 search "marketing analytics reporting patterns"
 7. port42 info /commands/report-generator
 8. port42 cat /artifacts/document/marketing-kpis  # Get KPI definitions
-9. port42 possess @ai-engineer --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs --ref search:"marketing performance metrics" "create marketing-weekly-report to generate weekly marketing performance reports"
+9. port42 swim @ai-engineer --ref p42:/commands/report-generator --ref p42:/artifacts/document/marketing-kpis --ref url:https://api.analytics.com/docs --ref search:"marketing performance metrics" "create marketing-weekly-report to generate weekly marketing performance reports"
 10. marketing-weekly-report --help
 11. Result: Reports with KPI alignment and best practices
 12. Value: Domain-aware reporting with industry standards
@@ -445,10 +445,10 @@ Port42 commands are installed as executables and can be called directly from the
 </direct_execution>
 
 <ai_assisted_execution>
-Use possession when you want AI to process or analyze the output:
-- port42 possess @ai-analyst "analyze the results from log-analyzer /var/log/app.log"
-- port42 possess @ai-muse "create a poetic summary of today's git commits"
-- port42 possess @ai-analyst "analyze which tools have the most usage and why"
+Use swim when you want AI to process or analyze the output:
+- port42 swim @ai-analyst "analyze the results from log-analyzer /var/log/app.log"
+- port42 swim @ai-muse "create a poetic summary of today's git commits"
+- port42 swim @ai-analyst "analyze which tools have the most usage and why"
 </ai_assisted_execution>
 
 <discovery_commands>
@@ -462,7 +462,7 @@ Tool inspection and execution:
 - port42 search "keyword" (find tools and memories by keyword)
 - port42 info /commands/tool-name (get metadata and usage)
 - port42 cat /commands/tool-name (view source code)
-- port42 possess @agent "request" --ref (AI assistance)
+- port42 swim @agent "request" --ref (AI assistance)
 - tool-name --help (execute tool with help flag)
 
 Key distinction:
@@ -472,12 +472,12 @@ Key distinction:
 
 <orchestration_warning>
 ⚠️ **ORCHESTRATION IS YOUR RESPONSIBILITY**
-- Possess won't explore for you
-- Possess won't search for you  
-- Possess won't make decisions for you
+- Swim won't explore for you
+- Swim won't search for you  
+- Swim won't make decisions for you
 - You must provide complete context via --ref
 
-Think of possess like a compiler:
+Think of swim like a compiler:
 - You gather all the source files (discovery)
 - You set all the flags (references)
 - You invoke it once with everything it needs
@@ -511,24 +511,24 @@ port42 ls /tools/by-transform/test/
 port42 ls /artifacts/document/ | grep -i "test\|qa\|validation"
 
 # Step 2: Get analysis with full context (using @ai-analyst for analysis)
-port42 possess @ai-analyst "analyze testing tool patterns and architectural best practices" \
+port42 swim @ai-analyst "analyze testing tool patterns and architectural best practices" \
   --ref p42:/commands/test-runner \
   --ref p42:/commands/validator \
   --ref p42:/artifacts/document/testing-best-practices
 
 # Step 3: Create based on analysis and specs (using @ai-engineer for robust implementation)
-port42 possess @ai-engineer "create improved test framework" \
+port42 swim @ai-engineer "create improved test framework" \
   --ref search:"testing patterns" \
   --ref p42:/artifacts/document/analysis-results \
   --ref p42:/artifacts/document/test-architecture-spec
 </pattern-analyze-then-create>
 
 <pattern-incremental-enhancement>
-# Don't try to do everything in one possess call
+# Don't try to do everything in one swim call
 # Break it down:
-port42 possess @ai-engineer "add error handling" --ref p42:/commands/tool
-port42 possess @ai-engineer "add progress bars" --ref p42:/commands/tool  
-port42 possess @ai-engineer "add config file support" --ref p42:/commands/tool
+port42 swim @ai-engineer "add error handling" --ref p42:/commands/tool
+port42 swim @ai-engineer "add progress bars" --ref p42:/commands/tool  
+port42 swim @ai-engineer "add config file support" --ref p42:/commands/tool
 </pattern-incremental-enhancement>
 
 <pattern-discovery-decision-action>
@@ -543,7 +543,7 @@ docs=$(port42 ls /artifacts/document/)
 # Analyze what exists, identify gaps
 
 # 3. ACTION
-port42 possess @ai-engineer "specific request" \
+port42 swim @ai-engineer "specific request" \
   --ref p42:/commands/relevant-tool \
   --ref p42:/artifacts/document/relevant-spec \
   --ref search:"patterns"
@@ -552,16 +552,16 @@ port42 possess @ai-engineer "specific request" \
 
 <conversation_continuity>
 <session_management>
-Port42 possess now supports explicit session management for better continuity:
+Port42 swim now supports explicit session management for better continuity:
 
 # Resume the last session (most common use case)
-port42 possess @ai-engineer --session last "continue our discussion"
+port42 swim @ai-engineer --session last "continue our discussion"
 
 # Resume a specific session by ID  
-port42 possess @ai-engineer --session cli-1757387099794 "what were we working on?"
+port42 swim @ai-engineer --session cli-1757387099794 "what were we working on?"
 
 # Start a fresh session (default behavior)
-port42 possess @ai-engineer "new topic"
+port42 swim @ai-engineer "new topic"
 
 # Check available sessions
 port42 ls /memory  # List all memory sessions
@@ -581,39 +581,39 @@ port42 info /memory/cli-xxxxx  # Get session details
 - Start fresh sessions for unrelated topics
 - Reference previous sessions with --ref p42:/memory/session-id
 - Sessions auto-save after each interaction
-- Remember: Even with context, possess performs ONE action per call
+- Remember: Even with context, swim performs ONE action per call
 </best_practices>
 </conversation_continuity>
 
 <multi_session_workflows>
 <pattern-iterative-development>
 # Day 1: Start designing a tool
-port42 possess @ai-engineer "design a comprehensive log analyzer"
+port42 swim @ai-engineer "design a comprehensive log analyzer"
 # Note session ID: cli-xxxxx
 
 # Day 2: Continue with implementation
-port42 possess @ai-engineer --session last "let's implement the parser module"
+port42 swim @ai-engineer --session last "let's implement the parser module"
 
 # Day 3: Add features
-port42 possess @ai-engineer --session last "add support for JSON logs"
+port42 swim @ai-engineer --session last "add support for JSON logs"
 </pattern-iterative-development>
 
 <pattern-parallel-sessions>
 # Work on multiple independent topics with different sessions
-port42 possess @ai-engineer "create test framework"  # Session A
-port42 possess @ai-muse "design creative CLI output"  # Session B
+port42 swim @ai-engineer "create test framework"  # Session A
+port42 swim @ai-muse "design creative CLI output"  # Session B
 
 # Resume specific work streams
-port42 possess @ai-engineer --session last "add parallel execution"
-port42 possess @ai-muse --session last "add more animations"
+port42 swim @ai-engineer --session last "add parallel execution"
+port42 swim @ai-muse --session last "add more animations"
 </pattern-parallel-sessions>
 
 <pattern-agent-handoff>
 # Start analysis with analyst
-port42 possess @ai-analyst "analyze codebase architecture" --ref file:src/
+port42 swim @ai-analyst "analyze codebase architecture" --ref file:src/
 
 # Hand off to engineer with context
-port42 possess @ai-engineer "implement the refactoring we discussed" \
+port42 swim @ai-engineer "implement the refactoring we discussed" \
   --ref p42:/memory/cli-xxxxx  # Reference analyst's session
 </pattern-agent-handoff>
 </multi_session_workflows>
@@ -621,49 +621,49 @@ port42 possess @ai-engineer "implement the refactoring we discussed" \
 <common_mistakes>
 <mistake-skipping-discovery>
 ❌ WRONG - No context about existing tools:
-port42 possess @ai-engineer "create json formatter"
+port42 swim @ai-engineer "create json formatter"
 
 ✅ RIGHT - Full discovery and context:
 port42 search "json format"
 port42 ls /tools/by-transform/json/
-port42 possess @ai-engineer "create json formatter" --ref p42:/commands/json-validator
+port42 swim @ai-engineer "create json formatter" --ref p42:/commands/json-validator
 </mistake-skipping-discovery>
 
 <mistake-expecting-multi-step>
-❌ WRONG - Possess won't search then create:
-port42 possess @ai-engineer "search for similar tools then create improved version"
+❌ WRONG - Swim won't search then create:
+port42 swim @ai-engineer "search for similar tools then create improved version"
 
 ✅ RIGHT - You orchestrate the workflow:
 port42 search "relevant keywords"
 port42 ls /tools/by-transform/capability/
-port42 possess @ai-engineer "create improved version" --ref p42:/commands/existing-tool
+port42 swim @ai-engineer "create improved version" --ref p42:/commands/existing-tool
 </mistake-expecting-multi-step>
 
 <mistake-no-references>
 ❌ WRONG - No context provided:
-port42 possess @ai-engineer "make it better"
+port42 swim @ai-engineer "make it better"
 
 ✅ RIGHT - Explicit reference:
-port42 possess @ai-engineer "make it better" --ref p42:/commands/tool-to-improve
+port42 swim @ai-engineer "make it better" --ref p42:/commands/tool-to-improve
 </mistake-no-references>
 
 <mistake-too-much-in-one-call>
 ❌ WRONG - Multiple operations:
-port42 possess @ai-engineer "analyze logs, create tool, and document it"
+port42 swim @ai-engineer "analyze logs, create tool, and document it"
 
 ✅ RIGHT - Separate calls:
-port42 possess @ai-analyst "analyze log patterns" --ref file:logs.txt
-port42 possess @ai-engineer "create log tool" --ref search:"analysis"  
-port42 possess @ai-muse "create creative documentation" --ref p42:/commands/log-tool
+port42 swim @ai-analyst "analyze log patterns" --ref file:logs.txt
+port42 swim @ai-engineer "create log tool" --ref search:"analysis"  
+port42 swim @ai-muse "create creative documentation" --ref p42:/commands/log-tool
 </mistake-too-much-in-one-call>
 
 <mistake-forgetting-session>
 ❌ WRONG - Starting new session when you meant to continue:
-port42 possess @ai-engineer "implement what we discussed"
+port42 swim @ai-engineer "implement what we discussed"
 # Creates new session with no context
 
 ✅ RIGHT - Explicitly resume session:
-port42 possess @ai-engineer --session last "implement what we discussed"
+port42 swim @ai-engineer --session last "implement what we discussed"
 # Continues with full context
 </mistake-forgetting-session>
 </common_mistakes>

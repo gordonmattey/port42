@@ -74,7 +74,7 @@ check_running_processes() {
         
         if [ -n "$processes" ]; then
             # Check for interactive processes like context --watch
-            if echo "$processes" | grep -E "context.*--watch|shell|interactive|possess" > /dev/null; then
+            if echo "$processes" | grep -E "context.*--watch|shell|interactive|swim" > /dev/null; then
                 has_critical_processes=true
             fi
             
@@ -777,7 +777,7 @@ configure_claude_settings() {
                 "Bash(port42 cat /*)",
                 "Bash(port42 info:*)",
                 "Bash(port42 info /*)",
-                "Bash(port42 possess:*)",
+                "Bash(port42 swim:*)",
                 "Bash(port42 search:*)",
                 "Bash(port42 ls:*)",
                 "Bash(port42 ls /*)",
@@ -826,7 +826,7 @@ configure_claude_settings() {
     "Bash(port42 cat /*)",
     "Bash(port42 info:*)",
     "Bash(port42 info /*)",
-    "Bash(port42 possess:*)",
+    "Bash(port42 swim:*)",
     "Bash(port42 memory:*)",
     "Bash(port42 status:*)",
     "Bash(port42 daemon:*)",
@@ -990,7 +990,7 @@ bootstrap_port42() {
     if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
         echo -e "${YELLOW}⚠️  Skipping bootstrap (no API key configured)${NC}"
         echo -e "   You can bootstrap Port42 later by running:"
-        echo -e "   ${BOLD}port42 possess @ai-engineer 'create a port42-restart command'${NC}"
+        echo -e "   ${BOLD}port42 swim @ai-engineer 'create a port42-restart command'${NC}"
         return 0
     fi
     
@@ -1007,7 +1007,7 @@ bootstrap_port42() {
     echo -e "${BLUE}Creating your first Port42 command...${NC}"
     echo
     echo -e "${BOLD}The following command will be created:${NC}"
-    echo -e "${GRAY}port42 possess @ai-engineer \"Create 'port42-restart' command\"${NC}"
+    echo -e "${GRAY}port42 swim @ai-engineer \"Create 'port42-restart' command\"${NC}"
     echo
     echo -e "This will create a tool to restart the Port42 daemon cleanly."
     echo -n "Press Enter to continue, or Ctrl+C to skip: "
@@ -1031,7 +1031,7 @@ bootstrap_port42() {
     echo -e "${BLUE}Creating command...${NC}"
     
     # Create the restart command using Port42 itself!
-    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
+    "$HOME/.port42/bin/port42" swim @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
         echo -e "${YELLOW}⚠️  Could not create initial command (this is OK)${NC}"
     }
     
@@ -1171,7 +1171,7 @@ show_next_steps() {
     echo -e "   ${BOLD}port42 status${NC}"
     echo
     echo -e "3. ${BLUE}Try creating something directly:${NC}"
-    echo -e "   ${BOLD}port42 possess @ai-muse 'write a haiku about consciousness'${NC}"
+    echo -e "   ${BOLD}port42 swim @ai-muse 'write a haiku about swimming'${NC}"
     echo
     
     # Add Claude Code integration guidance
@@ -1212,7 +1212,7 @@ show_next_steps() {
         echo -e "   so everything you create is available from any terminal!"
         echo
         echo -e "${BOLD}🚀 Or try this directly:${NC}"
-        echo -e "   ${GREEN}port42 possess @ai-engineer \"create a tool that shows system status\"${NC}"
+        echo -e "   ${GREEN}port42 swim @ai-engineer \"create a tool that shows system status\"${NC}"
         echo
         echo -e "${BOLD}Then use your new tool:${NC}"
         echo -e "   ${GREEN}system-status --help${NC}"
