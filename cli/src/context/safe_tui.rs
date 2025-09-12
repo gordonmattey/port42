@@ -161,7 +161,7 @@ impl App {
             should_quit: false,
             daemon_client,
             last_error: None,
-            rate_limiter: RateLimiter::new(100), // Max 10 updates per second
+            rate_limiter: RateLimiter::new(500), // Not used anymore, kept for compatibility
             active_session: None,
         }
     }
@@ -234,10 +234,8 @@ impl App {
     }
     
     fn refresh_data(&mut self) -> Result<()> {
-        // Only refresh if rate limiter allows
-        if !self.rate_limiter.should_update() {
-            return Ok(());
-        }
+        // Remove rate limiter check - the main loop already controls refresh timing
+        // The rate limiter was causing conflicts with the main refresh interval
         
         // Try to get context from daemon
         use crate::protocol::DaemonRequest;
@@ -389,6 +387,23 @@ impl App {
         // Update viewport height
         let viewport_height = area.height as usize;
         
+        // If no activities, show a helpful message
+        if self.activities.is_empty() {
+            let message = Paragraph::new(
+                Line::from(vec![
+                    Span::styled(
+                        "No recent activity. Run some Port42 commands to see them here!",
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    ),
+                ])
+            )
+            .block(Block::default().borders(Borders::NONE))
+            .alignment(Alignment::Center);
+            
+            frame.render_widget(message, area);
+            return;
+        }
+        
         let items: Vec<ListItem> = self.activities
             .iter()
             .skip(self.scroll_offset)
@@ -473,7 +488,13 @@ pub fn run_safe_watch(mut daemon_client: DaemonClient, refresh_ms: u64) -> Resul
     
     // Main synchronous event loop
     loop {
-        // Render UI
+        // Check if it's time to refresh data BEFORE rendering
+        if last_refresh.elapsed() >= refresh_interval {
+            app.refresh_data()?;
+            last_refresh = Instant::now();
+        }
+        
+        // Render UI with current data
         terminal.draw(|f| app.render(f))?;
         
         // Check if we should quit
@@ -492,12 +513,6 @@ pub fn run_safe_watch(mut daemon_client: DaemonClient, refresh_ms: u64) -> Resul
                 }
                 _ => {}
             }
-        }
-        
-        // Check if it's time to refresh data
-        if last_refresh.elapsed() >= refresh_interval {
-            app.refresh_data()?;
-            last_refresh = Instant::now();
         }
     }
     
