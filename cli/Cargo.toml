@@ -30,7 +30,7 @@ base64 = "0.22"
 regex = "1.10"
 thiserror = "1.0"
 prettytable-rs = "0.10"
-crossterm = "0.27"
+crossterm = "0.28.1"
 ctrlc = "3.4"
 uuid = { version = "1.0", features = ["v4"] }
 ratatui = "0.26"

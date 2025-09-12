@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use colored::*;
 use anyhow::Result;
+use std::io::Write;
 
 mod boot;
 mod commands;
@@ -92,6 +93,10 @@ pub enum Commands {
         /// Refresh rate in milliseconds for watch mode (default: 1000ms)
         #[arg(long, default_value = "1000", help = "Update frequency in milliseconds (default: 1000ms)")]
         refresh: u64,
+        
+        /// Force text mode instead of TUI when watching
+        #[arg(long, help = "Force text mode instead of TUI interface")]
+        text: bool,
     },
     
     #[command(about = crate::help_text::POSSESS_DESC)]
@@ -362,21 +367,122 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Context { pretty, compact, watch, refresh }) => {
+        Some(Commands::Context { pretty, compact, watch, refresh, text }) => {
             use crate::context::formatters::{ContextFormatter, JsonFormatter, PrettyFormatter, CompactFormatter};
             
             let mut client = crate::client::DaemonClient::new(port);
             
             if watch {
-                // Use the new safe synchronous TUI implementation
-                use crate::context::safe_tui;
-                
-                // Convert refresh seconds to milliseconds for the TUI
-                let refresh_ms = refresh * 1000;
-                
-                if let Err(e) = safe_tui::run_safe_watch(client, refresh_ms) {
-                    eprintln!("❌ Watch mode error: {}", e);
-                    std::process::exit(1);
+                // Check if user wants to force text mode
+                if text {
+                    // Force text mode - skip TUI entirely
+                    
+                    // Fallback to simple text-based watch
+                    use std::time::Duration;
+                    use std::thread;
+                    use crate::context::formatters::{ContextFormatter, PrettyFormatter};
+                    
+                    let formatter = PrettyFormatter;
+                    let refresh_duration = Duration::from_millis(refresh);
+                    let mut fallback_client = crate::client::DaemonClient::new(port);
+                    
+                    println!("🔍 Port42 Context Monitor (text mode) - Press Ctrl+C to stop");
+                    println!("Refresh rate: {}ms\n", refresh);
+                    
+                    loop {
+                        // Clear screen and move to top
+                        print!("\x1B[2J\x1B[H");
+                        
+                        let response = fallback_client.request(crate::protocol::DaemonRequest {
+                            request_type: "context".to_string(),
+                            id: format!("watch-{}", std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_millis()),
+                            payload: serde_json::json!({}),
+                            references: None,
+                            session_context: None,
+                            user_prompt: None,
+                        });
+                        
+                        match response {
+                            Ok(response) if response.success => {
+                                if let Some(data) = response.data {
+                                    if let Ok(context_data) = serde_json::from_value::<crate::context::ContextData>(data) {
+                                        println!("🕒 Last updated: {}", chrono::Local::now().format("%H:%M:%S"));
+                                        println!("{}", formatter.format(&context_data));
+                                    }
+                                }
+                            }
+                            Ok(response) => {
+                                println!("❌ Error: {}", response.error.unwrap_or_else(|| "Unknown error".to_string()));
+                            }
+                            Err(e) => {
+                                println!("❌ Connection error: {}", e);
+                            }
+                        }
+                        
+                        thread::sleep(refresh_duration);
+                    }
+                } else {
+                    // Try TUI mode first, fallback to text if it fails
+                    use crate::context::safe_tui;
+                    
+                    // Convert refresh seconds to milliseconds for the TUI
+                    let refresh_ms = refresh * 1000;
+                    
+                    if let Err(e) = safe_tui::run_safe_watch(client, refresh_ms) {
+                        eprintln!("⚠️  TUI mode not available ({}), using text mode...", e);
+                        
+                        // Fallback to simple text-based watch
+                        use std::time::Duration;
+                        use std::thread;
+                        use crate::context::formatters::{ContextFormatter, PrettyFormatter};
+                        
+                        let formatter = PrettyFormatter;
+                        let refresh_duration = Duration::from_millis(refresh);
+                        let mut fallback_client = crate::client::DaemonClient::new(port);
+                        
+                        println!("🔍 Port42 Context Monitor (text mode) - Press Ctrl+C to stop");
+                        println!("Refresh rate: {}ms\n", refresh);
+                        
+                        loop {
+                            // Clear screen and move to top (flush immediately for macOS compatibility)
+                            print!("\x1B[2J\x1B[H");
+                            std::io::stdout().flush().unwrap_or(());
+                            
+                            let response = fallback_client.request(crate::protocol::DaemonRequest {
+                                request_type: "context".to_string(),
+                                id: format!("watch-{}", std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_millis()),
+                                payload: serde_json::json!({}),
+                                references: None,
+                                session_context: None,
+                                user_prompt: None,
+                            });
+                            
+                            match response {
+                                Ok(response) if response.success => {
+                                    if let Some(data) = response.data {
+                                        if let Ok(context_data) = serde_json::from_value::<crate::context::ContextData>(data) {
+                                            println!("🕒 Last updated: {}", chrono::Local::now().format("%H:%M:%S"));
+                                            println!("{}", formatter.format(&context_data));
+                                        }
+                                    }
+                                }
+                                Ok(response) => {
+                                    println!("❌ Error: {}", response.error.unwrap_or_else(|| "Unknown error".to_string()));
+                                }
+                                Err(e) => {
+                                    println!("❌ Connection error: {}", e);
+                                }
+                            }
+                            
+                            thread::sleep(refresh_duration);
+                        }
+                    }
                 }
             } else {
                 // Single shot mode

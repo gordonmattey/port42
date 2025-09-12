@@ -32,9 +32,10 @@ struct TerminalGuard {
 
 impl TerminalGuard {
     fn new() -> Result<Self> {
-        // Enable raw mode and alternate screen
-        enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        // Try to enable raw mode and alternate screen - let Ratatui handle terminal detection
+        enable_raw_mode().map_err(|e| anyhow::anyhow!("Failed to enable raw mode: {}", e))?;
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
+            .map_err(|e| anyhow::anyhow!("Failed to setup terminal: {}", e))?;
         
         let restored = Arc::new(Mutex::new(false));
         let restored_clone = restored.clone();
@@ -131,7 +132,7 @@ impl RateLimiter {
 /// Activity record for display
 #[derive(Debug, Clone)]
 struct Activity {
-    timestamp: String,
+    timestamp: chrono::DateTime<chrono::Local>,
     activity_type: String,
     description: String,
     color: Color,
@@ -147,6 +148,7 @@ pub struct App {
     daemon_client: DaemonClient,
     last_error: Option<String>,
     rate_limiter: RateLimiter,
+    active_session: Option<String>,
 }
 
 impl App {
@@ -160,6 +162,7 @@ impl App {
             daemon_client,
             last_error: None,
             rate_limiter: RateLimiter::new(100), // Max 10 updates per second
+            active_session: None,
         }
     }
     
@@ -254,7 +257,11 @@ impl App {
                     if let Ok(context) = serde_json::from_value::<ContextData>(data) {
                         self.process_context(context);
                         self.last_error = None;
+                    } else {
+                        self.last_error = Some("Failed to parse context data".to_string());
                     }
+                } else {
+                    self.last_error = Some("No data in daemon response".to_string());
                 }
             }
             Err(e) => {
@@ -266,13 +273,28 @@ impl App {
     }
     
     fn process_context(&mut self, context: ContextData) {
+        // Update active session info
+        self.active_session = context.active_session.as_ref().map(|session| {
+            format!("{}@{}", session.agent, &session.id[..8.min(session.id.len())])
+        });
+        
         // Clear and rebuild activities
         self.activities.clear();
+        
+        // Add active session as an activity if present
+        if let Some(ref session) = context.active_session {
+            self.activities.push(Activity {
+                timestamp: session.last_activity.with_timezone(&chrono::Local),
+                activity_type: "SESSION".to_string(),
+                description: format!("Active: {} ({} msgs)", session.agent, session.message_count),
+                color: Color::Cyan,
+            });
+        }
         
         // Add recent commands
         for cmd in context.recent_commands {
             self.activities.push(Activity {
-                timestamp: cmd.timestamp.format("%H:%M:%S").to_string(),
+                timestamp: cmd.timestamp.with_timezone(&chrono::Local),
                 activity_type: "COMMAND".to_string(),
                 description: cmd.command,
                 color: Color::Blue,
@@ -282,7 +304,7 @@ impl App {
         // Add created tools
         for tool in context.created_tools {
             self.activities.push(Activity {
-                timestamp: tool.created_at.format("%H:%M:%S").to_string(),
+                timestamp: tool.created_at.with_timezone(&chrono::Local),
                 activity_type: "TOOL".to_string(),
                 description: format!("Created: {}", tool.name),
                 color: Color::Magenta,
@@ -291,8 +313,10 @@ impl App {
         
         // Add memory accesses
         for mem in context.accessed_memories {
+            // Memory accesses don't have timestamps in the data, use current time
+            // This is a limitation we should fix in the daemon later
             self.activities.push(Activity {
-                timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
+                timestamp: chrono::Local::now(),
                 activity_type: "MEMORY".to_string(),
                 description: format!("Accessed: {}", mem.path),
                 color: Color::Green,
@@ -300,7 +324,7 @@ impl App {
         }
         
         // Sort by timestamp (newest first)
-        self.activities.reverse();
+        self.activities.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     }
     
     fn render(&self, frame: &mut Frame) {
@@ -325,7 +349,7 @@ impl App {
                 Span::styled(err, Style::default().fg(Color::Red)),
             ]
         } else {
-            vec![
+            let mut spans = vec![
                 Span::styled("🔍 ", Style::default()),
                 Span::styled(
                     "Port42 Context Monitor",
@@ -336,7 +360,18 @@ impl App {
                     format!("{} activities", self.activities.len()),
                     Style::default().fg(Color::Yellow),
                 ),
-            ]
+            ];
+            
+            // Show active session if present
+            if let Some(ref session) = self.active_session {
+                spans.push(Span::raw(" │ "));
+                spans.push(Span::styled(
+                    format!("Session: {}", session),
+                    Style::default().fg(Color::Blue),
+                ));
+            }
+            
+            spans
         };
         
         let header = Paragraph::new(Line::from(header_text))
@@ -364,7 +399,7 @@ impl App {
                 
                 let spans = vec![
                     Span::styled(
-                        format!("{:<8} ", activity.timestamp),
+                        format!("{:<8} ", activity.timestamp.format("%H:%M:%S").to_string()),
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(
