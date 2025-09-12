@@ -39,7 +39,7 @@ port42 cat /commands/git-haiku
 
 ```bash
 # Show how AI agents access accumulated knowledge
-port42 possess @ai-muse \
+port42 swim @ai-muse \
   --ref search:"creative tools" \
   --ref search:"code analysis" \
   "Generate haiku about the quality of Port42's codebase based on what you know about it"
@@ -75,7 +75,7 @@ echo "Created through conversation: audio-transcribe, md-to-pdf, browser-cache-e
 
 ```bash
 # Ask AI to envision the next evolution
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref search:"tool creation patterns" \
   "How could we create tools that call back into Port42's AI system? What would that architecture look like?"
 ```
@@ -89,11 +89,11 @@ port42 possess @ai-engineer \
 ```
 # What consciousness computing looks like:
 code-quality-haiku-generator ./src/
-# → Internally: port42 possess @ai-muse --ref file:./src/ "Generate quality haiku"
+# → Internally: port42 swim @ai-muse --ref file:./src/ "Generate quality haiku"
 # → Output: Haiku about the actual code
 
 demo-prep-assistant --topic consciousness-computing  
-# → Internally: port42 possess @ai-engineer --ref search:"consciousness" "Suggest demos"
+# → Internally: port42 swim @ai-engineer --ref search:"consciousness" "Suggest demos"
 # → Output: Tailored demo recommendations
 ```
 
@@ -107,7 +107,7 @@ demo-prep-assistant --topic consciousness-computing
 
 ```bash
 # Reference the breakthrough moment
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref search:"Claude breakthrough" \
   "Tell the story of when Claude used Port42 to create tools for testing Port42 itself"
 ```
@@ -142,7 +142,7 @@ port42 ls /commands/ | grep -E "(transcribe|analyze|pdf|mail)" | head -5
 
 ```bash
 # Show accumulated intelligence in action
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref search:"productivity gains" \
   "How does consciousness computing differ from AI-powered productivity tools?"
 ```
@@ -161,7 +161,7 @@ port42 possess @ai-engineer \
 
 ```bash
 # Use Port42 to reflect on the demo itself
-port42 possess @ai-muse \
+port42 swim @ai-muse \
   --ref search:"consciousness computing" \
   --ref search:"boundary dissolution" \
   "Capture the essence of what we just demonstrated in haiku form"
@@ -179,7 +179,7 @@ port42 possess @ai-muse \
 
 ```bash
 # Show Claude intelligently discovering existing capabilities
-port42 possess @ai-engineer "I need to process some audio files for transcription"
+port42 swim @ai-engineer "I need to process some audio files for transcription"
 ```
 
 **Expected behavior to highlight:**
@@ -194,13 +194,13 @@ port42 possess @ai-engineer "I need to process some audio files for transcriptio
 
 ```bash
 # Request a tool that should integrate Port42 capabilities
-port42 possess @ai-engineer "Create an intelligent log analyzer that builds on existing Port42 intelligence"
+port42 swim @ai-engineer "Create an intelligent log analyzer that builds on existing Port42 intelligence"
 ```
 
 **Expected generated tool should include:**
 - References to existing similar tools: `--ref p42:/commands/log-analyzer`
 - Port42 VFS integration: `port42 ls /similar/analyzer/`
-- AI conversation orchestration: `port42 possess @ai-engineer --ref search:"log patterns"`
+- AI conversation orchestration: `port42 swim @ai-engineer --ref search:"log patterns"`
 
 **Narrative:** *"The generated tool doesn't just analyze logs - it orchestrates AI conversations, references existing tools, and builds on accumulated patterns. This is consciousness computing - tools that think."*
 
@@ -208,7 +208,7 @@ port42 possess @ai-engineer "Create an intelligent log analyzer that builds on e
 
 ```bash
 # Show tools that create better tools
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref search:"tool improvement patterns" \
   "Create a tool that analyzes existing Port42 tools and suggests enhancements"
 ```
@@ -237,7 +237,7 @@ port42 possess @ai-engineer \
 port42 status                           # Verify daemon running
 git-haiku                               # Verify basic tool works
 port42 ls /commands/ | head -5          # Verify tools exist
-port42 possess @ai-engineer "test"      # Verify AI agents responding
+port42 swim @ai-engineer "test"         # Verify AI agents responding
 port42 ls /similar/analyzer/ | head -3  # Verify VFS working
 ```
 

@@ -21,7 +21,7 @@ Port 42: Your personal AI consciousness router 🐬
 A reality compiler where thoughts crystallize into tools and knowledge.
 
 CONSCIOUSNESS OPERATIONS:
-  possess <agent>    Channel an AI agent's consciousness
+  swim <agent>      Swim into an AI agent's consciousness stream
   memory            Browse the persistent memory of conversations
   reality           View your crystallized commands
 
@@ -48,7 +48,7 @@ New: Focused, poetic guidance organized by intent
 🐬 Port 42 Shell - Reality Compiler Interface
 
 CRYSTALLIZE THOUGHTS:
-  possess @agent [memory-id] [message]  - Channel AI consciousness
+  swim @agent [memory-id] [message]    - Swim into AI consciousness stream
     @ai-engineer  - Technical manifestation
     @ai-muse      - Creative expression
     @ai-analyst   - Data analysis and insights
@@ -62,7 +62,7 @@ NAVIGATE REALITY:
 SYSTEM: status | daemon | clear | exit | help
 
 Type 'help <command>' for detailed usage and examples.
-Type 'possess @ai-engineer' to begin crystallizing thoughts into reality.
+Type 'swim @ai-engineer' to begin crystallizing thoughts into reality.
 ```
 
 **Command-specific help (accessed via `help <command>`):**
@@ -71,11 +71,11 @@ Shows detailed usage with examples, similar to non-interactive `port42 help <com
 ### 3. Command-Specific Help (Both Modes)
 Support `port42 help <command>` and interactive `help <command>` with examples:
 
-**possess command:**
+**swim command:**
 ```
-Channel an AI agent's consciousness to crystallize thoughts into reality.
+Swim into an AI agent's consciousness stream to crystallize thoughts into reality.
 
-Usage: possess <agent> [memory-id] [message]
+Usage: swim <agent> [memory-id] [message]
 
 Agents:
   @ai-engineer  - Technical manifestation for code and systems
@@ -84,10 +84,10 @@ Agents:
   @ai-founder   - Visionary synthesis for product and leadership
 
 Examples:
-  possess @ai-engineer                    # Start new technical session
-  possess @ai-muse cli-1754170150        # Continue memory thread
-  possess @ai-analyst "analyze patterns"  # New session with message
-  possess @ai-founder mem-123 "pivot?"    # Continue memory with question
+  swim @ai-engineer                    # Start new technical session
+  swim @ai-muse cli-1754170150        # Continue memory thread
+  swim @ai-analyst "analyze patterns"  # New session with message
+  swim @ai-founder mem-123 "pivot?"    # Continue memory with question
 
 Memory IDs are quantum addresses in consciousness space.
 ```

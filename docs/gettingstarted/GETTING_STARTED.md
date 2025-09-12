@@ -24,7 +24,7 @@ Let's create something immediately practical - a notification sound for when lon
 
 ```bash
 # Create a notification command with AI assistance
-port42 possess @ai-engineer "create a command called notify-sound to generate a notification sound"
+port42 swim @ai-engineer "create a command called notify-sound to generate a notification sound"
 
 # Test your new command
 notify-sound
@@ -107,7 +107,7 @@ Move from declaration to conversation:
 
 ```bash
 # Start an AI session
-port42 possess @ai-engineer
+port42 swim @ai-engineer
 
 # Now you're in conversation mode
 > Create a command that converts CSV files to beautiful HTML tables
@@ -125,10 +125,10 @@ csv-to-html-converter data.csv > report.html
 
 **🎯 Pro Tip: Commands Work in AI Sessions**
 
-All your created commands are available within AI possession sessions:
+All your created commands are available within AI swimming sessions:
 
 ```bash
-port42 possess @ai-engineer
+port42 swim @ai-engineer
 
 > List all my available commands
 # AI will show you all your tools
@@ -256,13 +256,13 @@ port42 declare artifact deployment-guide --artifact-type documentation \
 
 ```bash
 # Start conversation with references and ask specific questions
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref file:./architecture.md \
   --ref p42:/commands/existing-microservice \
   "Help me design a new authentication service that integrates with our existing architecture"
 
 # Creative work with brand context
-port42 possess @ai-muse \
+port42 swim @ai-muse \
   --ref file:./brand-guidelines.pdf \
   --ref file:./previous-campaigns.md \
   "Create a product announcement that follows our brand voice and builds on our previous messaging"
@@ -307,7 +307,7 @@ Reference previous conversations and build continuity:
 
 ```bash
 # Start a design session
-port42 possess @ai-engineer --session project-design
+port42 swim @ai-engineer --session project-design
 
 > I need to build a log processing system for a web application
 > It should handle nginx logs, extract patterns, and generate reports
@@ -336,7 +336,7 @@ log-processor /var/log/nginx/access.log --pattern-analysis
 Your AI agents can interact with all your existing tools:
 
 ```bash
-port42 possess @ai-muse
+port42 swim @ai-muse
 
 > What tools do I have for processing data?
 # AI lists relevant tools: data-parser, csv-converter, json-formatter
@@ -497,7 +497,7 @@ port42 declare tool project-analyzer --transforms analyze,project \
   --ref p42:/memory/requirements-session
 
 # 2. Knowledge Synthesis Pattern
-port42 possess @ai-engineer --session architecture
+port42 swim @ai-engineer --session architecture
 
 > Design a microservices monitoring system
 [Create comprehensive design]

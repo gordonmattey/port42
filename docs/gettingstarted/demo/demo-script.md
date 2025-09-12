@@ -55,7 +55,7 @@ $ port42
 **[LIVE DEMO: Natural conversation]**
 
 ```
-Echo@port42:~$ possess @ai-engineer
+Echo@port42:~$ swim @ai-engineer
 > Show me what changed in the last week
 
 🤖 I'll help you see recent changes in your project.
@@ -89,7 +89,7 @@ Echo@port42:~$ git-haiku
 **[LIVE DEMO: Show possession of existing commands]**
 
 ```
-Echo@port42:~$ possess cd
+Echo@port42:~$ swim cd
 🔮 Enhancing cd with AI capabilities...
 
 Echo@port42:~$ cd "that project from last week"
@@ -106,7 +106,7 @@ Echo@port42:~$ cd "where I keep my demo videos"
 **[TERMINAL: Show multiple AI personalities]**
 
 ```
-Echo@port42:~$ possess @ai-muse
+Echo@port42:~$ swim @ai-muse
 > Help me name my new framework
 
 🎨 Let me channel some creative energy...
@@ -115,7 +115,7 @@ How about "Cascade" - it implies flow, natural progression,
 and the way effects ripple through a system. Plus it sounds 
 elegant and memorable.
 
-Echo@port42:~$ possess @ai-strategist  
+Echo@port42:~$ swim @ai-strategist  
 > Should we open source this?
 
 📊 Looking at your situation strategically...
@@ -186,7 +186,7 @@ Echo@port42:~$ _
 
 1. Have port42 daemon running
 2. Pre-generate git-haiku command
-3. Test possess commands work
+3. Test swim commands work
 4. Practice smooth transitions
 5. Have backup recordings ready
 

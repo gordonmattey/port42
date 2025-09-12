@@ -56,7 +56,7 @@ port42 ls /tools/log-incident-analyzer/
 **Then use possession to explore:**
 ```bash
 # Use AI to understand and improve existing tools
-port42 possess @ai-engineer
+port42 swim @ai-engineer
 > What tools do I have for log analysis? Show me the log-incident-analyzer code and suggest improvements.
 ```
 
@@ -151,7 +151,7 @@ port42 info /artifacts/api-documentation
 **Use possession to enhance:**
 ```bash
 # Use AI to review and improve the documentation
-port42 possess @ai-muse
+port42 swim @ai-muse
 > I just generated API documentation. Can you review what's available and suggest how to make it more investor-ready?
 ```
 
@@ -257,7 +257,7 @@ port42 cat /commands/code-analyzer
 **Use possession to dive deeper:**
 ```bash
 # Use AI to explore the results and ask specific questions
-port42 possess @ai-engineer
+port42 swim @ai-engineer
 > I just analyzed some legacy Python code. What tools do I have available? Run the code-analyzer on my legacy-processor.py file and explain the results.
 ```
 
@@ -348,7 +348,7 @@ port42 ls /similar/pipeline-monitor/
 **Use possession for operations:**
 ```bash
 # Use AI to interpret results and plan actions
-port42 possess @ai-engineer
+port42 swim @ai-engineer
 > Show me what monitoring tools I have. Run the pipeline-monitor and explain what's failing and what I should do first.
 ```
 
@@ -443,7 +443,7 @@ port42 ls /similar/metrics-analyzer/
 **Use possession for strategic insight:**
 ```bash
 # Use AI to provide strategic context and recommendations
-port42 possess @ai-founder
+port42 swim @ai-founder
 > I have metrics analysis tools and board reports. Show me what's available and help me interpret the results for strategic decision making.
 ```
 
