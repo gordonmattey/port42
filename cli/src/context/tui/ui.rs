@@ -32,7 +32,7 @@ pub fn draw(f: &mut Frame, app: &App) {
 }
 
 fn draw_header(f: &mut Frame, area: Rect, app: &App) {
-    let header_text = vec![
+    let mut header_text = vec![
         Span::styled("🔍 ", Style::default()),
         Span::styled(
             "Port42 Context Monitor",
@@ -48,12 +48,22 @@ fn draw_header(f: &mut Frame, area: Rect, app: &App) {
             format!("{:.1} cmd/m", app.commands_per_minute),
             Style::default().fg(Color::Green),
         ),
-        Span::raw(" │ "),
-        Span::styled(
-            format_filter_mode(&app.filter_mode),
-            Style::default().fg(Color::Magenta),
-        ),
     ];
+    
+    // Show active session if present
+    if let Some(session_id) = &app.active_session {
+        header_text.push(Span::raw(" │ "));
+        header_text.push(Span::styled(
+            format!("Session: {}", &session_id[..8.min(session_id.len())]),
+            Style::default().fg(Color::Blue),
+        ));
+    }
+    
+    header_text.push(Span::raw(" │ "));
+    header_text.push(Span::styled(
+        format_filter_mode(&app.filter_mode),
+        Style::default().fg(Color::Magenta),
+    ));
 
     let header = Paragraph::new(Line::from(header_text))
         .block(

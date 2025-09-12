@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::time::Instant;
 use crate::client::DaemonClient;
 use super::Event;
+use chrono::{DateTime, Utc, Local};
 
 #[derive(Debug, Clone)]
 pub struct ActivityRecord {
@@ -40,7 +41,7 @@ impl ActivityType {
             ActivityType::Memory => Color::Green,
             ActivityType::FileAccess => Color::Cyan,
             ActivityType::ToolUsage => Color::Magenta,
-            ActivityType::Error => Color::Red,
+            ActivityType::Error => Color::LightRed,
         }
     }
 }
@@ -84,7 +85,7 @@ pub struct App {
     pub last_refresh: Instant,
     
     // Connection
-    daemon_client: DaemonClient,
+    pub daemon_client: DaemonClient,
 }
 
 impl App {
@@ -156,28 +157,36 @@ impl App {
         self.update_filter();
     }
 
-    pub fn handle_event(&mut self, event: Event) -> Result<()> {
+    pub fn handle_event(&mut self, event: Event) -> Result<bool> {
         match event {
             Event::Tick => {
                 self.refresh_activities()?;
             }
             Event::Key(key) => {
-                self.handle_key_event(key)?;
+                return self.handle_key_event(key);
             }
             Event::Resize(_width, height) => {
                 self.viewport_height = height.saturating_sub(7) as usize;
             }
+            Event::Quit => {
+                return Ok(true);  // Signal to quit
+            }
             _ => {}
         }
-        Ok(())
+        Ok(false)  // Don't quit
     }
 
-    fn handle_key_event(&mut self, key: crossterm::event::KeyEvent) -> Result<()> {
-        use crossterm::event::KeyCode;
+    fn handle_key_event(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        // Handle Ctrl+C to quit from anywhere
+        if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+            return Ok(true);  // Quit
+        }
 
         match key.code {
             KeyCode::Char('q') if !self.is_filtering => {
-                // Quit is handled by the event loop
+                return Ok(true);  // Quit
             }
             KeyCode::Up | KeyCode::Char('k') if !self.is_filtering => {
                 self.move_selection_up();
@@ -234,24 +243,117 @@ impl App {
             }
             _ => {}
         }
-        Ok(())
+        Ok(false)  // Don't quit
     }
 
     fn refresh_activities(&mut self) -> Result<()> {
-        // Fetch new activities from daemon
-        // This will be implemented to call the daemon's context endpoint
-        
-        // For now, add a dummy activity for testing
-        if self.activities.len() < 5 {
-            self.add_activity(ActivityRecord {
-                timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
-                activity_type: ActivityType::Command,
-                description: format!("Test activity {}", self.activities.len()),
-                details: Some("Test details".to_string()),
-            });
+        // Try to fetch context from daemon
+        match self.fetch_daemon_context() {
+            Ok(new_activities) => {
+                // Add new activities that we haven't seen
+                for activity in new_activities {
+                    if !self.activity_exists(&activity) {
+                        self.add_activity(activity);
+                    }
+                }
+            }
+            Err(e) => {
+                // If daemon is down, add an error activity (but only once)
+                if !self.activities.iter().any(|a| {
+                    a.activity_type == ActivityType::Error 
+                    && a.description.contains("Daemon connection failed")
+                }) {
+                    self.add_activity(ActivityRecord {
+                        timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
+                        activity_type: ActivityType::Error,
+                        description: "Daemon connection failed".to_string(),
+                        details: Some(format!("Error: {}", e)),
+                    });
+                }
+            }
         }
         
         Ok(())
+    }
+    
+    fn fetch_daemon_context(&mut self) -> Result<Vec<ActivityRecord>> {
+        use crate::protocol::DaemonRequest;
+        
+        // Create context request
+        let request = DaemonRequest {
+            request_type: "context".to_string(),
+            id: format!("context-{}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()),
+            payload: serde_json::json!({}),
+            references: None,
+            session_context: None,
+            user_prompt: None,
+        };
+        
+        // Try to get response from daemon
+        let response = self.daemon_client.request(request)?;
+        
+        // Parse the context data
+        let context_data: crate::context::ContextData = serde_json::from_value(
+            response.data.ok_or_else(|| anyhow::anyhow!("No data in response"))?
+        )?;
+        
+        // Convert context data to activities
+        let mut activities = Vec::new();
+        
+        // Add recent commands as activities
+        for cmd in &context_data.recent_commands {
+            activities.push(ActivityRecord {
+                timestamp: cmd.timestamp.format("%H:%M:%S").to_string(),
+                activity_type: ActivityType::Command,
+                description: cmd.command.clone(),
+                details: Some(format!("Exit code: {}", cmd.exit_code)),
+            });
+        }
+        
+        // Add created tools as activities
+        for tool in &context_data.created_tools {
+            activities.push(ActivityRecord {
+                timestamp: tool.created_at.format("%H:%M:%S").to_string(),
+                activity_type: ActivityType::ToolUsage,
+                description: format!("Created tool: {}", tool.name),
+                details: Some(format!("Type: {}", tool.tool_type)),
+            });
+        }
+        
+        // Add memory accesses as activities
+        for mem in &context_data.accessed_memories {
+            activities.push(ActivityRecord {
+                timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
+                activity_type: ActivityType::FileAccess,
+                description: format!("Accessed {}", mem.path),
+                details: mem.display_name.clone(),
+            });
+        }
+        
+        // Add active session info if present
+        if let Some(session) = &context_data.active_session {
+            self.active_session = Some(session.id.clone());
+            
+            // Update stats
+            self.total_commands = context_data.recent_commands.len();
+            let now = Utc::now();
+            let elapsed = (now - session.start_time).num_seconds() as f64 / 60.0;
+            if elapsed > 0.0 {
+                self.commands_per_minute = self.total_commands as f64 / elapsed;
+            }
+        }
+        
+        Ok(activities)
+    }
+    
+    fn activity_exists(&self, activity: &ActivityRecord) -> bool {
+        self.activities.iter().any(|a| {
+            a.timestamp == activity.timestamp 
+            && a.description == activity.description
+        })
     }
 
     pub fn add_activity(&mut self, activity: ActivityRecord) {

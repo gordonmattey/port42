@@ -472,7 +472,6 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 
 // Enhanced possession handler with real AI
 func (d *Daemon) handlePossessWithAI(req Request) Response {
-	log.Printf("🎯 handlePossessWithAI called for request: %s", req.ID)
 	resp := NewResponse(req.ID, true)
 	
 	var payload PossessPayload
@@ -486,8 +485,20 @@ func (d *Daemon) handlePossessWithAI(req Request) Response {
 	if payload.SessionID != "" {
 		sessionID = payload.SessionID
 	}
-	log.Printf("🔍 About to call getOrCreateSession with ID=%s, Agent=%s", sessionID, payload.Agent)
 	session := d.getOrCreateSession(sessionID, payload.Agent)
+	if session == nil {
+		log.Printf("❌ getOrCreateSession returned nil!")
+		resp.SetError("Failed to create or load session")
+		return resp
+	}
+	
+	// Track memory creation AFTER releasing daemon mutex
+	if d.contextCollector != nil && len(session.Messages) == 0 {
+		// New session (no messages yet)
+		memoryPath := fmt.Sprintf("/memory/%s", sessionID)
+		d.contextCollector.TrackMemoryAccess(memoryPath, "created")
+	}
+	
 	log.Printf("🔍 Session loaded: ID=%s, MessageCount=%d", session.ID, len(session.Messages))
 	
 	// Add user message to session

@@ -275,9 +275,8 @@ func (d *Daemon) handleRequest(req Request) Response {
 			commandName = "declare"
 		case "shell":
 			commandName = "shell"
-		default:
-			// Skip internal operations like list_path, read_path, get_metadata, status, etc.
-			return d.handleRequestInternal(req)
+		// Note: We don't track internal operations like list_path, read_path, get_metadata, status, etc.
+		// They will just fall through without tracking
 		}
 		
 		if commandName != "" {
@@ -820,7 +819,6 @@ func (d *Daemon) listVirtualPath(path string) []map[string]interface{} {
 
 // Session management methods
 func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
-	log.Printf("🔐 getOrCreateSession called with ID=%s, Agent=%s", sessionID, agent)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	
@@ -883,13 +881,6 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	
 	d.sessions[sessionID] = session
 	log.Printf("📊 Session added to map. Current map size: %d", len(d.sessions))
-	
-	// Track memory creation in context collector
-	if d.contextCollector != nil {
-		memoryPath := fmt.Sprintf("/memory/%s", sessionID)
-		d.contextCollector.TrackMemoryAccess(memoryPath, "created")
-		log.Printf("🧠 Tracked new memory creation: %s", memoryPath)
-	}
 	
 	// Save new session to disk
 	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.storage != nil)
@@ -1158,7 +1149,6 @@ func (d *Daemon) handleWatchRules(req Request) Response {
 
 func (d *Daemon) handlePossess(req Request) Response {
 	// Use the AI-powered possession handler
-	log.Printf("🔮 handlePossess called for request: %s", req.ID)
 	return d.handlePossessWithAI(req)
 }
 

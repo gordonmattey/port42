@@ -47,6 +47,31 @@ pub async fn run_app(
     app: &mut App,
     event_handler: &mut EventHandler,
 ) -> Result<()> {
+    // Set up panic handler to restore terminal
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        let _ = disable_raw_mode();
+        let _ = execute!(
+            io::stdout(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        );
+        original_hook(panic);
+    }));
+    
+    let result = run_app_loop(terminal, app, event_handler).await;
+    
+    // Restore original panic handler
+    let _ = std::panic::take_hook();
+    
+    result
+}
+
+async fn run_app_loop(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut App,
+    event_handler: &mut EventHandler,
+) -> Result<()> {
     loop {
         // Draw the UI
         terminal.draw(|f| ui::draw(f, app))?;
@@ -57,7 +82,10 @@ pub async fn run_app(
                 return Ok(());
             }
             event => {
-                app.handle_event(event)?;
+                // Check if app wants to quit
+                if app.handle_event(event)? {
+                    return Ok(());
+                }
             }
         }
     }
