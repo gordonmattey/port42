@@ -70,11 +70,9 @@ chmod +x /tmp/port42-install.sh
 
 # Run installer interactively
 # Use exec to replace the current shell with the installer
-# This preserves stdin for interactive prompts
 if [ "$INSTALL_METHOD" = "binary" ]; then
     echo "🚀 Pre-built binaries are available for $PLATFORM"
     echo ""
-    # Use exec to replace current process, preserving stdin
     exec /tmp/port42-install.sh
 else
     echo "🔨 Building Port42 from source..."
