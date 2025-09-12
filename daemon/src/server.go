@@ -840,6 +840,13 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	d.sessions[sessionID] = session
 	log.Printf("📊 Session added to map. Current map size: %d", len(d.sessions))
 	
+	// Track memory creation in context collector
+	if d.contextCollector != nil {
+		memoryPath := fmt.Sprintf("/memory/%s", sessionID)
+		d.contextCollector.TrackMemoryAccess(memoryPath, "created")
+		log.Printf("🧠 Tracked new memory creation: %s", memoryPath)
+	}
+	
 	// Save new session to disk
 	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.storage != nil)
 	if d.storage != nil {

@@ -135,6 +135,17 @@ impl WatchMode {
             }
         }
         
+        // Check accessed memories
+        if a.accessed_memories.len() != b.accessed_memories.len() {
+            return false;
+        }
+        for (mem_a, mem_b) in a.accessed_memories.iter().zip(b.accessed_memories.iter()) {
+            if mem_a.path != mem_b.path || 
+               mem_a.access_count != mem_b.access_count {
+                return false;
+            }
+        }
+        
         // Check suggestions (these might change)
         if a.suggestions.len() != b.suggestions.len() {
             return false;
@@ -178,6 +189,31 @@ impl WatchMode {
             println!("│ 🛠  Created This Session:                    │");
             for tool in data.created_tools.iter().take(3) {
                 println!("│ • {:<42} │", Self::truncate(&tool.name, 42));
+            }
+        }
+        
+        // Accessed memories/artifacts
+        if !data.accessed_memories.is_empty() {
+            println!("│                                              │");
+            println!("│ 📚 Recently Accessed:                        │");
+            for access in data.accessed_memories.iter().take(3) {
+                let icon = match access.access_type.as_str() {
+                    "created" => "✨",  // Memory/session created
+                    "command" => "🔧",
+                    "tool" => "⚙️",
+                    "memory" | "session" => "🧠",
+                    "info" | "info-command" | "info-tool" | "info-memory" => "ℹ️",
+                    "browse" | "browse-commands" | "browse-tools" | "browse-memory" => "👁",
+                    _ => "📄",
+                };
+                let times = if access.access_count > 1 {
+                    format!(" ({}x)", access.access_count)
+                } else {
+                    String::new()
+                };
+                let path_display = format!("{} {}{}", icon, 
+                    Self::truncate(&access.path, 30), times);
+                println!("│ {:<44} │", path_display);
             }
         }
         

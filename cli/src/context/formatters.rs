@@ -62,6 +62,7 @@ impl ContextFormatter for PrettyFormatter {
             output.push_str("\n📚 Recently Accessed:\n");
             for access in data.accessed_memories.iter().take(5) {
                 let icon = match access.access_type.as_str() {
+                    "created" => "✨",  // Memory/session created
                     "command" => "🔧",
                     "tool" => "⚙️",
                     "memory" | "session" => "🧠",
