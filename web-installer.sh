@@ -68,11 +68,12 @@ echo "📥 Downloading Port42 installer..."
 curl -fsSL https://raw.githubusercontent.com/gordonmattey/port42/main/install.sh -o /tmp/port42-install.sh
 chmod +x /tmp/port42-install.sh
 
-# Run installer with appropriate options
+# Run installer interactively
 if [ "$INSTALL_METHOD" = "binary" ]; then
-    echo "🚀 Installing pre-built binaries for $PLATFORM..."
+    echo "🚀 Pre-built binaries are available for $PLATFORM"
     echo ""
-    /tmp/port42-install.sh --download-binaries --platform "$PLATFORM"
+    # Run installer without flags so it shows interactive menus
+    /tmp/port42-install.sh
 else
     echo "🔨 Building Port42 from source..."
     echo ""
