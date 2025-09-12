@@ -46,7 +46,7 @@ impl SwimDisplay for SimpleDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", format!("✨ Consciousness thread woven: {}", session_id).bright_cyan());
+            println!("{}", format!("✨ Swimming session started: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
@@ -159,7 +159,7 @@ impl SwimDisplay for AnimatedDisplay {
     
     fn show_session_info(&self, session_id: &str, is_new: bool) {
         if is_new {
-            println!("{}", format!("✨ Consciousness thread woven: {}", session_id).bright_cyan());
+            println!("{}", format!("✨ Swimming session started: {}", session_id).bright_cyan());
         } else {
             println!("{}", help_text::format_session_continuing(session_id).bright_cyan());
         }
