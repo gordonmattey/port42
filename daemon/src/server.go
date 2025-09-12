@@ -243,11 +243,54 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 
 // handleRequest routes requests to appropriate handlers
 func (d *Daemon) handleRequest(req Request) Response {
-	// Track command execution (except context and ping)
-	if d.contextCollector != nil && req.Type != "context" && req.Type != "ping" {
-		d.contextCollector.TrackCommand(req.Type, 0)
+	// Track only meaningful user commands (not internal operations)
+	if d.contextCollector != nil {
+		commandName := ""
+		switch req.Type {
+		case "possess":
+			// Extract agent from payload if available
+			var payload struct {
+				Agent string `json:"agent"`
+			}
+			if err := json.Unmarshal(req.Payload, &payload); err == nil && payload.Agent != "" {
+				commandName = fmt.Sprintf("possess %s", payload.Agent)
+			} else {
+				commandName = "possess"
+			}
+		case "search":
+			// Extract query from payload if available
+			var payload struct {
+				Query string `json:"query"`
+			}
+			if err := json.Unmarshal(req.Payload, &payload); err == nil && payload.Query != "" {
+				if len(payload.Query) > 20 {
+					commandName = fmt.Sprintf("search \"%s...\"", payload.Query[:20])
+				} else {
+					commandName = fmt.Sprintf("search \"%s\"", payload.Query)
+				}
+			} else {
+				commandName = "search"
+			}
+		case "declare_relation":
+			commandName = "declare"
+		case "shell":
+			commandName = "shell"
+		default:
+			// Skip internal operations like list_path, read_path, get_metadata, status, etc.
+			return d.handleRequestInternal(req)
+		}
+		
+		if commandName != "" {
+			d.contextCollector.TrackCommand(commandName, 0)
+		}
 	}
 	
+	// Now handle the request
+	return d.handleRequestInternal(req)
+}
+
+// handleRequestInternal actually processes the request
+func (d *Daemon) handleRequestInternal(req Request) Response {
 	switch req.Type {
 	case RequestStatus:
 		return d.handleStatus(req)

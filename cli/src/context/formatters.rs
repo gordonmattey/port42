@@ -36,10 +36,10 @@ impl ContextFormatter for PrettyFormatter {
             output.push_str("No active session\n");
         }
         
-        // Show recent commands
+        // Show recent commands (more of them for activity summary)
         if !data.recent_commands.is_empty() {
-            output.push_str("\n📝 Recent Commands:\n");
-            for cmd in data.recent_commands.iter().take(5) {
+            output.push_str("\n📝 Recent Activity:\n");
+            for cmd in data.recent_commands.iter().take(10) {
                 let age = if cmd.age_seconds < 60 {
                     format!("{}s ago", cmd.age_seconds)
                 } else {

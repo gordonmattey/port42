@@ -167,11 +167,11 @@ impl WatchMode {
             println!("│ 💤 No active session                        │");
         }
         
-        // Recent commands
+        // Recent commands - show more for activity summary
         if !data.recent_commands.is_empty() {
             println!("│                                              │");
-            println!("│ 📝 Recent Commands:                          │");
-            for cmd in data.recent_commands.iter().take(3) {
+            println!("│ 📝 Recent Activity:                          │");
+            for cmd in data.recent_commands.iter().take(5) {
                 let age = if cmd.age_seconds < 60 {
                     format!("{}s ago", cmd.age_seconds)
                 } else {

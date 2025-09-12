@@ -23,10 +23,10 @@ type ContextCollector struct {
 func NewContextCollector(daemon *Daemon) *ContextCollector {
 	return &ContextCollector{
 		daemon:           daemon,
-		maxCommands:      20,
+		maxCommands:      30,  // Increased to show more activity history
 		maxTools:         10,
 		maxMemories:      15,
-		recentCommands:   make([]CommandRecord, 0, 20),
+		recentCommands:   make([]CommandRecord, 0, 30),
 		createdTools:     make([]ToolRecord, 0, 10),
 		accessedMemories: make(map[string]*MemoryAccess),
 	}
