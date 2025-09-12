@@ -47,3 +47,8 @@ myenv/
 venv/
 .venv/
 env/
+
+# Keep releases but ignore everything except .tar.gz files and version markers
+releases/*
+!releases/*.tar.gz
+!releases/LATEST-*

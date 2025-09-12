@@ -50,11 +50,84 @@ else
     exit 1
 fi
 
+# Detect platform for packaging
+PLATFORM=""
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+case "$OS" in
+    darwin) 
+        case "$ARCH" in
+            arm64) PLATFORM="darwin-aarch64" ;;
+            x86_64) PLATFORM="darwin-x86_64" ;;
+            *) PLATFORM="darwin-$ARCH" ;;
+        esac
+        ;;
+    linux)
+        case "$ARCH" in
+            x86_64) PLATFORM="linux-x86_64" ;;
+            aarch64) PLATFORM="linux-aarch64" ;;
+            *) PLATFORM="linux-$ARCH" ;;
+        esac
+        ;;
+    *) 
+        PLATFORM="$OS-$ARCH"
+        ;;
+esac
+
+# Get version from version.txt or default
+VERSION=$(cat version.txt 2>/dev/null || echo "0.1.0")
+
+# Package binaries if requested or by default
+PACKAGE_BINARIES=${PACKAGE:-true}
+RELEASE_MODE=${RELEASE:-false}
+
+if [ "$PACKAGE_BINARIES" = "true" ]; then
+    echo
+    echo -e "${BLUE}Creating release package (v${VERSION})...${NC}"
+    
+    # Create releases directory
+    mkdir -p releases
+    
+    # Package name with version
+    PACKAGE_NAME="port42-${PLATFORM}-v${VERSION}.tar.gz"
+    # Also create a "latest" symlink
+    LATEST_NAME="port42-${PLATFORM}.tar.gz"
+    
+    # Create tarball with binaries, config, and version
+    if tar -czf "releases/${PACKAGE_NAME}" \
+        bin/port42 \
+        bin/port42d \
+        daemon/agents.json \
+        version.txt 2>/dev/null; then
+        
+        # Create symlink to latest
+        cd releases
+        ln -sf "${PACKAGE_NAME}" "${LATEST_NAME}"
+        cd ..
+        
+        echo -e "${GREEN}✅ Release package created: releases/${PACKAGE_NAME}${NC}"
+        echo -e "   Latest symlink: releases/${LATEST_NAME}"
+        echo -e "   Version: ${VERSION}"
+        echo -e "   Size: $(ls -lh releases/${PACKAGE_NAME} | awk '{print $5}')"
+        
+        # Show contents
+        echo -e "${BLUE}   Contents:${NC}"
+        tar -tzf "releases/${PACKAGE_NAME}" | sed 's/^/     - /'
+    else
+        echo -e "${RED}❌ Failed to create release package${NC}"
+    fi
+fi
+
 echo
 echo -e "${GREEN}✅ Build complete!${NC}"
 echo -e "${BLUE}Binaries created:${NC}"
 echo "  - ./bin/port42d (daemon)"
 echo "  - ./bin/port42  (CLI)"
+if [ "$PACKAGE_BINARIES" = "true" ] && [ -f "releases/${PACKAGE_NAME}" ]; then
+    echo "  - ./releases/${PACKAGE_NAME} (release package v${VERSION})"
+    echo "  - ./releases/${LATEST_NAME} (latest symlink)"
+fi
 echo
 echo -e "${BLUE}To test locally:${NC}"
 echo "  1. Start daemon: sudo -E ./bin/port42d"
@@ -62,3 +135,16 @@ echo "  2. Use CLI: ./bin/port42 status"
 echo
 echo -e "${BLUE}To install system-wide:${NC}"
 echo "  ./install.sh"
+if [ "$PACKAGE_BINARIES" = "true" ] && [ -f "releases/${PACKAGE_NAME}" ]; then
+    echo
+    echo -e "${BLUE}To test binary installation:${NC}"
+    echo "  ./install.sh --binaries releases/${LATEST_NAME}"
+    echo
+    echo -e "${BLUE}To create GitHub release:${NC}"
+    echo "  gh release create v${VERSION} releases/${PACKAGE_NAME} \\"
+    echo "    --title \"Port42 v${VERSION}\" \\"
+    echo "    --notes \"Release v${VERSION} with ${PLATFORM} binaries\""
+    echo
+    echo -e "${BLUE}To bump version:${NC}"
+    echo "  echo '0.2.0' > version.txt && ./build.sh"
+fi
