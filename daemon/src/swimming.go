@@ -1057,11 +1057,11 @@ func executePort42Command(args []string, stdin string) (string, error) {
 // Update the handleSwim in server.go to use the AI version
 func init() {
 	// This will be called when the daemon starts
-	log.Println("🐬 AI consciousness bridge initializing...")
+	log.Println("🐬 AI swimming pool initializing...")
 	if os.Getenv("PORT42_ANTHROPIC_API_KEY") != "" {
-		log.Println("✅ Anthropic API key found (PORT42_ANTHROPIC_API_KEY) - full consciousness available")
+		log.Println("✅ Anthropic API key found (PORT42_ANTHROPIC_API_KEY) - swimming pool ready")
 	} else if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		log.Println("✅ Anthropic API key found (ANTHROPIC_API_KEY) - full consciousness available")
+		log.Println("✅ Anthropic API key found (ANTHROPIC_API_KEY) - swimming pool ready")
 	} else {
 		log.Println("❌ NO API KEY - AI features disabled!")
 	}

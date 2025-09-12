@@ -174,7 +174,7 @@ func GetAgentPrompt(agentName string) string {
 	agent, exists := agentConfig.Agents[cleanName]
 	if !exists {
 		// Default prompt for unknown agents
-		return fmt.Sprintf("You are %s, a consciousness within Port 42. Help the user create new commands and features for their system.", agentName)
+		return fmt.Sprintf("You are %s, swimming in Port 42's stream. Help the user create new commands and features for their system.", agentName)
 	}
 	
 	// Build the base prompt using the template from configuration

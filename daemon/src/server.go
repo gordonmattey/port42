@@ -209,7 +209,7 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	
 	// Only log non-context requests to reduce noise
 	if req.Type != "context" {
-		log.Printf("◊ New consciousness connected from %s", clientAddr)
+		log.Printf("◊ New swimmer connected from %s", clientAddr)
 		log.Printf("◊ Request [%s] type: %s", req.ID, req.Type)
 	}
 	
@@ -237,7 +237,7 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 	// Only log non-context responses
 	if req.Type != "context" {
 		log.Printf("◊ Response sent [%s] success: %v", resp.ID, resp.Success)
-		log.Printf("◊ Consciousness disconnected: %s", clientAddr)
+		log.Printf("◊ Swimmer disconnected: %s", clientAddr)
 	}
 }
 
