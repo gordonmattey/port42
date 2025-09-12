@@ -723,8 +723,9 @@ bootstrap_port42() {
     # Export path so we can use port42 command
     export PATH="$HOME/.port42/bin:$PATH"
     
-    # Start daemon using the CLI command (which handles everything properly)
-    if ! "$HOME/.port42/bin/port42" daemon start 2>/dev/null; then
+    # Start daemon in background mode using the CLI command
+    # Redirect all output to avoid any prompts
+    if ! "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
         echo -e "${YELLOW}⚠️  Could not start daemon for bootstrapping${NC}"
         return 0
     fi
@@ -741,7 +742,7 @@ bootstrap_port42() {
     echo -e "${BLUE}Creating your first Port42 command...${NC}"
     
     # Create the restart command using Port42 itself!
-    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start' to start it again, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." 2>/dev/null || {
+    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
         echo -e "${YELLOW}⚠️  Could not create initial command (this is OK)${NC}"
     }
     
@@ -753,7 +754,7 @@ bootstrap_port42() {
     
     # Stop the daemon gracefully using CLI
     echo -e "${BLUE}Stopping daemon...${NC}"
-    "$HOME/.port42/bin/port42" daemon stop 2>/dev/null || {
+    "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1 || {
         # Fallback to pkill if daemon stop doesn't work
         pkill -TERM port42d 2>/dev/null
         sleep 2
