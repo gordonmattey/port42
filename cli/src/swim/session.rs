@@ -4,7 +4,6 @@ use crate::swim::{SimpleDisplay, AnimatedDisplay};
 use crate::protocol::{RequestBuilder, ResponseParser, swim::{SwimRequest, SwimResponse}};
 use crate::common::{generate_id, errors::Port42Error};
 use crate::display::{OutputFormat, Displayable};
-use crate::ui::SpinnerGuard;
 use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
 use colored::*;
@@ -64,14 +63,8 @@ impl SessionHandler {
             obj.insert("session_id".to_string(), serde_json::Value::String(session_id.to_string()));
         }
         
-        // Show spinner while waiting for AI response
-        let spinner = SpinnerGuard::new("Swimming into consciousness stream...");
-        
-        // Send to daemon
+        // Send to daemon (no spinner needed - we already show the swimming message)
         let response = self.client.request(request)?;
-        
-        // Stop spinner once we have a response
-        spinner.stop();
         
         if !response.success {
             let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
