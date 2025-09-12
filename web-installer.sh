@@ -36,17 +36,20 @@ case $ARCH in
 esac
 
 # Check if binaries exist for this platform
-# Try repo releases first, then GitHub releases
-REPO_BINARY_URL="https://raw.githubusercontent.com/gordonmattey/port42/main/releases/port42-${PLATFORM}.tar.gz"
+# Get version from version.txt
+VERSION=$(curl -s "https://raw.githubusercontent.com/gordonmattey/port42/main/version.txt" 2>/dev/null || echo "0.0.9")
+
+# Try versioned repo file first, then GitHub releases
+VERSIONED_BINARY_URL="https://raw.githubusercontent.com/gordonmattey/port42/main/releases/port42-${PLATFORM}-v${VERSION}.tar.gz"
 RELEASE_BINARY_URL="https://github.com/gordonmattey/port42/releases/latest/download/port42-${PLATFORM}.tar.gz"
 
-echo "🔍 Checking for pre-built binaries..."
+echo "🔍 Checking for pre-built binaries (v${VERSION})..."
 
-# Check repo first
-if curl -sI "$REPO_BINARY_URL" | head -n 1 | grep -q "200\|302"; then
-    echo "✅ Pre-built binaries available for $PLATFORM"
+# Check versioned file first
+if curl -sI "$VERSIONED_BINARY_URL" | head -n 1 | grep -q "200\|302"; then
+    echo "✅ Pre-built binaries available for $PLATFORM (v${VERSION})"
     INSTALL_METHOD="binary"
-    BINARY_URL="$REPO_BINARY_URL"
+    BINARY_URL="$VERSIONED_BINARY_URL"
 # Then check GitHub releases
 elif curl -sI "$RELEASE_BINARY_URL" | head -n 1 | grep -q "200\|302"; then
     echo "✅ Pre-built binaries available for $PLATFORM"

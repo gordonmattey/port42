@@ -301,18 +301,21 @@ build_from_source() {
 download_and_install_binaries() {
     local platform="${1:-$PLATFORM}"
     
-    # Try repo first, then GitHub releases
-    local repo_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${platform}.tar.gz"
+    # Get version from version.txt or default
+    local version=$(curl -s "https://raw.githubusercontent.com/$REPO/main/version.txt" 2>/dev/null || echo "0.0.9")
+    
+    # Try versioned repo file first, then GitHub releases
+    local versioned_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${platform}-v${version}.tar.gz"
     local release_url="https://github.com/$REPO/releases/latest/download/port42-${platform}.tar.gz"
     
     # Check which URL works
     local binary_url=""
-    if curl -sI "$repo_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
-        binary_url="$repo_url"
+    if curl -sI "$versioned_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+        binary_url="$versioned_url"
     elif curl -sI "$release_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
         binary_url="$release_url"
     else
-        binary_url="$repo_url"  # Default to repo URL
+        binary_url="$versioned_url"  # Default to versioned URL
     fi
     
     print_info "Downloading binaries for $platform..."
@@ -1325,14 +1328,17 @@ main() {
         
         # Check if pre-built binaries are available
         local binary_available=false
-        # Try two locations: releases folder in repo OR GitHub releases
-        local repo_binary_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${PLATFORM}.tar.gz"
+        # Get version from version.txt or default
+        local version=$(curl -s "https://raw.githubusercontent.com/$REPO/main/version.txt" 2>/dev/null || echo "0.0.9")
+        
+        # Try versioned file first (actual file), then GitHub releases
+        local versioned_binary_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${PLATFORM}-v${version}.tar.gz"
         local release_binary_url="https://github.com/$REPO/releases/latest/download/port42-${PLATFORM}.tar.gz"
         
-        # Check repo first (simpler approach)
-        if curl -sI "$repo_binary_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+        # Check versioned file first (not the symlink)
+        if curl -sI "$versioned_binary_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
             binary_available=true
-            binary_url="$repo_binary_url"
+            binary_url="$versioned_binary_url"
         # Fall back to GitHub releases if available
         elif curl -sI "$release_binary_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
             binary_available=true
