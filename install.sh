@@ -332,8 +332,20 @@ download_and_install_binaries() {
     
     # Extract binaries
     print_info "Extracting binaries..."
-    if ! tar -xzf "$temp_file" -C "$temp_dir" 2>/dev/null; then
+    # Try extraction with better error reporting
+    local extract_result
+    extract_result=$(tar -xzf "$temp_file" -C "$temp_dir" 2>&1)
+    if [ $? -ne 0 ]; then
         print_error "Failed to extract binaries"
+        [ -n "$extract_result" ] && print_error "Error details: $extract_result"
+        # Check if file exists and is valid
+        if [ ! -f "$temp_file" ]; then
+            print_error "Downloaded file does not exist"
+        else
+            local file_type=$(file "$temp_file" | cut -d: -f2)
+            print_error "File type: $file_type"
+            print_error "File size: $(ls -lh "$temp_file" | awk '{print $5}')"
+        fi
         return 1
     fi
     
@@ -379,8 +391,20 @@ install_from_local_binaries() {
     
     # Extract binaries
     print_info "Extracting binaries..."
-    if ! tar -xzf "$binary_file" -C "$temp_dir" 2>/dev/null; then
+    # Try extraction with better error reporting
+    local extract_result
+    extract_result=$(tar -xzf "$binary_file" -C "$temp_dir" 2>&1)
+    if [ $? -ne 0 ]; then
         print_error "Failed to extract binaries"
+        [ -n "$extract_result" ] && print_error "Error details: $extract_result"
+        # Check if file exists and is valid
+        if [ ! -f "$binary_file" ]; then
+            print_error "Binary file does not exist: $binary_file"
+        else
+            local file_type=$(file "$binary_file" | cut -d: -f2)
+            print_error "File type: $file_type"
+            print_error "File size: $(ls -lh "$binary_file" | awk '{print $5}')"
+        fi
         return 1
     fi
     
