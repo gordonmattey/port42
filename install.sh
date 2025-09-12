@@ -62,6 +62,98 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Check for running Port42 processes
+check_running_processes() {
+    local running_processes=()
+    local has_critical_processes=false
+    
+    # Check for port42 CLI processes (excluding the installer itself)
+    if pgrep -f "port42" | grep -v $$ > /dev/null 2>&1; then
+        # Get detailed process list
+        local processes=$(ps aux | grep -E "port42" | grep -v grep | grep -v "install.sh")
+        
+        if [ -n "$processes" ]; then
+            # Check for interactive processes like context --watch
+            if echo "$processes" | grep -E "context.*--watch|shell|interactive|possess" > /dev/null; then
+                has_critical_processes=true
+            fi
+            
+            print_warning "Detected running Port42 processes:"
+            echo "$processes" | while read -r line; do
+                echo "  $line" | cut -c1-120
+            done
+            echo
+            
+            if [ "$has_critical_processes" = true ]; then
+                echo -e "${YELLOW}⚠️  Critical Port42 processes detected (context --watch, shell, etc.)${NC}"
+                echo -e "${YELLOW}   Installing now will interrupt these processes and may cause data loss.${NC}"
+                echo
+                echo "Options:"
+                echo "  1) Stop all Port42 processes and continue installation"
+                echo "  2) Cancel installation (recommended - save your work first)"
+                echo
+                read -p "Choice [2]: " process_choice
+                process_choice=${process_choice:-2}
+                
+                case "$process_choice" in
+                    1)
+                        print_info "Stopping all Port42 processes..."
+                        # Stop daemon gracefully first
+                        if command_exists port42; then
+                            port42 daemon stop >/dev/null 2>&1 || true
+                        fi
+                        sleep 2
+                        # Kill remaining processes
+                        pkill -f "port42" || true
+                        sleep 1
+                        print_success "Processes stopped"
+                        ;;
+                    *)
+                        print_info "Installation cancelled. Please save your work and close Port42 processes before installing."
+                        exit 0
+                        ;;
+                esac
+            else
+                echo "These appear to be non-interactive processes."
+                echo "Would you like to:"
+                echo "  1) Stop them and continue installation"  
+                echo "  2) Continue anyway (may cause issues)"
+                echo "  3) Cancel installation"
+                echo
+                read -p "Choice [1]: " process_choice
+                process_choice=${process_choice:-1}
+                
+                case "$process_choice" in
+                    1)
+                        print_info "Stopping Port42 processes..."
+                        if command_exists port42; then
+                            port42 daemon stop >/dev/null 2>&1 || true
+                        fi
+                        sleep 2
+                        pkill -f "port42" || true
+                        sleep 1
+                        print_success "Processes stopped"
+                        ;;
+                    2)
+                        print_warning "Continuing with processes running - this may cause issues!"
+                        ;;
+                    *)
+                        print_info "Installation cancelled"
+                        exit 0
+                        ;;
+                esac
+            fi
+        fi
+    fi
+    
+    # Check if daemon is running on port
+    if command_exists port42 && port42 status >/dev/null 2>&1; then
+        print_info "Port42 daemon is currently running"
+        echo "The daemon will be restarted with new binaries after installation."
+        echo
+    fi
+}
+
 # Detect installation mode
 detect_mode() {
     if [ -d "$SCRIPT_DIR/daemon/src" ] && [ -d "$SCRIPT_DIR/cli" ]; then
@@ -478,15 +570,44 @@ install_binaries() {
         exit 1
     fi
     
-    # Directory already created by create_directories, just copy
-    cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/"
-    cp "$SCRIPT_DIR/bin/port42" "$INSTALL_DIR/"
-    chmod +x "$INSTALL_DIR/port42d" "$INSTALL_DIR/port42"
+    # Create backup of existing binaries if they exist
+    if [ -f "$INSTALL_DIR/port42" ] || [ -f "$INSTALL_DIR/port42d" ]; then
+        print_info "Backing up existing binaries..."
+        mkdir -p "$PORT42_HOME/backup"
+        [ -f "$INSTALL_DIR/port42" ] && cp "$INSTALL_DIR/port42" "$PORT42_HOME/backup/port42.bak" 2>/dev/null || true
+        [ -f "$INSTALL_DIR/port42d" ] && cp "$INSTALL_DIR/port42d" "$PORT42_HOME/backup/port42d.bak" 2>/dev/null || true
+    fi
+    
+    # Use atomic move operations to prevent corruption
+    print_info "Installing new binaries atomically..."
+    
+    # Copy to temp location first
+    cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/port42d.tmp"
+    cp "$SCRIPT_DIR/bin/port42" "$INSTALL_DIR/port42.tmp"
+    chmod +x "$INSTALL_DIR/port42d.tmp" "$INSTALL_DIR/port42.tmp"
+    
+    # Atomic move (rename) - this prevents partial writes
+    mv -f "$INSTALL_DIR/port42d.tmp" "$INSTALL_DIR/port42d"
+    mv -f "$INSTALL_DIR/port42.tmp" "$INSTALL_DIR/port42"
     
     # Copy agents.json to home directory
     cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
     
     print_success "Binaries installed to $INSTALL_DIR"
+    
+    # Verify installation
+    if [ -x "$INSTALL_DIR/port42" ] && [ -x "$INSTALL_DIR/port42d" ]; then
+        print_success "Installation verified successfully"
+    else
+        print_error "Installation verification failed - binaries may be corrupted"
+        if [ -f "$PORT42_HOME/backup/port42.bak" ]; then
+            print_info "Restoring from backup..."
+            cp "$PORT42_HOME/backup/port42.bak" "$INSTALL_DIR/port42" 2>/dev/null || true
+            cp "$PORT42_HOME/backup/port42d.bak" "$INSTALL_DIR/port42d" 2>/dev/null || true
+            chmod +x "$INSTALL_DIR/port42" "$INSTALL_DIR/port42d"
+        fi
+        exit 1
+    fi
 }
 
 # Install Claude Code integration
@@ -919,16 +1040,39 @@ start_daemon_for_use() {
         restart_choice=${restart_choice:-2}
         
         if [ "$restart_choice" = "1" ]; then
-            echo -e "${BLUE}Restarting daemon...${NC}"
-            "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1
-            sleep 2
-            if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
-                echo -e "${GREEN}✅ Daemon restarted with new binaries${NC}"
+            echo -e "${BLUE}Stopping daemon gracefully...${NC}"
+            
+            # First try graceful stop
+            if "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1; then
+                echo -e "${BLUE}Waiting for daemon to shut down...${NC}"
+                sleep 3
             else
-                echo -e "${YELLOW}⚠️  Could not restart daemon${NC}"
+                echo -e "${YELLOW}⚠️  Daemon stop command failed, checking processes...${NC}"
+                # If graceful stop fails, check if it's actually running
+                if pgrep -f "port42d" > /dev/null 2>&1; then
+                    echo -e "${YELLOW}Forcing daemon shutdown...${NC}"
+                    pkill -f "port42d" || true
+                    sleep 2
+                fi
+            fi
+            
+            echo -e "${BLUE}Starting daemon with new binaries...${NC}"
+            if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
+                sleep 2
+                # Verify it's actually running
+                if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+                    echo -e "${GREEN}✅ Daemon restarted successfully with new binaries${NC}"
+                else
+                    echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
+                    echo -e "${YELLOW}   Try: port42 daemon start -b${NC}"
+                fi
+            else
+                echo -e "${YELLOW}⚠️  Could not restart daemon automatically${NC}"
+                echo -e "${YELLOW}   Please start manually: port42 daemon start -b${NC}"
             fi
         else
             echo -e "${BLUE}Keeping existing daemon running${NC}"
+            echo -e "${YELLOW}Note: You're still using the old version until you restart${NC}"
         fi
     else
         # Daemon not running, start it
@@ -1117,6 +1261,9 @@ main() {
     detect_mode
     detect_platform
     set_install_dir
+    
+    # Check for running processes before proceeding
+    check_running_processes
     
     # Check prerequisites
     check_prerequisites
