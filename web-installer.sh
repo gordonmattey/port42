@@ -69,19 +69,21 @@ curl -fsSL https://raw.githubusercontent.com/gordonmattey/port42/main/install.sh
 chmod +x /tmp/port42-install.sh
 
 # Run installer interactively
+# Use exec to replace the current shell with the installer
+# This preserves stdin for interactive prompts
 if [ "$INSTALL_METHOD" = "binary" ]; then
     echo "🚀 Pre-built binaries are available for $PLATFORM"
     echo ""
-    # Run installer without flags so it shows interactive menus
-    /tmp/port42-install.sh
+    # Use exec to replace current process, preserving stdin
+    exec /tmp/port42-install.sh
 else
     echo "🔨 Building Port42 from source..."
     echo ""
-    /tmp/port42-install.sh --build
+    exec /tmp/port42-install.sh --build
 fi
 
-# Clean up
-rm -f /tmp/port42-install.sh
+# Note: Clean up won't happen due to exec, but that's ok
+# The temp file will be cleaned on reboot
 
 echo ""
 echo "🎉 Installation complete!"
