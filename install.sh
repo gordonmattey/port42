@@ -84,8 +84,14 @@ detect_platform() {
     esac
     
     case "$ARCH" in
-        x86_64) ARCH="amd64" ;;
-        aarch64|arm64) ARCH="arm64" ;;
+        x86_64) 
+            # Keep x86_64 for compatibility with our release naming
+            ARCH="x86_64" 
+            ;;
+        aarch64|arm64) 
+            # Use aarch64 to match our release naming
+            ARCH="aarch64" 
+            ;;
         *) print_error "Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     
@@ -199,7 +205,119 @@ build_from_source() {
     SCRIPT_DIR="$temp_repo"
 }
 
-# Download pre-built binaries
+# Download and install pre-built binaries from GitHub releases or repo
+download_and_install_binaries() {
+    local platform="${1:-$PLATFORM}"
+    
+    # Try repo first, then GitHub releases
+    local repo_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${platform}.tar.gz"
+    local release_url="https://github.com/$REPO/releases/latest/download/port42-${platform}.tar.gz"
+    
+    # Check which URL works
+    local binary_url=""
+    if curl -sI "$repo_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+        binary_url="$repo_url"
+    elif curl -sI "$release_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+        binary_url="$release_url"
+    else
+        binary_url="$repo_url"  # Default to repo URL
+    fi
+    
+    print_info "Downloading binaries for $platform..."
+    print_info "URL: $binary_url"
+    
+    # Create temp directory
+    local temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" EXIT
+    
+    # Download tarball
+    local temp_file="$temp_dir/port42-binaries.tar.gz"
+    if ! download "$binary_url" "$temp_file" 2>/dev/null; then
+        print_warning "Pre-built binaries not available for $platform"
+        print_info "Falling back to build from source..."
+        return 1
+    fi
+    
+    # Extract binaries
+    print_info "Extracting binaries..."
+    if ! tar -xzf "$temp_file" -C "$temp_dir" 2>/dev/null; then
+        print_error "Failed to extract binaries"
+        return 1
+    fi
+    
+    # Check if bin directory exists in the extraction
+    if [ ! -d "$temp_dir/bin" ]; then
+        print_error "Invalid binary package structure"
+        return 1
+    fi
+    
+    # Ensure daemon directory exists for agents.json
+    mkdir -p "$temp_dir/daemon"
+    
+    # Check if agents.json is included and copy it
+    if [ -f "$temp_dir/agents.json" ]; then
+        cp "$temp_dir/agents.json" "$temp_dir/daemon/"
+    elif [ -f "$temp_dir/daemon/agents.json" ]; then
+        # Already in the right place
+        :
+    else
+        # Create a default agents.json if not included
+        echo '{}' > "$temp_dir/daemon/agents.json"
+    fi
+    
+    # Set SCRIPT_DIR to temp for installation
+    SCRIPT_DIR="$temp_dir"
+    return 0
+}
+
+# Install binaries from local tarball file
+install_from_local_binaries() {
+    local binary_file="$1"
+    
+    if [ ! -f "$binary_file" ]; then
+        print_error "Binary file not found: $binary_file"
+        return 1
+    fi
+    
+    print_info "Installing from local binary file: $binary_file"
+    
+    # Create temp directory
+    local temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" EXIT
+    
+    # Extract binaries
+    print_info "Extracting binaries..."
+    if ! tar -xzf "$binary_file" -C "$temp_dir" 2>/dev/null; then
+        print_error "Failed to extract binaries"
+        return 1
+    fi
+    
+    # Check if bin directory exists
+    if [ ! -d "$temp_dir/bin" ]; then
+        print_error "Invalid binary package structure"
+        return 1
+    fi
+    
+    # Ensure daemon directory exists for agents.json
+    mkdir -p "$temp_dir/daemon"
+    
+    # Check if agents.json is included and copy it
+    if [ -f "$temp_dir/agents.json" ]; then
+        cp "$temp_dir/agents.json" "$temp_dir/daemon/"
+    elif [ -f "$temp_dir/daemon/agents.json" ]; then
+        # Already in the right place
+        :
+    else
+        # Create a default agents.json if not included
+        echo '{}' > "$temp_dir/daemon/agents.json"
+    fi
+    
+    # Set SCRIPT_DIR to temp for installation
+    SCRIPT_DIR="$temp_dir"
+    return 0
+}
+
+# Legacy download function for individual files (kept for backward compatibility)
 download_binaries() {
     local base_url="https://github.com/$REPO/releases/latest/download"
     
@@ -710,6 +828,10 @@ bootstrap_port42() {
     # Set error handling for bootstrap
     set +e  # Don't exit on error during bootstrap
     
+    # Set up signal trap to handle Ctrl+C gracefully during bootstrap
+    local bootstrap_interrupted=false
+    trap 'bootstrap_interrupted=true' INT
+    
     echo
     echo -e "${BLUE}${BOLD}🚀 Bootstrapping Port42...${NC}"
     
@@ -721,27 +843,14 @@ bootstrap_port42() {
         return 0
     fi
     
-    # Start the daemon temporarily for bootstrapping
-    echo -e "${BLUE}Starting daemon for initial setup...${NC}"
-    
     # Export path so we can use port42 command
     export PATH="$HOME/.port42/bin:$PATH"
     
-    # Start daemon in background mode using the CLI command
-    # Redirect all output to avoid any prompts
-    if ! "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Could not start daemon for bootstrapping${NC}"
+    # Check if daemon is running (should already be started by install process)
+    if ! "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  Daemon not running, skipping bootstrap${NC}"
+        echo -e "   You can start it with: ${BOLD}port42 daemon start -b${NC}"
         return 0
-    fi
-    
-    # Wait for daemon to be ready
-    sleep 3
-    
-    # Check if daemon is actually running
-    if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Daemon is ready${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Daemon may not be ready yet, continuing anyway...${NC}"
     fi
     
     echo -e "${BLUE}Creating your first Port42 command...${NC}"
@@ -751,7 +860,24 @@ bootstrap_port42() {
     echo
     echo -e "This will create a tool to restart the Port42 daemon cleanly."
     echo -n "Press Enter to continue, or Ctrl+C to skip: "
-    read -r
+    
+    # Handle Ctrl+C gracefully
+    read -r || {
+        echo
+        echo -e "${YELLOW}⚠️  Skipped command creation${NC}"
+        trap - INT  # Reset trap
+        return 0
+    }
+    
+    # Check if bootstrap was interrupted
+    if [ "$bootstrap_interrupted" = "true" ]; then
+        echo
+        echo -e "${YELLOW}⚠️  Bootstrap interrupted${NC}"
+        trap - INT  # Reset trap
+        return 0
+    fi
+    
+    echo -e "${BLUE}Creating command...${NC}"
     
     # Create the restart command using Port42 itself!
     "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
@@ -764,16 +890,63 @@ bootstrap_port42() {
         echo -e "   You can now restart Port42 anytime with: ${BOLD}port42-restart${NC}"
     fi
     
-    # Stop the daemon gracefully using CLI
-    echo -e "${BLUE}Stopping daemon...${NC}"
-    "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1 || {
-        # Fallback to pkill if daemon stop doesn't work
-        pkill -TERM port42d 2>/dev/null
-        sleep 2
-        pkill -KILL port42d 2>/dev/null 2>&1
-    }
+    # Reset signal trap
+    trap - INT
     
     echo -e "${GREEN}✅ Bootstrap complete!${NC}"
+}
+
+# Start daemon for general use
+start_daemon_for_use() {
+    echo
+    echo -e "${BLUE}${BOLD}🚀 Checking Port42 daemon...${NC}"
+    
+    # Export path so we can use port42 command
+    export PATH="$HOME/.port42/bin:$PATH"
+    
+    # Check if daemon is already running
+    if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Daemon is already running${NC}"
+        
+        # Ask if they want to restart with new binaries
+        echo
+        echo "The daemon is currently running. Would you like to restart it with the new binaries?"
+        echo "  1) Yes, restart daemon"
+        echo "  2) No, keep current daemon running"
+        echo
+        echo -n "Choice [2]: "
+        read -r restart_choice
+        restart_choice=${restart_choice:-2}
+        
+        if [ "$restart_choice" = "1" ]; then
+            echo -e "${BLUE}Restarting daemon...${NC}"
+            "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1
+            sleep 2
+            if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
+                echo -e "${GREEN}✅ Daemon restarted with new binaries${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Could not restart daemon${NC}"
+            fi
+        else
+            echo -e "${BLUE}Keeping existing daemon running${NC}"
+        fi
+    else
+        # Daemon not running, start it
+        echo -e "${BLUE}Starting daemon...${NC}"
+        if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
+            # Wait for daemon to be ready
+            sleep 3
+            
+            # Verify daemon is running
+            if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+                echo -e "${GREEN}✅ Daemon started successfully${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠️  Could not start daemon (you can start it later with: port42 daemon start -b)${NC}"
+        fi
+    fi
 }
 
 # Show next steps
@@ -835,33 +1008,57 @@ show_next_steps() {
     echo -e "${BOLD}Port42 is designed to work seamlessly with Claude Code!${NC}"
     echo -e "${GRAY}Claude Code becomes your personal AI developer that creates custom tools instantly.${NC}"
     echo
-    echo -e "${BOLD}🎯 How to activate Port42 in Claude Code:${NC}"
-    echo -e "   1. Open ${BLUE}claude.ai/code${NC} in your browser"
-    echo -e "   2. Claude Code will ${GREEN}automatically detect${NC} Port42 is installed"
-    echo -e "   3. Just ask Claude to create any tool you need!"
+    echo -e "${BOLD}🎯 Using Port42 with Claude Code:${NC}"
+    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
+        echo -e "   ${GREEN}✅ You're already in Claude Code!${NC} Port42 is ready to use."
+        echo -e "   Just ask Claude to create any tool you need - it will use Port42 automatically."
+    else
+        echo -e "   If you're using Claude Code, it will ${GREEN}automatically detect${NC} Port42"
+        echo -e "   Or install Claude Code: ${BLUE}https://claude.ai/code${NC}"
+    fi
     echo
-    echo -e "${BOLD}✨ Try these in Claude Code:${NC}"
-    echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
-    echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
-    echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
-    echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
-    echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
+        echo -e "${BOLD}✨ Try asking Claude right now:${NC}"
+        echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
+        echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
+        echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
+        echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
+        echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+        echo
+        echo -e "${BOLD}💡 Pro tip:${NC} Claude will use Port42 automatically to install tools ${GREEN}system-wide${NC}!"
+    else
+        echo -e "${BOLD}✨ Try these in Claude Code:${NC}"
+        echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
+        echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
+        echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
+        echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
+        echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+        echo
+        echo -e "${BOLD}💡 Pro tip:${NC} Claude Code uses Port42 to install tools ${GREEN}system-wide${NC},"
+        echo -e "   so everything you create is available from any terminal!"
+        echo
+        echo -e "${BOLD}🚀 Or try this directly:${NC}"
+        echo -e "   ${GREEN}port42 possess @ai-engineer \"create a tool that shows system status\"${NC}"
+        echo
+        echo -e "${BOLD}Then use your new tool:${NC}"
+        echo -e "   ${GREEN}system-status --help${NC}"
+    fi
     echo
-    echo -e "${BOLD}💡 Pro tip:${NC} Claude Code uses Port42 to install tools ${GREEN}system-wide${NC},"
-    echo -e "   so everything you create is available from any terminal!"
-    echo
-    echo -e "${BOLD}🚀 Try this right now:${NC}"
-    echo -e "   ${GREEN}port42 possess @ai-engineer \"create a tool that shows system status\"${NC}"
-    echo
-    echo -e "${BOLD}Then use your new tool:${NC}"
-    echo -e "   ${GREEN}system-status --help${NC}"
-    echo
-    echo -e "${BOLD}🌟 Claude Code will:${NC}"
-    echo -e "   • Understand your intent and create the perfect tool"
-    echo -e "   • Add error handling and edge cases automatically"
-    echo -e "   • Make tools immediately available system-wide"
-    echo -e "   • Remember context across conversations"
-    echo -e "   • Learn from your codebase and preferences"
+    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
+        echo -e "${BOLD}🌟 With Port42, Claude will:${NC}"
+        echo -e "   • Understand your intent and create the perfect tool"
+        echo -e "   • Add error handling and edge cases automatically"
+        echo -e "   • Make tools immediately available system-wide"
+        echo -e "   • Remember context across conversations"
+        echo -e "   • Learn from your codebase and preferences"
+    else
+        echo -e "${BOLD}🌟 Claude Code will:${NC}"
+        echo -e "   • Understand your intent and create the perfect tool"
+        echo -e "   • Add error handling and edge cases automatically"
+        echo -e "   • Make tools immediately available system-wide"
+        echo -e "   • Remember context across conversations"
+        echo -e "   • Learn from your codebase and preferences"
+    fi
     echo
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
@@ -873,20 +1070,45 @@ show_next_steps() {
 
 # Main installation flow
 main() {
+    # Ensure show_next_steps always runs even if script is interrupted
+    trap 'show_next_steps; exit 1' INT TERM
+    
     echo -e "${BLUE}${BOLD}🐬 Port 42 Universal Installer${NC}"
     echo
     
     # Parse arguments
     BUILD_FROM_SOURCE=false
-    for arg in "$@"; do
-        case $arg in
+    DOWNLOAD_BINARIES=false
+    BINARY_PLATFORM=""
+    BINARY_PATH=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
             --build)
                 BUILD_FROM_SOURCE=true
                 print_info "Force building from source"
+                shift
+                ;;
+            --download-binaries)
+                DOWNLOAD_BINARIES=true
+                shift
+                ;;
+            --platform)
+                BINARY_PLATFORM="$2"
+                shift 2
+                ;;
+            --binaries)
+                BINARY_PATH="$2"
+                print_info "Using local binary file: $BINARY_PATH"
+                shift 2
                 ;;
             --version=*)
-                VERSION="${arg#*=}"
+                VERSION="${1#*=}"
                 print_info "Installing version: $VERSION"
+                shift
+                ;;
+            *)
+                shift
                 ;;
         esac
     done
@@ -899,27 +1121,174 @@ main() {
     # Check prerequisites
     check_prerequisites
     
-    # Install based on mode
-    if [ "$INSTALL_MODE" = "local" ]; then
-        # Local installation
-        if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
-            print_info "Binaries not found, building..."
+    # Handle different installation paths
+    if [ -n "$BINARY_PATH" ]; then
+        # User provided a local binary file via command line
+        if ! install_from_local_binaries "$BINARY_PATH"; then
+            print_error "Failed to install from local binaries"
+            exit 1
+        fi
+    elif [ "$DOWNLOAD_BINARIES" = true ] && [ -n "$BINARY_PLATFORM" ]; then
+        # User explicitly wants to download binaries via command line
+        if ! download_and_install_binaries "$BINARY_PLATFORM"; then
+            print_info "Falling back to building from source..."
+            BUILD_FROM_SOURCE=true
+            check_prerequisites  # Re-check for build tools
+            build_from_source
+        fi
+    elif [ "$BUILD_FROM_SOURCE" = true ]; then
+        # User explicitly wants to build from source via command line
+        if [ "$INSTALL_MODE" = "local" ]; then
             build_local
         else
-            print_info "Using existing binaries from ./bin/"
+            build_from_source
         fi
     else
-        # Remote installation
-        if [ "$BUILD_FROM_SOURCE" = true ]; then
-            build_from_source
-        else
-            # Try to download binaries first
-            if ! download_binaries; then
-                print_info "Falling back to building from source..."
-                BUILD_FROM_SOURCE=true
-                check_prerequisites  # Re-check for build tools
-                build_from_source
+        # No explicit flags - ask the user what they prefer
+        echo
+        echo -e "${BLUE}${BOLD}Installation Method${NC}"
+        echo
+        
+        # Check if pre-built binaries are available
+        local binary_available=false
+        # Try two locations: releases folder in repo OR GitHub releases
+        local repo_binary_url="https://raw.githubusercontent.com/$REPO/main/releases/port42-${PLATFORM}.tar.gz"
+        local release_binary_url="https://github.com/$REPO/releases/latest/download/port42-${PLATFORM}.tar.gz"
+        
+        # Check repo first (simpler approach)
+        if curl -sI "$repo_binary_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+            binary_available=true
+            binary_url="$repo_binary_url"
+        # Fall back to GitHub releases if available
+        elif curl -sI "$release_binary_url" 2>/dev/null | head -n 1 | grep -q "200\|302"; then
+            binary_available=true
+            binary_url="$release_binary_url"
+        fi
+        
+        if [ "$INSTALL_MODE" = "local" ]; then
+            # We're in the repo already
+            echo "You're running from the Port42 repository."
+            echo
+            
+            # Also check for local release files
+            local local_release_available=false
+            if [ -f "$SCRIPT_DIR/releases/port42-${PLATFORM}.tar.gz" ]; then
+                local_release_available=true
+                print_info "Found local release package for $PLATFORM"
             fi
+            
+            echo "How would you like to install?"
+            echo "  1) Build and install from this local repository"
+            echo "  2) Use existing binaries in ./bin/ (skip build)"
+            if [ "$local_release_available" = true ]; then
+                echo "  3) Install from local release package (./releases/port42-${PLATFORM}.tar.gz)"
+            elif [ "$binary_available" = true ]; then
+                echo "  3) Download and install pre-built binaries from GitHub"
+            else
+                echo "  3) Clone fresh from GitHub and build (clean install)"
+            fi
+            echo
+            read -p "Choice [1]: " install_choice
+            install_choice=${install_choice:-1}
+            
+            case "$install_choice" in
+                1)
+                    print_info "Building from local repository..."
+                    build_local
+                    ;;
+                2)
+                    if [ -f "$SCRIPT_DIR/bin/port42d" ] && [ -f "$SCRIPT_DIR/bin/port42" ]; then
+                        print_info "Using existing binaries from ./bin/"
+                    else
+                        print_warning "No binaries found in ./bin/, building instead..."
+                        build_local
+                    fi
+                    ;;
+                3)
+                    if [ "$local_release_available" = true ]; then
+                        print_info "Installing from local release package..."
+                        if ! install_from_local_binaries "$SCRIPT_DIR/releases/port42-${PLATFORM}.tar.gz"; then
+                            print_info "Failed to install from release package, building instead..."
+                            build_local
+                        fi
+                    elif [ "$binary_available" = true ]; then
+                        print_info "Downloading pre-built binaries from GitHub..."
+                        if ! download_and_install_binaries "$PLATFORM"; then
+                            print_info "Download failed, building from local source..."
+                            build_local
+                        fi
+                    else
+                        # Option 3 when no binaries: Clone fresh from GitHub
+                        print_info "Cloning fresh copy from GitHub and building..."
+                        BUILD_FROM_SOURCE=true
+                        check_prerequisites
+                        build_from_source
+                    fi
+                    ;;
+                *)
+                    print_info "Building from local repository..."
+                    build_local
+                    ;;
+            esac
+        else
+            # Remote installation - offer choice
+            echo "How would you like to install Port42?"
+            echo
+            if [ "$binary_available" = true ]; then
+                echo "  1) Download and install pre-built binaries from GitHub (recommended)"
+                echo "  2) Clone and build from source (requires Go 1.21+ and Rust)"
+            else
+                echo "  1) Clone and build from source (pre-built binaries not yet available for $PLATFORM)"
+            fi
+            echo
+            
+            if [ "$binary_available" = true ]; then
+                read -p "Choice [1]: " install_choice
+                install_choice=${install_choice:-1}
+            else
+                # Even with one option, wait for user confirmation
+                read -p "Press Enter to continue: " -r
+                install_choice=1  # Only option is build from source
+            fi
+            
+            case "$install_choice" in
+                1)
+                    if [ "$binary_available" = true ]; then
+                        print_info "Installing pre-built binaries..."
+                        if ! download_and_install_binaries "$PLATFORM"; then
+                            print_info "Binary download failed, falling back to source build..."
+                            BUILD_FROM_SOURCE=true
+                            check_prerequisites
+                            build_from_source
+                        fi
+                    else
+                        BUILD_FROM_SOURCE=true
+                        check_prerequisites
+                        build_from_source
+                    fi
+                    ;;
+                2)
+                    BUILD_FROM_SOURCE=true
+                    check_prerequisites
+                    build_from_source
+                    ;;
+                *)
+                    # Default to binaries if available
+                    if [ "$binary_available" = true ]; then
+                        print_info "Installing pre-built binaries..."
+                        if ! download_and_install_binaries "$PLATFORM"; then
+                            print_info "Binary download failed, falling back to source build..."
+                            BUILD_FROM_SOURCE=true
+                            check_prerequisites
+                            build_from_source
+                        fi
+                    else
+                        BUILD_FROM_SOURCE=true
+                        check_prerequisites
+                        build_from_source
+                    fi
+                    ;;
+            esac
         fi
     fi
     
@@ -937,11 +1306,17 @@ main() {
     print_info "About to configure Claude settings..."
     configure_claude_settings
     
-    # Bootstrap Port42 by creating its first command
+    # Start the daemon for general use (independent of bootstrap)
+    start_daemon_for_use
+    
+    # Bootstrap Port42 by creating its first command (optional)
     bootstrap_port42
     
     # Show completion message
     show_next_steps
+    
+    # Clear trap since we're done
+    trap - INT TERM
 }
 
 # Global variable to track if we saved to shell profile
