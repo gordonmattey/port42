@@ -368,19 +368,16 @@ fn main() -> Result<()> {
             let mut client = crate::client::DaemonClient::new(port);
             
             if watch {
-                // TUI temporarily disabled due to stability issues
-                eprintln!("❌ Watch mode is temporarily disabled due to stability issues");
-                eprintln!("   Please use regular context command without --watch");
-                std::process::exit(1);
+                // Use the new safe synchronous TUI implementation
+                use crate::context::safe_tui;
                 
-                // Original code commented out:
-                // use crate::context::watch_tui::WatchMode;
-                // let watcher = WatchMode::new(client, refresh);
-                // let runtime = tokio::runtime::Runtime::new()?;
-                // if let Err(e) = runtime.block_on(watcher.run()) {
-                //     eprintln!("❌ Watch mode error: {}", e);
-                //     std::process::exit(1);
-                // }
+                // Convert refresh seconds to milliseconds for the TUI
+                let refresh_ms = refresh * 1000;
+                
+                if let Err(e) = safe_tui::run_safe_watch(client, refresh_ms) {
+                    eprintln!("❌ Watch mode error: {}", e);
+                    std::process::exit(1);
+                }
             } else {
                 // Single shot mode
                 let response = client.request(crate::protocol::DaemonRequest {

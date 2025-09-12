@@ -36,6 +36,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
+GRAY='\033[0;90m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -706,6 +707,9 @@ configure_api_key() {
 
 # Bootstrap Port42 by creating its first command
 bootstrap_port42() {
+    # Set error handling for bootstrap
+    set +e  # Don't exit on error during bootstrap
+    
     echo
     echo -e "${BLUE}${BOLD}🚀 Bootstrapping Port42...${NC}"
     
@@ -734,12 +738,20 @@ bootstrap_port42() {
     sleep 3
     
     # Check if daemon is actually running
-    if ! "$HOME/.port42/bin/port42" status 2>/dev/null | grep -q "flowing"; then
-        echo -e "${YELLOW}⚠️  Daemon may not be ready for bootstrapping${NC}"
-        # Try to continue anyway
+    if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Daemon is ready${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Daemon may not be ready yet, continuing anyway...${NC}"
     fi
     
     echo -e "${BLUE}Creating your first Port42 command...${NC}"
+    echo
+    echo -e "${BOLD}The following command will be created:${NC}"
+    echo -e "${GRAY}port42 possess @ai-engineer \"Create 'port42-restart' command\"${NC}"
+    echo
+    echo -e "This will create a tool to restart the Port42 daemon cleanly."
+    echo -n "Press Enter to continue, or Ctrl+C to skip: "
+    read -r
     
     # Create the restart command using Port42 itself!
     "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
