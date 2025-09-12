@@ -619,17 +619,20 @@ install_claude_integration() {
     print_info "Configuring Claude Code integration..."
     
     # Determine where to get P42CLAUDE.md from
-    if [ "$INSTALL_MODE" = "local" ] && [ -f "$SCRIPT_DIR/P42CLAUDE.md" ]; then
-        # Local installation - use file from repo
+    if [ -f "$SCRIPT_DIR/P42CLAUDE.md" ]; then
+        # Found in extraction directory (from tarball) or local repo
         p42_instructions="$SCRIPT_DIR/P42CLAUDE.md"
+    elif [ "$INSTALL_MODE" = "local" ] && [ -f "./P42CLAUDE.md" ]; then
+        # Local installation - use file from current directory
+        p42_instructions="./P42CLAUDE.md"
     else
-        # Remote installation - download from GitHub
+        # Try to download from GitHub as fallback
         print_info "Downloading Claude Code integration file..."
         local temp_file=$(mktemp)
         if download "https://raw.githubusercontent.com/$REPO/main/P42CLAUDE.md" "$temp_file" 2>/dev/null; then
             p42_instructions="$temp_file"
         else
-            print_warning "Could not download Claude integration file, skipping"
+            print_warning "Could not find Claude integration file, skipping"
             print_info "You can manually add it later from: https://github.com/$REPO/blob/main/P42CLAUDE.md"
             return
         fi

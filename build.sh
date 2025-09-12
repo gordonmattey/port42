@@ -94,12 +94,20 @@ if [ "$PACKAGE_BINARIES" = "true" ]; then
     # Also create a "latest" symlink
     LATEST_NAME="port42-${PLATFORM}.tar.gz"
     
-    # Create tarball with binaries, config, and version
-    if tar -czf "releases/${PACKAGE_NAME}" \
-        bin/port42 \
-        bin/port42d \
-        daemon/agents.json \
-        version.txt 2>/dev/null; then
+    # Create tarball with binaries, config, Claude integration, and version
+    # Include optional files if they exist
+    files_to_package=(
+        "bin/port42"
+        "bin/port42d"
+        "daemon/agents.json"
+        "version.txt"
+    )
+    
+    # Add optional documentation files if they exist
+    [ -f "P42CLAUDE.md" ] && files_to_package+=("P42CLAUDE.md")
+    [ -f "README.md" ] && files_to_package+=("README.md")
+    
+    if tar -czf "releases/${PACKAGE_NAME}" "${files_to_package[@]}" 2>/dev/null; then
         
         # Create symlink to latest
         cd releases
