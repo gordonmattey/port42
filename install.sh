@@ -723,23 +723,25 @@ bootstrap_port42() {
     # Export path so we can use port42 command
     export PATH="$HOME/.port42/bin:$PATH"
     
-    # Start daemon in background
-    "$HOME/.port42/bin/port42d" > /dev/null 2>&1 &
-    local DAEMON_PID=$!
+    # Start daemon using the CLI command (which handles everything properly)
+    if ! "$HOME/.port42/bin/port42" daemon start 2>/dev/null; then
+        echo -e "${YELLOW}⚠️  Could not start daemon for bootstrapping${NC}"
+        return 0
+    fi
     
     # Wait for daemon to be ready
     sleep 3
     
-    # Check if daemon started successfully
-    if ! kill -0 $DAEMON_PID 2>/dev/null; then
-        echo -e "${YELLOW}⚠️  Could not start daemon for bootstrapping${NC}"
-        return 0
+    # Check if daemon is actually running
+    if ! "$HOME/.port42/bin/port42" status 2>/dev/null | grep -q "flowing"; then
+        echo -e "${YELLOW}⚠️  Daemon may not be ready for bootstrapping${NC}"
+        # Try to continue anyway
     fi
     
     echo -e "${BLUE}Creating your first Port42 command...${NC}"
     
     # Create the restart command using Port42 itself!
-    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) stopping any CLI processes using pkill, 2) stopping the daemon with pkill, 3) starting the daemon from ~/.port42/bin/port42d, and 4) verifying it's running with port42 status. Use bash with proper error handling." 2>/dev/null || {
+    "$HOME/.port42/bin/port42" possess @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start' to start it again, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." 2>/dev/null || {
         echo -e "${YELLOW}⚠️  Could not create initial command (this is OK)${NC}"
     }
     
@@ -749,13 +751,14 @@ bootstrap_port42() {
         echo -e "   You can now restart Port42 anytime with: ${BOLD}port42-restart${NC}"
     fi
     
-    # Stop the daemon gracefully
+    # Stop the daemon gracefully using CLI
     echo -e "${BLUE}Stopping daemon...${NC}"
-    pkill -TERM port42d 2>/dev/null
-    sleep 2
-    
-    # Clean up any remaining processes
-    pkill -KILL port42d 2>/dev/null 2>&1
+    "$HOME/.port42/bin/port42" daemon stop 2>/dev/null || {
+        # Fallback to pkill if daemon stop doesn't work
+        pkill -TERM port42d 2>/dev/null
+        sleep 2
+        pkill -KILL port42d 2>/dev/null 2>&1
+    }
     
     echo -e "${GREEN}✅ Bootstrap complete!${NC}"
 }

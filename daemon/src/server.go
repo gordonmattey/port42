@@ -882,6 +882,9 @@ func (d *Daemon) getOrCreateSession(sessionID, agent string) *Session {
 	d.sessions[sessionID] = session
 	log.Printf("📊 Session added to map. Current map size: %d", len(d.sessions))
 	
+	// CRITICAL: Must return session from this function
+	// The mutex is still held here and will be released by defer
+	
 	// Save new session to disk
 	log.Printf("🔍 Memory store check: memoryStore != nil: %v", d.storage != nil)
 	if d.storage != nil {
