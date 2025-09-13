@@ -1114,6 +1114,7 @@ show_next_steps() {
     echo -e "      ${GRAY}@ai-engineer${NC} - Technical implementations"
     echo -e "      ${GRAY}@ai-analyst${NC}  - Data analysis & insights"
     echo -e "      ${GRAY}@ai-muse${NC}     - Creative & artistic tools"
+    echo -e "      ${GRAY}@ai-founder${NC}  - Business strategy & decisions"
     
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning (Both)${NC}"
