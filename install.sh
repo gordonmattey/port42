@@ -673,7 +673,7 @@ install_claude_integration() {
     
     # Check if Port42 integration exists
     if [ -f "$claude_config" ] && grep -q "<port42_integration>" "$claude_config" 2>/dev/null; then
-        print_info "Updating Port 42 Claude integration with latest features..."
+        # Updating Port 42 Claude integration
         
         # Create backup
         cp "$claude_config" "${claude_config}.backup.$(date +%Y%m%d_%H%M%S)"
@@ -701,8 +701,8 @@ install_claude_integration() {
             [ -n "${temp_file:-}" ] && [ -f "${temp_file:-}" ] && rm "$temp_file" 2>/dev/null || true
         fi
         
-        print_success "Port 42 integration updated with latest features!"
-        print_info "Backup saved to ${claude_config}.backup.*"
+        # Port 42 integration updated
+        # Backup saved
     else
         # No existing integration - add it
         # Will either append to existing or create new Claude config
@@ -713,11 +713,11 @@ install_claude_integration() {
         # Clean up temp file if we used one
         [ "$INSTALL_MODE" = "remote" ] && [ -n "${temp_file:-}" ] && [ -f "$temp_file" ] && rm "$temp_file" 2>/dev/null
         
-        print_success "Claude Code will now automatically use Port 42 for tool creation!"
+        # Claude Code configured for Port 42
         print_info "Claude will search and create Port 42 tools without being asked"
     fi
     
-    print_info "Exiting install_claude_integration function normally"
+    # Done with Claude integration
 }
 
 # Configure Claude Code settings.json for Port42 commands
@@ -748,7 +748,7 @@ configure_claude_settings() {
     if [ -f "$settings_file" ]; then
         # Backup existing settings
         cp "$settings_file" "${settings_file}.backup.$(date +%Y%m%d_%H%M%S)"
-        print_info "Backed up existing settings to ${settings_file}.backup.*"
+        # Backed up existing settings
         
         # Don't skip - we'll merge/update existing settings
         
@@ -763,7 +763,7 @@ configure_claude_settings() {
         fi
         
         # Update with jq - merge and deduplicate
-        print_info "Merging Port42 commands into existing settings..."
+        # Merging Port42 commands into settings
         if jq '
             # Ensure allowedTools array exists
             if .allowedTools == null then .allowedTools = [] else . end |
@@ -794,9 +794,7 @@ configure_claude_settings() {
             .env.BASH_DEFAULT_TIMEOUT_MS = "1800000" |
             .env.BASH_MAX_TIMEOUT_MS = "7200000"' "$settings_file" > "${settings_file}.tmp"; then
             # Move temp file to actual file
-            if mv "${settings_file}.tmp" "$settings_file"; then
-                print_success "Settings updated successfully"
-            else
+            if ! mv "${settings_file}.tmp" "$settings_file"; then
                 print_error "Failed to move temporary file to $settings_file"
                 print_info "Temporary file saved at ${settings_file}.tmp"
                 return
@@ -840,17 +838,14 @@ EOF
     if [ -f "$settings_file" ]; then
         if command -v jq &> /dev/null; then
             # Use jq to verify JSON structure - check for allowedTools with Bash wrapper
-            if jq -e '.allowedTools | map(select(. == "Bash(port42)" or . == "Bash(port42:*)")) | length > 0' "$settings_file" >/dev/null 2>&1 && \
-               jq -e '.env.BASH_DEFAULT_TIMEOUT_MS' "$settings_file" >/dev/null 2>&1; then
-                print_success "Claude Code settings configured for Port42!"
-                print_info "Port42 commands will now run without approval prompts"
-            else
+            if ! (jq -e '.allowedTools | map(select(. == "Bash(port42)" or . == "Bash(port42:*)")) | length > 0' "$settings_file" >/dev/null 2>&1 && \
+               jq -e '.env.BASH_DEFAULT_TIMEOUT_MS' "$settings_file" >/dev/null 2>&1); then
                 print_warning "Settings file was created but may be incomplete"
                 print_info "Please verify $settings_file manually"
             fi
         else
             # Without jq, just check file exists
-            print_success "Settings file created at $settings_file"
+            # Settings file created
             print_info "Please verify it contains Port42 commands and timeout settings"
         fi
     else
@@ -995,7 +990,7 @@ configure_api_key() {
 # Start daemon for general use
 start_daemon_for_use() {
     echo
-    echo -e "${BLUE}${BOLD}🚀 Checking Port42 daemon...${NC}"
+    # Check if daemon is running
     
     # Export path so we can use port42 command
     export PATH="$HOME/.port42/bin:$PATH"
@@ -1051,7 +1046,7 @@ start_daemon_for_use() {
         fi
     else
         # Daemon not running, start it
-        echo -e "${BLUE}Starting daemon...${NC}"
+        # Starting daemon
         if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
             # Wait for daemon to be ready
             sleep 3

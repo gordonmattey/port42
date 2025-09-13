@@ -99,7 +99,5 @@ fi
 rm -f /tmp/port42-install.sh
 
 echo ""
-echo "🎉 Installation complete!"
-echo ""
 echo "🐬 Welcome to Port42!"
 echo "Get help: port42 help"
