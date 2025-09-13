@@ -35,7 +35,7 @@ pub fn handle_status_with_format(client: &mut DaemonClient, detailed: bool, form
             // Display using framework
             status_response.display(format)?;
         }
-        Err(_) => {
+        Err(e) => {
             if format == OutputFormat::Json {
                 // For JSON, output an offline status
                 println!(r#"{{"status":"offline","port":{},"error":"Connection failed"}}"#, client.port());
@@ -43,7 +43,8 @@ pub fn handle_status_with_format(client: &mut DaemonClient, detailed: bool, form
                 // Connection failed - show offline message
                 println!("{}", help_text::format_daemon_connection_error(client.port()));
             }
-            return Ok(());
+            // Return error so exit code is non-zero (important for scripts checking status)
+            return Err(anyhow!("Daemon not running: {}", e));
         }
     }
     
