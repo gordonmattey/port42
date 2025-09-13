@@ -1177,8 +1177,13 @@ show_next_steps() {
     echo -e "2. ${BLUE}Test your installation:${NC}"
     echo -e "   ${BOLD}port42 status${NC}"
     echo
-    echo -e "3. ${BLUE}Try creating something directly:${NC}"
-    echo -e "   ${BOLD}port42 swim @ai-muse 'write a haiku about swimming'${NC}"
+    echo -e "3. ${BLUE}Your First Swim - Create Something Useful:${NC}"
+    echo -e "   ${BOLD}port42 swim @ai-engineer 'help me escape the 47-tab chaos'${NC}"
+    echo -e "   ${GRAY}Let Port42 understand your workflow and create escape tools${NC}"
+    echo
+    echo -e "4. ${BLUE}Monitor Your Workflow (Recommended):${NC}"
+    echo -e "   ${BOLD}port42 context --watch${NC}"
+    echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
     echo
     
     # Add Claude Code integration guidance
@@ -1200,29 +1205,30 @@ show_next_steps() {
     echo
     if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
         echo -e "${BOLD}✨ Try asking Claude right now:${NC}"
-        echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
-        echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
-        echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
-        echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
-        echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+        echo -e "   ${GRAY}\"Help me escape the 47-tab chaos\"${NC}"
+        echo -e "   ${GRAY}\"Analyze my workflow bottlenecks\"${NC}"
+        echo -e "   ${GRAY}\"Turn my chaos into poetry\"${NC}"
+        echo -e "   ${GRAY}\"Create a tool to monitor my system performance\"${NC}"
+        echo -e "   ${GRAY}\"Build a command that organizes my downloads\"${NC}"
         echo
         echo -e "${BOLD}💡 Pro tip:${NC} Claude will use Port42 automatically to install tools ${GREEN}system-wide${NC}!"
+        echo -e "${BOLD}⚡ Watch it happen:${NC} ${GREEN}port42 context --watch${NC} in another terminal"
     else
-        echo -e "${BOLD}✨ Try these in Claude Code:${NC}"
-        echo -e "   ${GRAY}\"Create a tool to analyze my server logs for errors\"${NC}"
-        echo -e "   ${GRAY}\"Build a command that monitors my system performance\"${NC}"
-        echo -e "   ${GRAY}\"Make a tool to validate my JSON files\"${NC}"
-        echo -e "   ${GRAY}\"Create a git helper that writes better commit messages\"${NC}"
-        echo -e "   ${GRAY}\"Build a tool to organize my downloads folder\"${NC}"
+        echo -e "${BOLD}✨ Try these Claude Code prompts:${NC}"
+        echo -e "   ${GRAY}\"Help me escape the 47-tab chaos\"${NC}"
+        echo -e "   ${GRAY}\"Analyze my workflow bottlenecks\"${NC}"
+        echo -e "   ${GRAY}\"Turn my chaos into poetry\"${NC}"
+        echo -e "   ${GRAY}\"Create a tool to monitor my system performance\"${NC}"
+        echo -e "   ${GRAY}\"Build a command that organizes my downloads\"${NC}"
         echo
         echo -e "${BOLD}💡 Pro tip:${NC} Claude Code uses Port42 to install tools ${GREEN}system-wide${NC},"
         echo -e "   so everything you create is available from any terminal!"
         echo
         echo -e "${BOLD}🚀 Or try this directly:${NC}"
-        echo -e "   ${GREEN}port42 swim @ai-engineer \"create a tool that shows system status\"${NC}"
+        echo -e "   ${GREEN}port42 swim @ai-engineer \"help me escape the 47-tab chaos\"${NC}"
         echo
-        echo -e "${BOLD}Then use your new tool:${NC}"
-        echo -e "   ${GREEN}system-status --help${NC}"
+        echo -e "${BOLD}⚡ Monitor the magic:${NC}"
+        echo -e "   ${GREEN}port42 context --watch${NC}"
     fi
     echo
     if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then

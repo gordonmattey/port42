@@ -62,17 +62,14 @@ $ port42 declare tool config-processor --transforms config,validate,format \
 #### Quick Install (Pre-built Binaries)
 
 ```bash
-# Install latest release (no password required!)
-curl -fsSL https://raw.githubusercontent.com/gordonmattey/port42/main/install.sh | bash
+# One command installs everything
+curl -L https://port42.ai/install | bash
 
-# Activate Port 42 in current shell (no restart needed!)
-source ~/.port42/activate.sh
-
-# Start the daemon
-port42 daemon start
-
-# Verify installation
+# Test your installation
 port42 status
+
+# Your first swim - create something useful
+port42 swim @ai-engineer "help me escape the 47-tab chaos"
 ```
 
 The installer automatically:
@@ -88,15 +85,21 @@ The installer automatically:
 After installation, Claude Code automatically uses Port 42 behind the scenes. You don't need to mention "port42" at all!
 
 **Just ask Claude naturally:**
-- "I need to analyze these server logs for errors"
-- "Create a tool to validate JSON schemas"
-- "Find tools for parsing CSV files"
-- "Generate a weekly report from this data"
+- "Help me escape the 47-tab chaos"
+- "Analyze my workflow bottlenecks"
+- "Turn my chaos into poetry"
+- "Create a tool to monitor my system performance"
 
 **Claude will automatically:**
 - Search existing Port 42 tools for solutions
 - Create new tools using Port 42's reality compiler
 - Reference existing tools and knowledge for context
+
+**Monitor the magic in real-time:**
+```bash
+# Watch Port42 learn your patterns as Claude works
+port42 context --watch
+```
 - All invisibly - Port 42 just makes Claude smarter!
 
 #### API Key Configuration

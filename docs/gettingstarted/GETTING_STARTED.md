@@ -4,41 +4,56 @@
 
 Welcome to Port 42! This guide takes you from your first simple tool to advanced context-aware reality compilation. Each section builds on the previous, introducing new concepts progressively.
 
-## 🎯 Quick Setup (2 minutes)
+## 🎯 Quick Setup (30 seconds)
 
 ```bash
-# 1. Install Port 42
-curl -fsSL https://raw.githubusercontent.com/yourusername/port42/main/install.sh | bash
-
-# 2. Set your API key when prompted, or:
-export ANTHROPIC_API_KEY='your-key-here'
-
-# 3. Verify everything works
-port42 status
-# Should show: ✅ Daemon running on port 4242
+# One command installs everything
+curl -L https://port42.ai/install | bash
 ```
 
-## 🚀 Your First Useful Command (2 minutes)
+The installer automatically:
+- Builds/downloads Port42 binaries
+- Configures your Anthropic API key
+- Sets up Claude Code integration
+- Starts the daemon
 
-Let's create something immediately practical - a notification sound for when long-running tasks complete:
+## 🏊 Your First Swim (1 minute)
+
+The best way to understand Port42 is to use it for something real. Let's solve a common problem:
 
 ```bash
-# Create a notification command with AI assistance
-port42 swim @ai-engineer "create a command called notify-sound to generate a notification sound"
+# Help Port42 understand your workflow chaos and create escape tools
+port42 swim @ai-engineer "help me escape the 47-tab chaos"
 
-# Test your new command
-notify-sound
-# You'll hear a system notification sound!
+# Or analyze what's actually slowing you down
+port42 swim @ai-analyst "analyze my workflow bottlenecks"
+
+# Or get creative with your chaos
+port42 swim @ai-muse "turn my chaos into poetry"
 ```
 
-**🎉 Congrats!** You just created your first useful Port 42 command! 
+**🎉 Congrats!** You just created your first useful Port 42 tool through conversation!
 
-### Bonus: Integrate with Claude Code
+## 🚀 The Real Magic: Claude Code Integration
 
-If you use Claude Code (Anthropic's AI coding assistant), you can have it notify you when tasks complete:
+**Port42 is designed to work seamlessly with Claude Code!** If you're already using Claude Code, it will automatically detect Port42 and use it to create tools.
 
-1. Open `~/.claude/CLAUDE.md` in your editor
-2. Add these lines:
+### If You're Using Claude Code:
+Just ask Claude to create any tool you need:
+- "Help me escape the 47-tab chaos"
+- "Create a tool to monitor my system performance" 
+- "Build a command that organizes my downloads"
+
+Claude will automatically use Port42 to install tools **system-wide** - they'll be available in any terminal!
+
+### Monitor the Magic:
+```bash
+# Watch Port42 learn your patterns in real-time
+port42 context --watch
+```
+
+### Manual Integration (if needed):
+If you want to customize Claude Code integration, edit `~/.claude/CLAUDE.md`:
 
 ```markdown
 <completion_notification>
@@ -46,7 +61,48 @@ Call bash notify-sound when you have completed a task.
 </completion_notification>
 ```
 
-Now Claude will play a sound when it finishes any task - perfect for when you're working in another window!
+## ⚡ Context Watch Mode: See Port42 Learn
+
+One of Port42's most fascinating features is watching it learn your patterns in real-time:
+
+```bash
+# Start context watch (leave this running in a terminal)
+port42 context --watch
+
+# In another terminal, use Port42 or Claude Code
+port42 swim @ai-engineer "create a system monitor tool"
+# You'll see context tracking update in real-time!
+```
+
+**What you'll see:**
+- Command creation events as they happen
+- Memory formation when Port42 learns something new
+- Tool usage patterns being tracked
+- Context switches being reduced over time
+
+**Pro tip:** Run `port42 context --watch` when first using Claude Code integration - you'll see exactly how Claude is using Port42 behind the scenes!
+
+## ✅ Onboarding Checklist
+
+Complete these steps to get the most from Port42:
+
+**Essential Setup:**
+- [ ] Install Port42: `curl -L https://port42.ai/install | bash`
+- [ ] Verify daemon running: `port42 status`
+- [ ] Test your first swim: `port42 swim @ai-engineer "help me escape the 47-tab chaos"`
+
+**Claude Code Integration:**
+- [ ] Install Claude Code: https://claude.ai/code
+- [ ] Test Claude integration: Ask Claude "Create a tool to monitor system performance"
+- [ ] Watch the magic: `port42 context --watch` in another terminal
+
+**Power User Setup:**
+- [ ] Explore the filesystem: `port42 ls /`
+- [ ] Check your tools: `port42 ls /commands/`
+- [ ] Browse memory: `port42 ls /memory/`
+- [ ] Search everything: `port42 search "your query"`
+
+**Ready to Master Port42:** Continue to the Learning Path below! 🎓
 
 ## 📚 Learning Path
 
