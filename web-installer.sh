@@ -19,7 +19,7 @@ if [[ "$0" == /tmp/port42-web-installer.* ]]; then
     trap "rm -f '$0'" EXIT
 fi
 
-echo "🐬 Port42 Installer"
+# Port42 Installer
 echo ""
 
 # Check if we're on macOS
@@ -86,7 +86,7 @@ chmod +x /tmp/port42-install.sh
 
 # Run installer interactively
 if [ "$INSTALL_METHOD" = "binary" ]; then
-    echo "🚀 Pre-built binaries are available for $PLATFORM"
+    # Pre-built binaries are available
     echo ""
     /tmp/port42-install.sh
 else

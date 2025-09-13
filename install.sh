@@ -125,7 +125,7 @@ check_running_processes() {
                 
                 case "$process_choice" in
                     1)
-                        print_info "Stopping Port42 processes..."
+                        # Stopping Port42 processes
                         if command_exists port42; then
                             port42 daemon stop >/dev/null 2>&1 || true
                         fi
@@ -188,7 +188,7 @@ detect_platform() {
     esac
     
     PLATFORM="${OS}-${ARCH}"
-    print_info "Detected platform: $PLATFORM"
+    # Detected platform: $PLATFORM
 }
 
 # Check prerequisites
@@ -628,7 +628,7 @@ install_binaries() {
     
     # Verify installation
     if [ -x "$INSTALL_DIR/port42" ] && [ -x "$INSTALL_DIR/port42d" ]; then
-        print_success "✅ Port42 installed"
+        print_success "Port42 installed"
     else
         print_error "Installation verification failed - binaries may be corrupted"
         if [ -f "$PORT42_HOME/backup/port42.bak" ]; then
@@ -868,9 +868,9 @@ setup_claude_code() {
     if [ "$claude_installed" = true ]; then
         install_claude_integration
         configure_claude_settings
-        print_success "✅ Claude Code configured"
+        print_success "Claude Code configured"
     else
-        print_success "✅ Configuration complete"
+        print_success "Configuration complete"
     fi
 }
 
@@ -1031,7 +1031,7 @@ start_daemon_for_use() {
                 sleep 2
                 # Verify it's actually running
                 if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ Daemon started successfully with new binaries${NC}"
+                    print_success "Daemon started with new binaries"
                 else
                     echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
                     echo -e "${YELLOW}   Try: port42 daemon start -b${NC}"
@@ -1053,7 +1053,7 @@ start_daemon_for_use() {
             
             # Verify daemon is running
             if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-                echo -e "${GREEN}✅ Daemon started successfully${NC}"
+                print_success "Daemon started"
             else
                 echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
             fi
@@ -1117,10 +1117,11 @@ show_next_steps() {
     echo -e "      ${GRAY}@ai-founder${NC}  - Business strategy & decisions"
     
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning (Both)${NC}"
+    echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning${NC}"
     echo
     echo -e "   ${BOLD}port42 context --watch${NC}"
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
+    echo -e "   ${GRAY}Works with both Claude Code and standalone usage${NC}"
     
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
@@ -1133,8 +1134,7 @@ main() {
     # Ensure show_next_steps always runs even if script is interrupted
     trap 'show_next_steps; exit 1' INT TERM
     
-    echo -e "${BLUE}${BOLD}🐬 Port 42 Universal Installer${NC}"
-    echo
+    # Port 42 Universal Installer
     
     # Parse arguments
     BUILD_FROM_SOURCE=false
@@ -1146,7 +1146,7 @@ main() {
         case $1 in
             --build)
                 BUILD_FROM_SOURCE=true
-                print_info "Force building from source"
+                # Force building from source
                 shift
                 ;;
             --download-binaries)
