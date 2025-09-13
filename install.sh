@@ -36,9 +36,26 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 GRAY='\033[0;90m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
+
+# Section template functions
+print_section_divider() {
+    local color="$1"
+    echo -e "${color}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+print_section_header() {
+    local title="$1"
+    local color="$2"
+    echo
+    print_section_divider "$color"
+    echo -e "${BOLD}${title}${NC}"
+    echo
+}
 
 # Helper functions
 print_error() {
@@ -247,6 +264,7 @@ download() {
 
 # Build from local repository
 build_local() {
+    print_section_header "🔨 Building Port42" "$CYAN"
     
     if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
         print_error "build.sh not found. Are you in the Port 42 repository?"
@@ -581,7 +599,7 @@ update_path() {
 
 # Install binaries
 install_binaries() {
-    # Installing binaries
+    print_section_header "📦 Installing Port42" "$BLUE"
     
     # Check if binaries exist
     if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
@@ -854,6 +872,8 @@ EOF
 
 # Consolidated Claude Code setup
 setup_claude_code() {
+    print_section_header "🤖 Setting up Claude Code Integration" "$MAGENTA"
+    
     # Check if Claude Code is installed
     local claude_installed=false
     if [ -d "$HOME/.claude" ]; then
@@ -988,7 +1008,8 @@ configure_api_key() {
 
 # Start daemon for general use
 start_daemon_for_use() {
-    echo
+    print_section_header "🚀 Starting Port42 Server" "$GREEN"
+    
     # Check if daemon is running
     
     # Export path so we can use port42 command
@@ -1045,7 +1066,7 @@ start_daemon_for_use() {
         fi
     else
         # Daemon not running, start it
-        # Starting daemon
+        echo -e "${BLUE}Starting Port42 daemon...${NC}"
         if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
             # Wait for daemon to be ready
             sleep 3
@@ -1079,18 +1100,15 @@ show_next_steps() {
         has_restart_cmd=true
     fi
     
-    echo
-    echo -e "${BOLD}Getting Started:${NC}"
-    echo
+    # Getting Started section
+    print_section_header "Getting Started:" "$YELLOW"
     
     # Check Claude Code installation
     local claude_code_installed=false
     if [ -d "$HOME/.claude" ]; then
         claude_code_installed=true
     fi
-    
-    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    
+        
     if [ "$claude_code_installed" = true ]; then
         echo -e "${BLUE}${BOLD}🚀 Using Port42 Inside Claude Code${NC}"
         echo
@@ -1103,7 +1121,7 @@ show_next_steps() {
         echo -e "   Claude will automatically use Port42 to install tools ${GREEN}system-wide${NC}"
     fi
     
-    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    print_section_divider "$YELLOW"
     echo -e "${BLUE}${BOLD}🐬 Using Port42 Outside Claude Code${NC}"
     echo
     echo -e "   1. ${BLUE}Your First Swim:${NC}"
@@ -1115,14 +1133,14 @@ show_next_steps() {
     echo -e "      ${GRAY}@ai-muse${NC}     - Creative & artistic tools"
     echo -e "      ${GRAY}@ai-founder${NC}  - Business strategy & decisions"
     
-    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    print_section_divider "$YELLOW"
     echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning${NC}"
     echo
     echo -e "   ${BOLD}port42 context --watch${NC}"
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
     echo -e "   ${GRAY}We like to run this in a split terminal with the Claude Code session${NC}"
     
-    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    print_section_divider "$YELLOW"
     echo
     echo -e "${GREEN}${BOLD}🐬 Welcome to Port42 - Your Reality Compiler!${NC}"
     echo -e "Documentation: ${BOLD}https://port42.ai${NC}"
@@ -1135,6 +1153,9 @@ main() {
     trap 'show_next_steps; exit 1' INT TERM
     
     # Port 42 Universal Installer
+    print_section_header "🌊 Welcome to Port42 Installation" "$CYAN"
+    echo -e "${BOLD}Reality Compiler for Personal Computing${NC}"
+    echo
     
     # Parse arguments
     BUILD_FROM_SOURCE=false
