@@ -120,12 +120,10 @@ func LoadAgentConfig() error {
 		guidancePath := filepath.Join(filepath.Dir(foundPath), config.GuidanceFile)
 		guidanceData, err := ioutil.ReadFile(guidancePath)
 		if err != nil {
-			// Make guidance file optional - just warn if not found
-			log.Printf("⚠️  Guidance file not found: %s (continuing without it)", guidancePath)
-		} else {
-			config.LoadedGuidance = string(guidanceData)
-			log.Printf("✅ Loaded guidance from %s", guidancePath)
+			return fmt.Errorf("failed to read guidance file %s: %w", guidancePath, err)
 		}
+		config.LoadedGuidance = string(guidanceData)
+		log.Printf("✅ Loaded guidance from %s", guidancePath)
 	}
 	
 	agentConfig = &config
