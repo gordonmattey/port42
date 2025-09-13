@@ -1098,13 +1098,13 @@ start_daemon_for_use() {
                 sleep 2
                 # Verify it's actually running
                 if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-                    echo -e "${GREEN}✅ Daemon restarted successfully with new binaries${NC}"
+                    echo -e "${GREEN}✅ Daemon started successfully with new binaries${NC}"
                 else
                     echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
                     echo -e "${YELLOW}   Try: port42 daemon start -b${NC}"
                 fi
             else
-                echo -e "${YELLOW}⚠️  Could not restart daemon automatically${NC}"
+                echo -e "${YELLOW}⚠️  Could not start daemon automatically${NC}"
                 echo -e "${YELLOW}   Please start manually: port42 daemon start -b${NC}"
             fi
         else
