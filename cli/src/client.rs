@@ -313,14 +313,6 @@ impl DaemonClient {
             .map(|s| s.to_string())
     }
     
-    /// Check if daemon is running (without connecting)
-    pub fn is_running(&self) -> bool {
-        TcpStream::connect_timeout(
-            &format!("127.0.0.1:{}", self.port).parse().unwrap(),
-            Duration::from_millis(500)
-        ).is_ok()
-    }
-    
     /// Enhance connection errors with helpful context
     fn enhance_connection_error(&self, err: std::io::Error) -> anyhow::Error {
         use std::io::ErrorKind;
@@ -386,35 +378,6 @@ impl DaemonClient {
         }
     }
     
-    /// Get current context data from the daemon
-    pub fn get_context(&mut self) -> Result<crate::context::ContextData> {
-        let req = DaemonRequest {
-            request_type: "context".to_string(),
-            id: format!("context-{}", uuid::Uuid::new_v4()),
-            payload: serde_json::Value::Null,
-            references: None,
-            session_context: None,
-            user_prompt: None,
-        };
-        
-        let response = self.request(req)?;
-        
-        // Parse the response data as ContextData
-        if let Some(data) = response.data {
-            let context_data: crate::context::ContextData = serde_json::from_value(data)
-                .map_err(|e| anyhow!("Failed to parse context data: {}", e))?;
-            Ok(context_data)
-        } else {
-            // Return empty context if no data
-            Ok(crate::context::ContextData {
-                active_session: None,
-                recent_commands: vec![],
-                created_tools: vec![],
-                accessed_memories: vec![],
-                suggestions: vec![],
-            })
-        }
-    }
 }
 
 /// Helper function to detect which port the daemon is on using proper ping

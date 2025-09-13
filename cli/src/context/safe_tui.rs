@@ -16,7 +16,7 @@ use ratatui::{
 };
 use std::{
     io::{self, Stdout},
-    panic::{self, PanicInfo},
+    panic::{self, PanicHookInfo},
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -42,7 +42,7 @@ impl TerminalGuard {
         
         // Install panic hook to restore terminal
         let original_hook = panic::take_hook();
-        panic::set_hook(Box::new(move |info: &PanicInfo| {
+        panic::set_hook(Box::new(move |info: &PanicHookInfo| {
             // Restore terminal before panic
             Self::force_restore(&restored_clone);
             // Call original panic handler
@@ -105,30 +105,6 @@ impl SafeTerminal {
     }
 }
 
-/// Rate limiter to prevent terminal overwhelm
-struct RateLimiter {
-    last_update: Instant,
-    min_interval: Duration,
-}
-
-impl RateLimiter {
-    fn new(min_interval_ms: u64) -> Self {
-        Self {
-            last_update: Instant::now(),
-            min_interval: Duration::from_millis(min_interval_ms),
-        }
-    }
-    
-    fn should_update(&mut self) -> bool {
-        if self.last_update.elapsed() >= self.min_interval {
-            self.last_update = Instant::now();
-            true
-        } else {
-            false
-        }
-    }
-}
-
 /// Activity record for display
 #[derive(Debug, Clone)]
 struct Activity {
@@ -147,7 +123,6 @@ pub struct App {
     should_quit: bool,
     daemon_client: DaemonClient,
     last_error: Option<String>,
-    rate_limiter: RateLimiter,
     active_session: Option<String>,
     active_agent: Option<String>,
 }
@@ -162,7 +137,6 @@ impl App {
             should_quit: false,
             daemon_client,
             last_error: None,
-            rate_limiter: RateLimiter::new(500), // Not used anymore, kept for compatibility
             active_session: None,
             active_agent: None,
         }
@@ -495,7 +469,7 @@ impl App {
 }
 
 /// Main entry point for safe TUI
-pub fn run_safe_watch(mut daemon_client: DaemonClient, refresh_ms: u64) -> Result<()> {
+pub fn run_safe_watch(daemon_client: DaemonClient, refresh_ms: u64) -> Result<()> {
     // Create safe terminal (will auto-restore on drop)
     let mut terminal = SafeTerminal::new()?;
     

@@ -266,7 +266,7 @@ pub enum MemoryAction {
 }
 
 #[derive(Subcommand)]
-enum DeclareCommand {
+pub enum DeclareCommand {
     /// Declare that a tool should exist
     Tool {
         /// Name of the tool
@@ -334,8 +334,8 @@ fn main() -> Result<()> {
         discovered_port
     });
     
-    // Determine output format
-    let output_format = if cli.json {
+    // Determine output format (reserved for future use)
+    let _output_format = if cli.json {
         display::OutputFormat::Json
     } else {
         display::OutputFormat::Plain
@@ -665,7 +665,7 @@ fn main() -> Result<()> {
             }
         }
         
-        Some(Commands::Search { query, all, any, exact, path, type_filter, after, before, agent, tags, limit }) => {
+        Some(Commands::Search { query, all, any: _, exact, path, type_filter, after, before, agent, tags, limit }) => {
             let mut client = client::DaemonClient::new(port);
             
             // Determine search mode

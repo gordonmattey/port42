@@ -105,12 +105,3 @@ impl ContextFormatter for CompactFormatter {
     }
 }
 
-/// Watch formatter with ASCII boxes
-pub struct WatchFormatter;
-
-impl ContextFormatter for WatchFormatter {
-    fn format(&self, data: &ContextData) -> String {
-        // Placeholder - will be implemented in Step 3
-        format!("Watch mode: {:?}", data.active_session.is_some())
-    }
-}

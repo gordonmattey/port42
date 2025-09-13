@@ -29,37 +29,8 @@ impl TableBuilder {
         self
     }
     
-    pub fn add_colored_row(&mut self, values: Vec<(String, &str)>) -> &mut Self {
-        let cells: Vec<Cell> = values.iter()
-            .map(|(v, style)| Cell::new(v).style_spec(style))
-            .collect();
-        self.table.add_row(Row::new(cells));
-        self
-    }
-    
     pub fn print(&self) {
         self.table.printstd();
-    }
-    
-    pub fn to_string(&self) -> String {
-        self.table.to_string()
-    }
-}
-
-pub fn format_size(size: usize) -> String {
-    const UNITS: &[&str] = &["B", "K", "M", "G", "T"];
-    let mut size = size as f64;
-    let mut unit_index = 0;
-    
-    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit_index += 1;
-    }
-    
-    if unit_index == 0 {
-        format!("{:.0}{}", size, UNITS[unit_index])
-    } else {
-        format!("{:.1}{}", size, UNITS[unit_index])
     }
 }
 
@@ -83,14 +54,6 @@ pub fn format_timestamp_relative(timestamp: u64) -> String {
     }
 }
 
-pub fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
-    }
-}
-
 // Helper for consistent status indicators
 pub struct StatusIndicator;
 
@@ -101,22 +64,6 @@ impl StatusIndicator {
     
     pub fn error() -> ColoredString {
         "❌".red()
-    }
-    
-    pub fn warning() -> ColoredString {
-        "⚠️".yellow()
-    }
-    
-    pub fn info() -> ColoredString {
-        "ℹ️".blue()
-    }
-    
-    pub fn running() -> ColoredString {
-        "🔄".cyan()
-    }
-    
-    pub fn stopped() -> ColoredString {
-        "⏹️".dimmed()
     }
 }
 
@@ -149,9 +96,5 @@ impl ProgressIndicator {
     
     pub fn finish(&self, message: &str) {
         println!("\r{} {}", StatusIndicator::success(), message);
-    }
-    
-    pub fn error(&self, message: &str) {
-        println!("\r{} {}", StatusIndicator::error(), message);
     }
 }

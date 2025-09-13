@@ -38,15 +38,6 @@ impl SessionHandler {
         }
     }
     
-    pub fn with_output_format(mut self, format: OutputFormat) -> Self {
-        self.output_format = format;
-        self
-    }
-    
-    pub fn send_message(&mut self, session_id: &str, agent: &str, message: &str) -> Result<SwimResponse> {
-        self.send_message_with_context(session_id, agent, message, None, None)
-    }
-    
     pub fn send_message_with_context(&mut self, session_id: &str, agent: &str, message: &str, memory_context: Option<Vec<String>>, references: Option<Vec<crate::protocol::relations::Reference>>) -> Result<SwimResponse> {
         // Build request using protocol traits
         let swim_req = SwimRequest {

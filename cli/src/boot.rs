@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use colored::*;
 use std::io::{self, Write};
 use std::time::Duration;
 use std::thread;
-use crate::client::DaemonClient;
 use crate::help_text::*;
 
 const BOOT_SEQUENCE: &[&str] = &[
@@ -18,7 +17,7 @@ const BOOT_SEQUENCE: &[&str] = &[
 const PROGRESS_CHAR: &str = "█";
 
 /// Shows the boot sequence animation with daemon check
-pub fn show_boot_sequence(clear_screen: bool, port: u16) -> Result<()> {
+pub fn show_boot_sequence(clear_screen: bool, _port: u16) -> Result<()> {
     if clear_screen {
         // Clear screen for immersion
         print!("\x1B[2J\x1B[1;1H");

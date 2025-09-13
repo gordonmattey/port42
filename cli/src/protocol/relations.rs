@@ -46,44 +46,6 @@ pub struct DeclareRelationResponse {
     pub status: String,
 }
 
-// Request to get a relation by ID
-#[derive(Debug, Serialize)]
-pub struct GetRelationRequest {
-    pub relation_id: String,
-}
-
-// Response for getting a relation
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetRelationResponse {
-    pub relation: Relation,
-}
-
-// Request to list relations
-#[derive(Debug, Serialize)]
-pub struct ListRelationsRequest {
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub relation_type: Option<String>,
-}
-
-// Response for listing relations
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ListRelationsResponse {
-    pub relations: Vec<Relation>,
-    pub count: usize,
-}
-
-// Request to delete a relation
-#[derive(Debug, Serialize)]
-pub struct DeleteRelationRequest {
-    pub relation_id: String,
-}
-
-// Response for deleting a relation
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DeleteRelationResponse {
-    pub deleted: bool,
-    pub relation_id: String,
-}
 
 // Helper to create a tool relation
 impl Relation {
@@ -123,18 +85,6 @@ impl Relation {
             updated_at: None,
         }
     }
-    
-    // Getters for common properties
-    pub fn name(&self) -> Option<&str> {
-        self.properties.get("name")?.as_str()
-    }
-    
-    pub fn transforms(&self) -> Vec<String> {
-        self.properties.get("transforms")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-            .unwrap_or_default()
-    }
 }
 
 impl Reference {
@@ -149,10 +99,6 @@ impl Reference {
         } else {
             Err(anyhow::anyhow!("Invalid reference format. Use: type:target (e.g., search:\"nginx errors\", tool:log-parser)"))
         }
-    }
-    
-    pub fn new(ref_type: String, target: String, context: Option<String>) -> Self {
-        Self { ref_type, target, context }
     }
 }
 
@@ -179,44 +125,6 @@ impl RequestBuilder for DeclareRelationRequest {
     }
 }
 
-impl RequestBuilder for GetRelationRequest {
-    fn build_request(&self, id: String) -> Result<DaemonRequest> {
-        Ok(DaemonRequest {
-            request_type: "get_relation".to_string(),
-            id,
-            payload: serde_json::to_value(self)?,
-            references: None,
-            session_context: None,
-            user_prompt: None,
-        })
-    }
-}
-
-impl RequestBuilder for ListRelationsRequest {
-    fn build_request(&self, id: String) -> Result<DaemonRequest> {
-        Ok(DaemonRequest {
-            request_type: "list_relations".to_string(),
-            id,
-            payload: serde_json::to_value(self)?,
-            references: None,
-            session_context: None,
-            user_prompt: None,
-        })
-    }
-}
-
-impl RequestBuilder for DeleteRelationRequest {
-    fn build_request(&self, id: String) -> Result<DaemonRequest> {
-        Ok(DaemonRequest {
-            request_type: "delete_relation".to_string(),
-            id,
-            payload: serde_json::to_value(self)?,
-            references: None,
-            session_context: None,
-            user_prompt: None,
-        })
-    }
-}
 
 // Response parsers
 impl ResponseParser for DeclareRelationResponse {
@@ -226,26 +134,6 @@ impl ResponseParser for DeclareRelationResponse {
     }
 }
 
-impl ResponseParser for GetRelationResponse {
-    type Output = Self;
-    fn parse_response(data: &serde_json::Value) -> Result<Self::Output> {
-        Ok(serde_json::from_value(data.clone())?)
-    }
-}
-
-impl ResponseParser for ListRelationsResponse {
-    type Output = Self;
-    fn parse_response(data: &serde_json::Value) -> Result<Self::Output> {
-        Ok(serde_json::from_value(data.clone())?)
-    }
-}
-
-impl ResponseParser for DeleteRelationResponse {
-    type Output = Self;
-    fn parse_response(data: &serde_json::Value) -> Result<Self::Output> {
-        Ok(serde_json::from_value(data.clone())?)
-    }
-}
 
 // Display implementations
 impl Displayable for DeclareRelationResponse {
@@ -273,65 +161,4 @@ impl Displayable for DeclareRelationResponse {
     }
 }
 
-impl Displayable for ListRelationsResponse {
-    fn display(&self, format: OutputFormat) -> Result<()> {
-        match format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(self)?);
-            }
-            OutputFormat::Table => {
-                if self.relations.is_empty() {
-                    println!("{}", "No relations found".dimmed());
-                    println!("\n{}", "Declare your first relation:".yellow());
-                    println!("  {}", "port42 declare tool my-tool --transforms echo,test".bright_white());
-                } else {
-                    println!("{}", format!("📋 {} Relations", self.count).bright_blue());
-                    println!();
-                    
-                    for relation in &self.relations {
-                        println!("{} {}", "•".bright_cyan(), relation.name().unwrap_or("unnamed").bright_white());
-                        println!("  {}: {}", "Type".dimmed(), relation.relation_type.bright_cyan());
-                        println!("  {}: {}", "ID".dimmed(), relation.id.dimmed());
-                        
-                        if !relation.transforms().is_empty() {
-                            println!("  {}: {}", "Transforms".dimmed(), 
-                                   relation.transforms().join(", ").bright_green());
-                        }
-                        
-                        println!();
-                    }
-                }
-            }
-            OutputFormat::Plain => {
-                for relation in &self.relations {
-                    print!("{:<20}", relation.name().unwrap_or("unnamed").bright_cyan());
-                    print!(" {:<10}", format!("[{}]", relation.relation_type).dimmed());
-                    if !relation.transforms().is_empty() {
-                        print!(" {}", relation.transforms().join(",").bright_green());
-                    }
-                    println!();
-                }
-                
-                if !self.relations.is_empty() {
-                    println!("\n{}", format!("{} relations", self.count).dimmed());
-                }
-            }
-        }
-        Ok(())
-    }
-}
 
-impl Displayable for DeleteRelationResponse {
-    fn display(&self, format: OutputFormat) -> Result<()> {
-        match format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(self)?);
-            }
-            OutputFormat::Plain | OutputFormat::Table => {
-                println!("{}", "🗑️ Relation deleted and dematerialized".bright_red());
-                println!("  {}: {}", "ID".bright_cyan(), self.relation_id);
-            }
-        }
-        Ok(())
-    }
-}

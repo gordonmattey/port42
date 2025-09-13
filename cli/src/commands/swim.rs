@@ -7,17 +7,6 @@ use crate::help_text;
 use crate::swim::{SessionHandler, determine_session_id};
 use crate::common::{errors::Port42Error, references::parse_references};
 
-pub fn handle_swim(
-    port: u16, 
-    agent: String, 
-    message: Option<String>, 
-    session: Option<String>
-) -> Result<()> {
-    // Auto-detect output mode: show boot only for interactive mode (no message)
-    let show_boot = message.is_none();
-    handle_swim_with_references(port, agent, message, session, None, show_boot)
-}
-
 pub fn handle_swim_with_references(
     port: u16, 
     agent: String, 
@@ -271,82 +260,6 @@ fn validate_agent(agent: &str) -> Result<()> {
     }
     
     Ok(())
-}
-
-// Keep the find_recent_session function for potential future use
-fn find_recent_session(client: &mut DaemonClient, agent: &str) -> Result<Option<String>> {
-    use crate::protocol::DaemonRequest;
-    use chrono::{DateTime, Utc};
-    
-    // Query daemon for recent sessions
-    let request = DaemonRequest {
-        request_type: "memory".to_string(),
-        id: "cli-memory-query".to_string(),
-        payload: serde_json::Value::Null,
-        references: None,
-        session_context: None,
-        user_prompt: None,
-    };
-    
-    if std::env::var("PORT42_DEBUG").is_ok() {
-        eprintln!("DEBUG: find_recent_session: About to request memory from daemon");
-    }
-    
-    match client.request(request) {
-        Ok(response) => {
-            if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG: find_recent_session: Got memory response, success={}", response.success);
-            }
-            
-            if response.success {
-                if let Some(data) = response.data {
-                    if let Some(sessions) = data.as_array() {
-                        if std::env::var("PORT42_DEBUG").is_ok() {
-                            eprintln!("DEBUG: find_recent_session: Found {} sessions", sessions.len());
-                        }
-                        
-                        // Find most recent session with matching agent
-                        let recent = sessions.iter()
-                            .filter_map(|s| {
-                                let session_agent = s.get("agent").and_then(|v| v.as_str())?;
-                                if session_agent != agent {
-                                    return None;
-                                }
-                                
-                                let session_id = s.get("session_id").and_then(|v| v.as_str())?;
-                                let timestamp_str = s.get("timestamp").and_then(|v| v.as_str())?;
-                                let timestamp = DateTime::parse_from_rfc3339(timestamp_str).ok()?;
-                                Some((session_id.to_string(), timestamp))
-                            })
-                            .max_by_key(|(_, ts)| *ts);
-                        
-                        if let Some((session_id, ts)) = recent {
-                            if std::env::var("PORT42_DEBUG").is_ok() {
-                                eprintln!("DEBUG: find_recent_session: Found recent session {} from {}", session_id, ts);
-                            }
-                            
-                            // Check if session is recent (within last 24 hours)
-                            let now = Utc::now();
-                            let age = now.signed_duration_since(ts.with_timezone(&Utc));
-                            
-                            if age.num_hours() < 24 {
-                                return Ok(Some(session_id));
-                            } else if std::env::var("PORT42_DEBUG").is_ok() {
-                                eprintln!("DEBUG: find_recent_session: Session is too old ({} hours)", age.num_hours());
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(None)
-        }
-        Err(e) => {
-            if std::env::var("PORT42_DEBUG").is_ok() {
-                eprintln!("DEBUG: find_recent_session: Error getting memories: {}", e);
-            }
-            Ok(None)
-        }
-    }
 }
 
 

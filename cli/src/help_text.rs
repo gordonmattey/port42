@@ -339,32 +339,6 @@ pub const PHILOSOPHY_NOT_TOOL: &str = "This is not a tool.";
 pub const PHILOSOPHY_NOT_WALL: &str = "This is not another wall.";
 pub const PHILOSOPHY_IS_BRIDGE: &str = "This is a bridge between minds.";
 
-// Install Script Messages
-pub const INSTALL_HEADER: &str = "🌊 Reality Compiler Installer";
-pub const INSTALL_DIRS_CREATING: &str = "🐬 Manifesting reality directories...";
-pub const INSTALL_DIRS_SUCCESS: &str = "✨ Reality structures created at";
-pub const INSTALL_BINARIES: &str = "🐬 Installing gateway binaries...";
-pub const INSTALL_BINARIES_SUCCESS: &str = "✨ Gateway binaries manifested";
-pub const INSTALL_PATH_CONFIGURED: &str = "✨ Reality paths already woven";
-pub const INSTALL_PATH_UPDATED: &str = "✨ Reality paths updated in";
-pub const INSTALL_SUCCESS: &str = "✨ Port 42 gateway installed!";
-pub const INSTALL_GET_STARTED: &str = "🌊 Begin your journey:";
-pub const INSTALL_DAEMON_START_DESC: &str = "Awaken the gateway";
-pub const INSTALL_SHELL_DESC: &str = "Enter the reality compiler";
-pub const INSTALL_SWIM_DESC: &str = "Swim into AI streams";
-pub const INSTALL_STATUS_DESC: &str = "Sense the gateway's presence";
-pub const INSTALL_LIST_DESC: &str = "View crystallized commands";
-pub const INSTALL_DOCS: &str = "📚 Ancient Scrolls:";
-pub const INSTALL_ISSUES: &str = "🌀 Report Reality Distortions:";
-pub const INSTALL_API_KEY_PROMPT: &str = "🐬 Port42 connects through Anthropic's Claude API";
-pub const INSTALL_API_KEY_SKIP: &str = "⚠️  Skipping API key configuration";
-pub const INSTALL_API_KEY_DISABLED: &str = "AI features disabled until ANTHROPIC_API_KEY is set";
-pub const INSTALL_API_KEY_SAVED: &str = "✨ API key saved in";
-pub const INSTALL_API_KEY_EXISTS: &str = "✨ API key already present in";
-pub const INSTALL_API_KEY_ACTIVATE: &str = "⚠️  To set your API key:";
-pub const INSTALL_RUN_COMMAND: &str = "💫 Invoke this incantation:";
-pub const INSTALL_THEN_START: &str = "🌊 Then awaken the gateway:";
-pub const INSTALL_START_NOW: &str = "💫 Awaken the gateway:";
 
 // Directory Creation
 // (Removed unused constants MSG_CREATED_LABEL, MSG_DIR_COMMANDS, MSG_DIR_MEMORY)
@@ -374,7 +348,6 @@ pub const MSG_SHELL_HEADER: &str = "🌊 Reality Compiler Terminal";
 pub const MSG_SHELL_HELP_HINT: &str = "Type 'help' for available commands";
 pub const MSG_SHELL_EXITING: &str = "🌑 Dissolving back into the void...";
 pub const MSG_SHELL_ERROR: &str = "⚡ Reality distortion";
-pub const MSG_SHELL_UNKNOWN_CMD: &str = "❓ Unknown incantation:";
 pub const SHELL_PROMPT: &str = "Echo@port42:~$ ";
 
 // Shell Usage Messages
@@ -398,30 +371,18 @@ pub const ERR_DAEMON_NOT_RUNNING: &str = "🌊 The gateway is dormant";
 pub const ERR_DAEMON_START_FAILED: &str = "⚡ Failed to awaken the gateway";
 pub const ERR_DAEMON_ALREADY_RUNNING: &str = "✨ The gateway is already humming with energy";
 pub const ERR_CONNECTION_LOST: &str = "🔌 Reality link severed. The dolphins have gone silent";
-pub const ERR_INVALID_AGENT: &str = "👻 Unknown agent. Choose from: @ai-engineer, @ai-muse, @ai-analyst, @ai-founder";
-pub const ERR_MEMORY_NOT_FOUND: &str = "💭 Memory thread lost in the quantum foam";
 pub const ERR_SESSION_ABANDONED: &str = "🌑 This session has expired";
 pub const ERR_PATH_NOT_FOUND: &str = "🔍 This reality path leads nowhere";
 pub const ERR_INVALID_DATE: &str = "⏰ Time flows differently here. Use YYYY-MM-DD format";
 pub const ERR_NO_API_KEY: &str = "🔑 Port42 requires an ANTHROPIC_API_KEY to connect to Claude";
-pub const ERR_PERMISSION_DENIED: &str = "🚫 The reality compiler lacks permission to manifest here";
-pub const ERR_NOT_INITIALIZED: &str = "🌱 Port 42 is not installed. Run the installer first";
-pub const ERR_INVALID_MEMORY_ID: &str = "🧩 Invalid memory quantum signature";
-pub const ERR_NO_SEARCH_RESULTS: &str = "🌊 No matches found for your search";
-pub const ERR_COMMAND_NOT_FOUND: &str = "❓ This incantation is unknown to the reality compiler";
 pub const ERR_EVOLVE_NOT_READY: &str = "🚧 Command evolution still crystallizing in the quantum realm";
 pub const ERR_MEMORY_SEARCH_USAGE: &str = "💡 Usage: memory search <query>";
 pub const ERR_BINARY_NOT_FOUND: &str = "🔍 The daemon binary has vanished from reality";
 pub const ERR_FAILED_TO_STOP: &str = "⚡ The gateway resists termination";
 pub const ERR_LOG_NOT_FOUND: &str = "📜 The daemon's memories are nowhere to be found";
 pub const ERR_INVALID_RESPONSE: &str = "🌀 The gateway speaks in riddles we cannot parse";
-pub const ERR_NOT_IMPLEMENTED: &str = "🚧 This reality fragment is still crystallizing";
 
 // Error formatting functions
-pub fn format_error_with_help(error: &str, command: &str) -> String {
-    format!("{}\n\n💡 Try: port42 help {}", error.red(), command.yellow())
-}
-
 pub fn format_error_with_suggestion(error: &str, suggestion: &str) -> String {
     format!("{}\n💡 {}", error.red(), suggestion.dimmed())
 }
@@ -433,17 +394,6 @@ pub fn format_daemon_connection_error(port: u16) -> String {
         format!("Start it with: port42 daemon start{}", 
             if port == 42 { " (requires sudo)" } else { "" }
         ).yellow()
-    )
-}
-
-pub fn format_unknown_agent_error(agent: &str) -> String {
-    format!(
-        "{}\n\nAvailable agents:\n  {} - Technical manifestation\n  {} - Creative expression\n  {} - Strategic evolution\n  {} - Visionary synthesis",
-        format!("👻 Unknown agent: {}", agent).red(),
-        "@ai-engineer".bright_green(),
-        "@ai-muse".bright_green(),
-        "@ai-analyst".bright_green(),
-        "@ai-founder".bright_green()
     )
 }
 
@@ -494,10 +444,6 @@ pub fn format_uptime_info(uptime: &str) -> String {
 
 pub fn format_sessions_info(sessions: &str) -> String {
     format!("  Threads:   {}", sessions)
-}
-
-pub fn format_unknown_command(command: &str) -> String {
-    format!("{} {}", MSG_SHELL_UNKNOWN_CMD, command)
 }
 
 // Help utility functions

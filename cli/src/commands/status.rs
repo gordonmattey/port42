@@ -12,7 +12,7 @@ pub fn handle_status(port: u16, detailed: bool) -> Result<()> {
     handle_status_with_format(&mut client, detailed, OutputFormat::Plain)
 }
 
-pub fn handle_status_with_format(client: &mut DaemonClient, detailed: bool, format: OutputFormat) -> Result<()> {
+pub fn handle_status_with_format(client: &mut DaemonClient, _detailed: bool, format: OutputFormat) -> Result<()> {
     if format != OutputFormat::Json {
         println!("{}", help_text::MSG_CHECKING_STATUS.blue().bold());
     }

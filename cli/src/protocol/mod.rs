@@ -27,6 +27,7 @@ pub struct DaemonRequest {
 
 // Base response from daemon
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]  // Fields are accessed after deserialization
 pub struct DaemonResponse {
     pub id: String,
     pub success: bool,

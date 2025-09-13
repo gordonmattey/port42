@@ -70,10 +70,6 @@ impl AnimatedDisplay {
         AnimatedDisplay { depth: 0 }
     }
     
-    pub fn with_depth(depth: u32) -> Self {
-        AnimatedDisplay { depth }
-    }
-    
     fn animate_text(&self, text: &str, delay_ms: u64) {
         for ch in text.chars() {
             print!("{}", ch);

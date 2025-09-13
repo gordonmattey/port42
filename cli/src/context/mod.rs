@@ -66,7 +66,4 @@ pub struct ContextSuggestion {
 
 // Re-export submodules
 pub mod formatters;
-pub mod watch;
-pub mod watch_tui;
-pub mod tui;
 pub mod safe_tui;

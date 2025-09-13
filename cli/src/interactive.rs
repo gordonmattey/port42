@@ -4,10 +4,9 @@ use std::time::Instant;
 use std::io::{self, Write};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
-    terminal::{self, disable_raw_mode, enable_raw_mode},
-    cursor, execute, queue,
+    terminal::{disable_raw_mode, enable_raw_mode},
+    cursor, execute,
 };
-use crossterm::style::{Color, SetForegroundColor, ResetColor};
 use crate::client::DaemonClient;
 use crate::swim::{SessionHandler, AnimatedDisplay};
 use crate::protocol::swim::SwimResponse;
@@ -35,10 +34,6 @@ pub struct InteractiveSession {
 }
 
 impl InteractiveSession {
-    pub fn new(client: DaemonClient, agent: String, session_id: String) -> Self {
-        Self::with_context(client, agent, session_id, None, None)
-    }
-    
     pub fn with_context(
         client: DaemonClient,
         agent: String,
@@ -62,12 +57,6 @@ impl InteractiveSession {
             commands_generated: Vec::new(),
             artifacts_generated: Vec::new(),
         }
-    }
-    
-    pub fn with_output_format(mut self, format: crate::display::OutputFormat) -> Self {
-        self.handler = SessionHandler::new(self.handler.client, true)
-            .with_output_format(format);
-        self
     }
     
     pub fn run(&mut self) -> Result<()> {
