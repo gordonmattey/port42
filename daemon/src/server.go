@@ -489,8 +489,15 @@ func (d *Daemon) handleListPath(req Request) Response {
 		path = "/"
 	}
 
-	// Track path access (browsing)
-	if d.contextCollector != nil && path != "/" {
+	// Track path access (browsing) - but skip if this is from context polling
+	// Check if this request is from context watch polling by looking for a pattern
+	// Context watch shouldn't generate phantom memory access events
+	isContextPolling := false
+	if path == "/context" || strings.HasPrefix(path, "/context/") {
+		isContextPolling = true
+	}
+	
+	if d.contextCollector != nil && path != "/" && !isContextPolling {
 		accessType := "browse"
 		if strings.HasPrefix(path, "/commands/") {
 			accessType = "browse-commands"

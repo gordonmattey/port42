@@ -97,7 +97,3 @@ fi
 
 # Clean up
 rm -f /tmp/port42-install.sh
-
-echo ""
-echo "🐬 Welcome to Port42!"
-echo "Get help: port42 help"

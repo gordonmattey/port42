@@ -1125,8 +1125,9 @@ show_next_steps() {
     
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
-    echo -e "${GREEN}${BOLD}🐬 Welcome to the Reality Compiler!${NC}"
+    echo -e "${GREEN}${BOLD}🐬 Welcome to Port42 - Your Reality Compiler!${NC}"
     echo -e "Documentation: ${BOLD}https://port42.ai${NC}"
+    echo -e "Help: ${BOLD}port42 help"
 }
 
 # Main installation flow
