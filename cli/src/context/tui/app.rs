@@ -82,6 +82,7 @@ pub struct App {
     pub total_commands: usize,
     pub commands_per_minute: f64,
     pub active_session: Option<String>,
+    pub active_agent: Option<String>,
     pub last_refresh: Instant,
     
     // Connection
@@ -107,6 +108,7 @@ impl App {
             total_commands: 0,
             commands_per_minute: 0.0,
             active_session: None,
+            active_agent: None,
             last_refresh: Instant::now(),
             daemon_client,
         };
@@ -335,7 +337,10 @@ impl App {
         
         // Add active session info if present
         if let Some(session) = &context_data.active_session {
+            eprintln!("DEBUG: Setting active_session to '{}'", session.id);
+            eprintln!("DEBUG: Setting active_agent to '{}'", session.agent);
             self.active_session = Some(session.id.clone());
+            self.active_agent = Some(session.agent.clone());
             
             // Update stats
             self.total_commands = context_data.recent_commands.len();

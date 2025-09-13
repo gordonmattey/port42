@@ -247,7 +247,6 @@ download() {
 
 # Build from local repository
 build_local() {
-    print_info "Building from local repository..."
     
     if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
         print_error "build.sh not found. Are you in the Port 42 repository?"
@@ -1121,7 +1120,7 @@ show_next_steps() {
     echo
     echo -e "   ${BOLD}port42 context --watch${NC}"
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
-    echo -e "   ${GRAY}Works with both Claude Code and standalone usage${NC}"
+    echo -e "   ${GRAY}We like to run this in a split terminal with the Claude Code session${NC}"
     
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
@@ -1293,7 +1292,6 @@ main() {
                     fi
                     ;;
                 *)
-                    print_info "Building from local repository..."
                     build_local
                     ;;
             esac

@@ -52,9 +52,23 @@ fn draw_header(f: &mut Frame, area: Rect, app: &App) {
     
     // Show active session if present
     if let Some(session_id) = &app.active_session {
+        eprintln!("DEBUG UI: active_session = '{}'", session_id);
+        eprintln!("DEBUG UI: active_agent = {:?}", app.active_agent);
+        
         header_text.push(Span::raw(" │ "));
+        
+        // Show agent if present
+        if let Some(agent) = &app.active_agent {
+            header_text.push(Span::styled(
+                agent.clone(),
+                Style::default().fg(Color::Cyan),
+            ));
+            header_text.push(Span::raw(" "));
+        }
+        
+        // Show full session ID
         header_text.push(Span::styled(
-            format!("Session: {}", &session_id[..8.min(session_id.len())]),
+            session_id.clone(),
             Style::default().fg(Color::Blue),
         ));
     }

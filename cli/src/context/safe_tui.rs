@@ -149,6 +149,7 @@ pub struct App {
     last_error: Option<String>,
     rate_limiter: RateLimiter,
     active_session: Option<String>,
+    active_agent: Option<String>,
 }
 
 impl App {
@@ -163,6 +164,7 @@ impl App {
             last_error: None,
             rate_limiter: RateLimiter::new(500), // Not used anymore, kept for compatibility
             active_session: None,
+            active_agent: None,
         }
     }
     
@@ -272,9 +274,13 @@ impl App {
     
     fn process_context(&mut self, context: ContextData) {
         // Update active session info
-        self.active_session = context.active_session.as_ref().map(|session| {
-            format!("{}@{}", session.agent, &session.id[..8.min(session.id.len())])
-        });
+        if let Some(session) = context.active_session.as_ref() {
+            self.active_session = Some(session.id.clone());
+            self.active_agent = Some(session.agent.clone());
+        } else {
+            self.active_session = None;
+            self.active_agent = None;
+        }
         
         // Clear and rebuild activities
         self.activities.clear();
@@ -361,10 +367,21 @@ impl App {
             ];
             
             // Show active session if present
-            if let Some(ref session) = self.active_session {
+            if let Some(ref session_id) = self.active_session {
                 spans.push(Span::raw(" │ "));
+                
+                // Show agent if present
+                if let Some(ref agent) = self.active_agent {
+                    spans.push(Span::styled(
+                        agent.clone(),
+                        Style::default().fg(Color::Cyan),
+                    ));
+                    spans.push(Span::raw(" "));
+                }
+                
+                // Show full session ID
                 spans.push(Span::styled(
-                    format!("Session: {}", session),
+                    session_id.clone(),
                     Style::default().fg(Color::Blue),
                 ));
             }
@@ -412,10 +429,16 @@ impl App {
             .map(|(i, activity)| {
                 let is_selected = i + self.scroll_offset == self.selected;
                 
+                let timestamp_style = if is_selected {
+                    Style::default().fg(Color::White)
+                } else {
+                    Style::default().fg(Color::Gray)
+                };
+                
                 let spans = vec![
                     Span::styled(
                         format!("{:<8} ", activity.timestamp.format("%H:%M:%S").to_string()),
-                        Style::default().fg(Color::DarkGray),
+                        timestamp_style,
                     ),
                     Span::styled(
                         format!("{:<8} ", activity.activity_type),
@@ -454,7 +477,7 @@ impl App {
                         format!("[{}]", key),
                         Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(format!("{} ", desc), Style::default().fg(Color::Gray)),
+                    Span::styled(format!("{} ", desc), Style::default().fg(Color::White)),
                 ]
             })
             .collect();
