@@ -649,8 +649,7 @@ install_claude_integration() {
     local claude_config="$HOME/.claude/CLAUDE.md"
     local p42_instructions=""
     
-    echo
-    print_info "Configuring Claude Code integration..."
+    # Configure Claude Code integration silently
     
     # Determine where to get P42CLAUDE.md from
     if [ -f "$SCRIPT_DIR/P42CLAUDE.md" ]; then
@@ -732,8 +731,7 @@ install_claude_integration() {
 configure_claude_settings() {
     local settings_file="$HOME/.claude/settings.json"
     
-    echo
-    print_info "Configuring Claude Code command permissions..."
+    # Configure Claude Code command permissions silently
     
     # Ask for permission
     echo
@@ -867,10 +865,30 @@ EOF
     fi
 }
 
+# Consolidated Claude Code setup
+setup_claude_code() {
+    # Check if Claude Code is installed
+    local claude_installed=false
+    if [ -d "$HOME/.claude" ]; then
+        claude_installed=true
+    fi
+    
+    # Configure API key (always needed)
+    configure_api_key
+    
+    # If Claude Code is installed, configure it
+    if [ "$claude_installed" = true ]; then
+        install_claude_integration
+        configure_claude_settings
+        print_success "Claude Code configured"
+    else
+        print_success "API key configured"
+    fi
+}
+
 # Configure API key
 configure_api_key() {
-    echo
-    print_info "Configuring Anthropic API key..."
+    # Configure API key
     
     local current_key=""
     local key_source=""
@@ -1078,107 +1096,46 @@ show_next_steps() {
     echo -e "${BOLD}Getting Started:${NC}"
     echo
     
-    echo -e "1. ${BLUE}Activate Port 42 in this shell:${NC}"
-    echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
-    echo
-    
-    if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-        echo -e "2. ${BLUE}Set your Anthropic API key:${NC}"
-        echo -e "   ${BOLD}export PORT42_ANTHROPIC_API_KEY='your-key-here'${NC}"
-        echo
-        echo -e "3. ${BLUE}Start the daemon:${NC}"
-        echo -e "   ${BOLD}port42 daemon start -b${NC}"
-        echo
-    elif [ "$daemon_running" = "false" ]; then
-        echo -e "2. ${BLUE}Start the daemon:${NC}"
-        echo -e "   ${BOLD}port42 daemon start -b${NC}"
-        echo
-    else
-        echo -e "   ${GREEN}✅ Daemon is already running!${NC}"
-        if [ "$has_restart_cmd" = "true" ]; then
-            echo -e "   ${GRAY}You can restart it anytime with: ${BOLD}port42-restart${NC}"
-        fi
-        echo
+    # Check Claude Code installation
+    local claude_code_installed=false
+    if [ -d "$HOME/.claude" ]; then
+        claude_code_installed=true
     fi
     
-    echo -e "2. ${BLUE}Test your installation:${NC}"
-    echo -e "   ${BOLD}port42 status${NC}"
+    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    if [ "$claude_code_installed" = true ]; then
+        echo -e "${BLUE}${BOLD}🚀 Using Port42 Inside Claude Code${NC}"
+        echo
+        echo -e "   ${GREEN}✨ Just ask Claude to create any tool you need!${NC}"
+        echo -e "   Examples:"
+        echo -e "   ${GRAY}• \"Help me escape the 47-tab chaos\"${NC}"
+        echo -e "   ${GRAY}• \"Create a tool to monitor my system performance\"${NC}"
+        echo -e "   ${GRAY}• \"Build a command that organizes my downloads\"${NC}"
+        echo
+        echo -e "   Claude will automatically use Port42 to install tools ${GREEN}system-wide${NC}"
+    fi
+    
+    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}${BOLD}🐬 Using Port42 Outside Claude Code${NC}"
     echo
-    echo -e "3. ${BLUE}Your First Swim - Create Something Useful:${NC}"
-    echo -e "   ${BOLD}port42 swim @ai-engineer 'help me escape the 47-tab chaos'${NC}"
-    echo -e "   ${GRAY}Let Port42 understand your workflow and create escape tools${NC}"
+    echo -e "   1. ${BLUE}Your First Swim:${NC}"
+    echo -e "      ${BOLD}port42 swim @ai-engineer 'help me escape the 47-tab chaos'${NC}"
     echo
-    echo -e "4. ${BLUE}Monitor Your Workflow (Recommended):${NC}"
+    echo -e "   2. ${BLUE}Choose Your Agent:${NC}"
+    echo -e "      ${GRAY}@ai-engineer${NC} - Technical implementations"
+    echo -e "      ${GRAY}@ai-analyst${NC}  - Data analysis & insights"
+    echo -e "      ${GRAY}@ai-muse${NC}     - Creative & artistic tools"
+    
+    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning (Both)${NC}"
+    echo
     echo -e "   ${BOLD}port42 context --watch${NC}"
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
-    echo
     
-    # Add Claude Code integration guidance
-    echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo
-    echo -e "${BLUE}${BOLD}🚀 The Real Magic: Using Port42 with Claude Code${NC}"
-    echo
-    echo -e "${BOLD}Port42 is designed to work seamlessly with Claude Code!${NC}"
-    echo -e "${GRAY}Claude Code becomes your personal AI developer that creates custom tools instantly.${NC}"
-    echo
-    echo -e "${BOLD}🎯 Using Port42 with Claude Code:${NC}"
-    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
-        echo -e "   ${GREEN}✅ You're already in Claude Code!${NC} Port42 is ready to use."
-        echo -e "   Just ask Claude to create any tool you need - it will use Port42 automatically."
-    else
-        echo -e "   If you're using Claude Code, it will ${GREEN}automatically detect${NC} Port42"
-        echo -e "   Or install Claude Code: ${BLUE}https://claude.ai/code${NC}"
-    fi
-    echo
-    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
-        echo -e "${BOLD}✨ Try asking Claude right now:${NC}"
-        echo -e "   ${GRAY}\"Help me escape the 47-tab chaos\"${NC}"
-        echo -e "   ${GRAY}\"Analyze my workflow bottlenecks\"${NC}"
-        echo -e "   ${GRAY}\"Turn my chaos into poetry\"${NC}"
-        echo -e "   ${GRAY}\"Create a tool to monitor my system performance\"${NC}"
-        echo -e "   ${GRAY}\"Build a command that organizes my downloads\"${NC}"
-        echo
-        echo -e "${BOLD}💡 Pro tip:${NC} Claude will use Port42 automatically to install tools ${GREEN}system-wide${NC}!"
-        echo -e "${BOLD}⚡ Watch it happen:${NC} ${GREEN}port42 context --watch${NC} in another terminal"
-    else
-        echo -e "${BOLD}✨ Try these Claude Code prompts:${NC}"
-        echo -e "   ${GRAY}\"Help me escape the 47-tab chaos\"${NC}"
-        echo -e "   ${GRAY}\"Analyze my workflow bottlenecks\"${NC}"
-        echo -e "   ${GRAY}\"Turn my chaos into poetry\"${NC}"
-        echo -e "   ${GRAY}\"Create a tool to monitor my system performance\"${NC}"
-        echo -e "   ${GRAY}\"Build a command that organizes my downloads\"${NC}"
-        echo
-        echo -e "${BOLD}💡 Pro tip:${NC} Claude Code uses Port42 to install tools ${GREEN}system-wide${NC},"
-        echo -e "   so everything you create is available from any terminal!"
-        echo
-        echo -e "${BOLD}🚀 Or try this directly:${NC}"
-        echo -e "   ${GREEN}port42 swim @ai-engineer \"help me escape the 47-tab chaos\"${NC}"
-        echo
-        echo -e "${BOLD}⚡ Monitor the magic:${NC}"
-        echo -e "   ${GREEN}port42 context --watch${NC}"
-    fi
-    echo
-    if [ -n "${CLAUDE_CODE:-}" ] || [ -n "${ANTHROPIC_CLI:-}" ]; then
-        echo -e "${BOLD}🌟 With Port42, Claude will:${NC}"
-        echo -e "   • Understand your intent and create the perfect tool"
-        echo -e "   • Add error handling and edge cases automatically"
-        echo -e "   • Make tools immediately available system-wide"
-        echo -e "   • Remember context across conversations"
-        echo -e "   • Learn from your codebase and preferences"
-    else
-        echo -e "${BOLD}🌟 Claude Code will:${NC}"
-        echo -e "   • Understand your intent and create the perfect tool"
-        echo -e "   • Add error handling and edge cases automatically"
-        echo -e "   • Make tools immediately available system-wide"
-        echo -e "   • Remember context across conversations"
-        echo -e "   • Learn from your codebase and preferences"
-    fi
-    echo
     echo -e "${YELLOW}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo
     echo -e "${GREEN}${BOLD}🐬 Welcome to the Reality Compiler!${NC}"
-    echo -e "${GRAY}Where consciousness meets computation at Port 42${NC}"
-    echo
     echo -e "Documentation: ${BOLD}https://port42.ai${NC}"
 }
 
@@ -1417,16 +1374,10 @@ main() {
     install_binaries
     update_path
     
-    print_info "About to configure API key..."
-    configure_api_key
+    # Setup Claude Code (API key + Claude integration if installed)
+    setup_claude_code
     
-    print_info "About to install Claude integration..."
-    install_claude_integration
-    
-    print_info "About to configure Claude settings..."
-    configure_claude_settings
-    
-    # Start the daemon for general use
+    # Start the daemon after all configuration
     start_daemon_for_use
     
     # Show completion message
