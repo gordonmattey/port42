@@ -981,79 +981,6 @@ configure_api_key() {
     fi
 }
 
-# Bootstrap Port42 by creating its first command
-bootstrap_port42() {
-    # Set error handling for bootstrap
-    set +e  # Don't exit on error during bootstrap
-    
-    # Set up signal trap to handle Ctrl+C gracefully during bootstrap
-    local bootstrap_interrupted=false
-    trap 'bootstrap_interrupted=true' INT
-    
-    echo
-    echo -e "${BLUE}${BOLD}🚀 Bootstrapping Port42...${NC}"
-    
-    # Check if API key is configured
-    if [ -z "${PORT42_ANTHROPIC_API_KEY:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-        echo -e "${YELLOW}⚠️  Skipping bootstrap (no API key configured)${NC}"
-        echo -e "   You can bootstrap Port42 later by running:"
-        echo -e "   ${BOLD}port42 swim @ai-engineer 'create a port42-restart command'${NC}"
-        return 0
-    fi
-    
-    # Export path so we can use port42 command
-    export PATH="$HOME/.port42/bin:$PATH"
-    
-    # Check if daemon is running (should already be started by install process)
-    if ! "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-        echo -e "${YELLOW}⚠️  Daemon not running, skipping bootstrap${NC}"
-        echo -e "   You can start it with: ${BOLD}port42 daemon start -b${NC}"
-        return 0
-    fi
-    
-    echo -e "${BLUE}Creating your first Port42 command...${NC}"
-    echo
-    echo -e "${BOLD}The following command will be created:${NC}"
-    echo -e "${GRAY}port42 swim @ai-engineer \"Create 'port42-restart' command\"${NC}"
-    echo
-    echo -e "This will create a tool to restart the Port42 daemon cleanly."
-    echo -n "Press Enter to continue, or Ctrl+C to skip: "
-    
-    # Handle Ctrl+C gracefully
-    read -r || {
-        echo
-        echo -e "${YELLOW}⚠️  Skipped command creation${NC}"
-        trap - INT  # Reset trap
-        return 0
-    }
-    
-    # Check if bootstrap was interrupted
-    if [ "$bootstrap_interrupted" = "true" ]; then
-        echo
-        echo -e "${YELLOW}⚠️  Bootstrap interrupted${NC}"
-        trap - INT  # Reset trap
-        return 0
-    fi
-    
-    echo -e "${BLUE}Creating command...${NC}"
-    
-    # Create the restart command using Port42 itself!
-    "$HOME/.port42/bin/port42" swim @ai-engineer "Create a command called 'port42-restart' that cleanly restarts the Port42 daemon by: 1) running 'port42 daemon stop' to stop the daemon, 2) waiting 2 seconds, 3) running 'port42 daemon start -b' to start it again in background mode, and 4) verifying it's running with 'port42 status'. Use bash with proper error handling." >/dev/null 2>&1 || {
-        echo -e "${YELLOW}⚠️  Could not create initial command (this is OK)${NC}"
-    }
-    
-    # Check if command was created
-    if [ -f "$HOME/.port42/commands/port42-restart" ]; then
-        echo -e "${GREEN}✅ Created your first command: port42-restart${NC}"
-        echo -e "   You can now restart Port42 anytime with: ${BOLD}port42-restart${NC}"
-    fi
-    
-    # Reset signal trap
-    trap - INT
-    
-    echo -e "${GREEN}✅ Bootstrap complete!${NC}"
-}
-
 # Start daemon for general use
 start_daemon_for_use() {
     echo
@@ -1499,11 +1426,8 @@ main() {
     print_info "About to configure Claude settings..."
     configure_claude_settings
     
-    # Start the daemon for general use (independent of bootstrap)
+    # Start the daemon for general use
     start_daemon_for_use
-    
-    # Bootstrap Port42 by creating its first command (optional)
-    bootstrap_port42
     
     # Show completion message
     show_next_steps
