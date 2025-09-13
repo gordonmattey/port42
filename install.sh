@@ -619,6 +619,7 @@ install_binaries() {
     
     # Copy agents.json to home directory
     cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
+    print_info "Agent configuration installed to $PORT42_HOME/agents.json"
     
     print_success "Binaries installed to $INSTALL_DIR"
     
@@ -1062,12 +1063,12 @@ start_daemon_for_use() {
         # Ask if they want to restart with new binaries
         echo
         echo "The daemon is currently running. Would you like to restart it with the new binaries?"
-        echo "  1) Yes, restart daemon"
+        echo "  1) Yes, restart daemon (recommended for binary installs)"
         echo "  2) No, keep current daemon running"
         echo
-        echo -n "Choice [2]: "
+        echo -n "Choice [1]: "
         read -r restart_choice
-        restart_choice=${restart_choice:-2}
+        restart_choice=${restart_choice:-1}
         
         if [ "$restart_choice" = "1" ]; then
             echo -e "${BLUE}Stopping daemon gracefully...${NC}"
