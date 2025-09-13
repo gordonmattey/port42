@@ -1,6 +1,5 @@
 use std::env;
 use std::fs;
-use std::path::Path;
 
 fn main() {
     // Read version from version.txt in the repository root

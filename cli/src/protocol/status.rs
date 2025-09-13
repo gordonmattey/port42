@@ -2,7 +2,6 @@ use super::{DaemonRequest, RequestBuilder, ResponseParser};
 use crate::display::{Displayable, OutputFormat};
 use crate::help_text;
 use crate::client::DaemonClient;
-use crate::types::Response;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
