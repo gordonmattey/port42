@@ -100,6 +100,7 @@ if [ "$PACKAGE_BINARIES" = "true" ]; then
         "bin/port42"
         "bin/port42d"
         "daemon/agents.json"
+        "daemon/agent_guidance.md"
         "version.txt"
     )
     

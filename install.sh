@@ -617,9 +617,15 @@ install_binaries() {
     mv -f "$INSTALL_DIR/port42d.tmp" "$INSTALL_DIR/port42d"
     mv -f "$INSTALL_DIR/port42.tmp" "$INSTALL_DIR/port42"
     
-    # Copy agents.json to home directory
+    # Copy agents.json and guidance to home directory
     cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
     print_info "Agent configuration installed to $PORT42_HOME/agents.json"
+    
+    # Copy agent_guidance.md if it exists
+    if [ -f "$SCRIPT_DIR/daemon/agent_guidance.md" ]; then
+        cp "$SCRIPT_DIR/daemon/agent_guidance.md" "$PORT42_HOME/"
+        print_info "Agent guidance installed to $PORT42_HOME/agent_guidance.md"
+    fi
     
     print_success "Binaries installed to $INSTALL_DIR"
     

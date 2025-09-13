@@ -75,13 +75,9 @@ func LoadAgentConfig() error {
 	// Try multiple standard locations for agents.json
 	homeDir, _ := os.UserHomeDir()
 	configPaths := []string{
-		// Development paths
-		"daemon/agents.json",
-		"agents.json",
-		"../daemon/agents.json",
-		// Installed paths
-		"/etc/port42/agents.json",
+		// Installed paths (check these FIRST for production use)
 		filepath.Join(homeDir, ".port42", "agents.json"),
+		"/etc/port42/agents.json",
 		// Relative to executable
 		func() string {
 			if execPath, err := os.Executable(); err == nil {
@@ -89,6 +85,10 @@ func LoadAgentConfig() error {
 			}
 			return ""
 		}(),
+		// Development paths (check these LAST)
+		"daemon/agents.json",
+		"agents.json",
+		"../daemon/agents.json",
 	}
 	
 	var data []byte
@@ -120,10 +120,12 @@ func LoadAgentConfig() error {
 		guidancePath := filepath.Join(filepath.Dir(foundPath), config.GuidanceFile)
 		guidanceData, err := ioutil.ReadFile(guidancePath)
 		if err != nil {
-			return fmt.Errorf("failed to read guidance file %s: %w", guidancePath, err)
+			// Make guidance file optional - just warn if not found
+			log.Printf("⚠️  Guidance file not found: %s (continuing without it)", guidancePath)
+		} else {
+			config.LoadedGuidance = string(guidanceData)
+			log.Printf("✅ Loaded guidance from %s", guidancePath)
 		}
-		config.LoadedGuidance = string(guidanceData)
-		log.Printf("✅ Loaded guidance from %s", guidancePath)
 	}
 	
 	agentConfig = &config

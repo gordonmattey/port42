@@ -22,7 +22,7 @@ $ git-haiku
 
 **2. AI-Assisted with Context (Conversational Creation)**
 ```bash
-$ port42 possess @ai-muse
+$ port42 swim @ai-muse
 > Create a command that analyzes log files and shows patterns
 ◊ Crystallizing your intention...
 [Created: log-analyzer → view-log-analyzer (auto-spawned)]
@@ -200,10 +200,10 @@ port42 ls /tools/ancestry/                  # Tools with parent chains
 
 ```bash
 # Start interactive AI session
-port42 possess @ai-muse         # Creative AI agent
-port42 possess @ai-engineer     # Technical implementation
-port42 possess @ai-analyst      # Data analysis & insights  
-port42 possess @ai-founder      # Business strategy
+port42 swim @ai-muse         # Creative AI agent
+port42 swim @ai-engineer     # Technical implementation
+port42 swim @ai-analyst      # Data analysis & insights  
+port42 swim @ai-founder      # Business strategy
 
 # View conversation memory
 port42 memory                   # List all sessions
@@ -406,7 +406,7 @@ port42 declare tool intelligent-processor --transforms process,analyze,output \
   --prompt "Create a sophisticated data processor that validates against the schema, follows industry standards, and includes error handling with detailed logging"
 
 # AI-driven conversation with context
-port42 possess @ai-engineer \
+port42 swim @ai-engineer \
   --ref file:./project-requirements.md \
   --ref p42:/commands/existing-codebase \
   "Help me design a microservice architecture for this project"
@@ -575,7 +575,7 @@ Port 42 can create two types of outputs from your AI conversations:
 #### Commands - Executable Tools
 ```bash
 # Create a command that becomes part of your system
-$ port42 possess @ai-engineer
+$ port42 swim @ai-engineer
 > Create a command that converts CSV files to beautiful markdown tables
 ✨ Crystallizing thought into reality...
 [Created: csv-to-markdown]
@@ -587,7 +587,7 @@ $ csv-to-markdown data.csv > report.md
 #### Artifacts - Documents, Configs, Scripts
 ```bash
 # Generate complex documents or configurations
-$ port42 possess @ai-muse
+$ port42 swim @ai-muse
 > Create a comprehensive README for my Python project with badges and examples
 📄 Generating artifact...
 [Created: /memory/cli-1234/artifacts/README.md]
@@ -729,7 +729,7 @@ export PORT42_DEV=1  # Enables debug logging
 - `main.go`: Entry point, port binding, signal handling
 - `server.go`: TCP server, session management
 - `protocol.go`: JSON protocol definitions
-- `possession.go`: AI integration (Claude API)
+- `swimming.go`: AI integration (Claude API)
 - `memory_store.go`: Session persistence
 - `forge.go`: Command generation logic
 
@@ -747,7 +747,7 @@ export PORT42_DEV=1  # Enables debug logging
 #### Adding a New AI Agent
 
 ```go
-// In daemon/possession.go
+// In daemon/swimming.go
 func getAgentPrompt(agent string) string {
     prompts := map[string]string{
         "@your-agent": `You are @your-agent, a specialized AI...
@@ -809,7 +809,7 @@ case "your_type":
 ./tests/test_tcp.sh                    # Basic connectivity
 ./tests/test_json_protocol.py          # Protocol compliance
 ./tests/test_daemon_structure.py       # Session management
-./tests/test_ai_possession.py          # AI integration
+./tests/test_ai_swimming.py          # AI integration
 ./tests/test_memory_persistence.py     # Persistence layer
 
 # Integration testing
@@ -853,7 +853,7 @@ ls -la ~/.port42/memory/sessions/$(date +%Y-%m-%d)/
 
 - **JSON Protocol**: Request/response communication
   - Clean type definitions in `protocol.go`
-  - Handlers for status, list, possess, memory, and end requests
+  - Handlers for status, list, swim, memory, and end requests
   - Error handling for invalid JSON
   - Uptime tracking and status reporting
 
@@ -865,7 +865,7 @@ ls -la ~/.port42/memory/sessions/$(date +%Y-%m-%d)/
   - Activity-based session lifecycle (no arbitrary TTL)
   - Tested with 10+ concurrent sessions
 
-- **AI Possession**: Real AI integration via Anthropic Claude
+- **AI Swimming**: Real AI integration via Anthropic Claude
   - Natural conversation flow with AI agents
   - Multiple personalities (@ai-muse, @ai-engineer, @ai-echo)
   - Session persistence across requests
