@@ -161,7 +161,7 @@ detect_mode() {
         print_info "Detected local repository installation"
     else
         INSTALL_MODE="remote"
-        print_info "Installing from remote source"
+        # Installing from remote source
     fi
 }
 
@@ -318,8 +318,8 @@ download_and_install_binaries() {
         binary_url="$versioned_url"  # Default to versioned URL
     fi
     
-    print_info "Downloading binaries for $platform..."
-    print_info "URL: $binary_url"
+    # Downloading binaries silently
+    # URL: $binary_url
     
     # Create temp directory
     local temp_dir=$(mktemp -d)
@@ -334,7 +334,7 @@ download_and_install_binaries() {
     fi
     
     # Extract binaries
-    print_info "Extracting binaries..."
+    # Extracting binaries
     # Try extraction with better error reporting
     local extract_result
     extract_result=$(tar -xzf "$temp_file" -C "$temp_dir" 2>&1)
@@ -386,14 +386,14 @@ install_from_local_binaries() {
         return 1
     fi
     
-    print_info "Installing from local binary file: $binary_file"
+    # Installing from local binary file
     
     # Create temp directory
     local temp_dir=$(mktemp -d)
     trap "rm -rf $temp_dir" EXIT
     
     # Extract binaries
-    print_info "Extracting binaries..."
+    # Extracting binaries
     # Try extraction with better error reporting
     local extract_result
     extract_result=$(tar -xzf "$binary_file" -C "$temp_dir" 2>&1)
@@ -444,7 +444,7 @@ download_binaries() {
         base_url="https://github.com/$REPO/releases/download/$VERSION"
     fi
     
-    print_info "Downloading pre-built binaries for $PLATFORM..."
+    # Downloading pre-built binaries
     
     # Create temp directory for downloads
     local temp_dir=$(mktemp -d)
@@ -455,19 +455,19 @@ download_binaries() {
     local cli_url="${base_url}/port42-${PLATFORM}"
     local agents_url="${base_url}/agents.json"
     
-    print_info "Downloading daemon..."
+    # Downloading daemon
     if ! download "$daemon_url" "$temp_dir/port42d" 2>/dev/null; then
         print_warning "Pre-built binaries not available for $PLATFORM"
         return 1
     fi
     
-    print_info "Downloading CLI..."
+    # Downloading CLI
     if ! download "$cli_url" "$temp_dir/port42" 2>/dev/null; then
         print_warning "Failed to download CLI"
         return 1
     fi
     
-    print_info "Downloading configuration..."
+    # Downloading configuration
     if ! download "$agents_url" "$temp_dir/agents.json" 2>/dev/null; then
         print_warning "Failed to download agents.json"
         return 1
@@ -488,7 +488,7 @@ download_binaries() {
 
 # Create Port 42 home directory structure
 create_directories() {
-    print_info "Creating Port 42 directories..."
+    # Creating Port 42 directories
     
     # Check if directory exists and is owned by root
     if [ -d "$PORT42_HOME" ] && [ "$(stat -f %u "$PORT42_HOME" 2>/dev/null || stat -c %u "$PORT42_HOME" 2>/dev/null)" = "0" ]; then
@@ -529,7 +529,7 @@ fi
 EOF
     chmod +x "$PORT42_HOME/activate.sh"
     
-    print_success "Directories created at $PORT42_HOME"
+    # Directories created
 }
 
 # Update PATH in shell configuration
@@ -575,15 +575,14 @@ update_path() {
             echo "$path_additions" >> "$shell_rc"
             print_success "Updated PATH in $shell_rc"
             SAVED_TO_PROFILE="$shell_rc"
-        else
-            print_info "PATH already configured"
         fi
+        # else PATH already configured
     fi
 }
 
 # Install binaries
 install_binaries() {
-    print_info "Installing binaries to $INSTALL_DIR..."
+    # Installing binaries
     
     # Check if binaries exist
     if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
@@ -599,14 +598,14 @@ install_binaries() {
     
     # Create backup of existing binaries if they exist
     if [ -f "$INSTALL_DIR/port42" ] || [ -f "$INSTALL_DIR/port42d" ]; then
-        print_info "Backing up existing binaries..."
+        # Backing up existing binaries
         mkdir -p "$PORT42_HOME/backup"
         [ -f "$INSTALL_DIR/port42" ] && cp "$INSTALL_DIR/port42" "$PORT42_HOME/backup/port42.bak" 2>/dev/null || true
         [ -f "$INSTALL_DIR/port42d" ] && cp "$INSTALL_DIR/port42d" "$PORT42_HOME/backup/port42d.bak" 2>/dev/null || true
     fi
     
     # Use atomic move operations to prevent corruption
-    print_info "Installing new binaries atomically..."
+    # Installing binaries atomically
     
     # Copy to temp location first
     cp "$SCRIPT_DIR/bin/port42d" "$INSTALL_DIR/port42d.tmp"
@@ -619,23 +618,21 @@ install_binaries() {
     
     # Copy agents.json and guidance to home directory
     cp "$SCRIPT_DIR/daemon/agents.json" "$PORT42_HOME/"
-    print_info "Agent configuration installed to $PORT42_HOME/agents.json"
+    # Agent configuration installed
     
     # Copy agent_guidance.md if it exists
     if [ -f "$SCRIPT_DIR/daemon/agent_guidance.md" ]; then
         cp "$SCRIPT_DIR/daemon/agent_guidance.md" "$PORT42_HOME/"
-        print_info "Agent guidance installed to $PORT42_HOME/agent_guidance.md"
+        # Agent guidance installed
     fi
-    
-    print_success "Binaries installed to $INSTALL_DIR"
     
     # Verify installation
     if [ -x "$INSTALL_DIR/port42" ] && [ -x "$INSTALL_DIR/port42d" ]; then
-        print_success "Installation verified successfully"
+        print_success "✅ Port42 installed"
     else
         print_error "Installation verification failed - binaries may be corrupted"
         if [ -f "$PORT42_HOME/backup/port42.bak" ]; then
-            print_info "Restoring from backup..."
+            # Restoring from backup
             cp "$PORT42_HOME/backup/port42.bak" "$INSTALL_DIR/port42" 2>/dev/null || true
             cp "$PORT42_HOME/backup/port42d.bak" "$INSTALL_DIR/port42d" 2>/dev/null || true
             chmod +x "$INSTALL_DIR/port42" "$INSTALL_DIR/port42d"
@@ -660,7 +657,7 @@ install_claude_integration() {
         p42_instructions="./P42CLAUDE.md"
     else
         # Try to download from GitHub as fallback
-        print_info "Downloading Claude Code integration file..."
+        # Downloading Claude Code integration file
         local temp_file=$(mktemp)
         if download "https://raw.githubusercontent.com/$REPO/main/P42CLAUDE.md" "$temp_file" 2>/dev/null; then
             p42_instructions="$temp_file"
@@ -708,11 +705,7 @@ install_claude_integration() {
         print_info "Backup saved to ${claude_config}.backup.*"
     else
         # No existing integration - add it
-        if [ -f "$claude_config" ]; then
-            print_info "Appending Port 42 integration to existing Claude config"
-        else
-            print_info "Creating new Claude config with Port 42 integration"
-        fi
+        # Will either append to existing or create new Claude config
         
         # Just append the content
         cat "$p42_instructions" >> "$claude_config"
@@ -880,9 +873,9 @@ setup_claude_code() {
     if [ "$claude_installed" = true ]; then
         install_claude_integration
         configure_claude_settings
-        print_success "Claude Code configured"
+        print_success "✅ Claude Code configured"
     else
-        print_success "API key configured"
+        print_success "✅ Configuration complete"
     fi
 }
 
@@ -1175,7 +1168,7 @@ main() {
                 ;;
             --version=*)
                 VERSION="${1#*=}"
-                print_info "Installing version: $VERSION"
+                # Installing version: $VERSION
                 shift
                 ;;
             *)
@@ -1283,13 +1276,13 @@ main() {
                     ;;
                 3)
                     if [ "$local_release_available" = true ]; then
-                        print_info "Installing from local release package..."
+                        # Installing from local release package
                         if ! install_from_local_binaries "$SCRIPT_DIR/releases/port42-${PLATFORM}.tar.gz"; then
                             print_info "Failed to install from release package, building instead..."
                             build_local
                         fi
                     elif [ "$binary_available" = true ]; then
-                        print_info "Downloading pre-built binaries from GitHub..."
+                        # Downloading pre-built binaries from GitHub
                         if ! download_and_install_binaries "$PLATFORM"; then
                             print_info "Download failed, building from local source..."
                             build_local
@@ -1331,7 +1324,7 @@ main() {
             case "$install_choice" in
                 1)
                     if [ "$binary_available" = true ]; then
-                        print_info "Installing pre-built binaries..."
+                        # Installing pre-built binaries
                         if ! download_and_install_binaries "$PLATFORM"; then
                             print_info "Binary download failed, falling back to source build..."
                             BUILD_FROM_SOURCE=true
@@ -1352,7 +1345,7 @@ main() {
                 *)
                     # Default to binaries if available
                     if [ "$binary_available" = true ]; then
-                        print_info "Installing pre-built binaries..."
+                        # Installing pre-built binaries
                         if ! download_and_install_binaries "$PLATFORM"; then
                             print_info "Binary download failed, falling back to source build..."
                             BUILD_FROM_SOURCE=true
