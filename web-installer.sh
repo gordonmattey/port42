@@ -3,16 +3,20 @@
 # This script is served at https://port42.ai/install
 set -e
 
-# When piped through curl, we need to handle stdin differently
-# Save the script and re-execute it with proper terminal access
-if [ -z "${BASH_SOURCE[0]}" ] || [ "${BASH_SOURCE[0]}" = "-" ]; then
-    # We're being piped - save and re-run
-    TEMP_SCRIPT=$(mktemp /tmp/port42-installer.XXXXXX)
+# If we're being piped, save to temp and re-execute
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+    TEMP_SCRIPT=$(mktemp /tmp/port42-web-installer.XXXXXX)
+    # Read all of stdin (the piped script)
     cat > "$TEMP_SCRIPT"
     chmod +x "$TEMP_SCRIPT"
-    bash "$TEMP_SCRIPT"
-    rm -f "$TEMP_SCRIPT"
-    exit $?
+    # Re-execute the saved script with terminal access
+    # This allows the script to interact with the user
+    exec </dev/tty >/dev/tty 2>&1 bash "$TEMP_SCRIPT" "$@"
+fi
+
+# Clean up temp file on exit if we're the re-executed version
+if [[ "$0" == /tmp/port42-web-installer.* ]]; then
+    trap "rm -f '$0'" EXIT
 fi
 
 echo "🐬 Port42 Installer"
