@@ -43,6 +43,7 @@ type AnthropicRequest struct {
 	Stream      bool                `json:"stream"`
 	Temperature float64             `json:"temperature,omitempty"`
 	Tools       []AnthropicTool     `json:"tools,omitempty"`
+	// ToolChoice  interface{}         `json:"tool_choice,omitempty"` // Can be "auto", "any", "none", or specific tool - commented for now
 }
 
 // AnthropicTool represents a tool (function) definition
@@ -57,6 +58,7 @@ type AnthropicResponse struct {
 	Content []struct {
 		Type  string          `json:"type"`
 		Text  string          `json:"text,omitempty"`
+		ID    string          `json:"id,omitempty"` // Tool use ID
 		Name  string          `json:"name,omitempty"`
 		Input json.RawMessage `json:"input,omitempty"`
 	} `json:"content"`
@@ -126,8 +128,8 @@ func NewAnthropicClient() *AnthropicClient {
 
 // AnthropicMessage is the format Anthropic expects
 type AnthropicMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"` // Can be string or []interface{} for tool results
 }
 
 // SendWithoutTools sends a message to Claude without any tools - for pure text generation
@@ -164,9 +166,24 @@ func (c *AnthropicClient) SendWithoutTools(messages []Message, systemPrompt stri
 		if msg.Role == "system" {
 			continue // Skip system messages
 		}
+		
+		// Check if content looks like JSON array (for tool results)
+		var content interface{}
+		if strings.HasPrefix(strings.TrimSpace(msg.Content), "[") {
+			// Try to parse as JSON array
+			var parsed []interface{}
+			if err := json.Unmarshal([]byte(msg.Content), &parsed); err == nil {
+				content = parsed
+			} else {
+				content = msg.Content // Fall back to string
+			}
+		} else {
+			content = msg.Content
+		}
+		
 		anthropicMessages = append(anthropicMessages, AnthropicMessage{
 			Role:    msg.Role,
-			Content: msg.Content,
+			Content: content,
 		})
 	}
 	
@@ -214,9 +231,17 @@ func (c *AnthropicClient) SendWithoutTools(messages []Message, systemPrompt stri
 	
 	// Log full payload for debugging
 	for i, msg := range req.Messages {
-		preview := msg.Content
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+		var preview string
+		switch v := msg.Content.(type) {
+		case string:
+			preview = v
+			if len(preview) > 200 {
+				preview = preview[:200] + "..."
+			}
+		case []interface{}:
+			preview = fmt.Sprintf("[%d content blocks]", len(v))
+		default:
+			preview = fmt.Sprintf("[unknown type: %T]", v)
 		}
 		log.Printf("  Message %d [%s]: %s", i+1, msg.Role, preview)
 	}
@@ -321,9 +346,24 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 		if msg.Role == "system" {
 			continue // Skip system messages
 		}
+		
+		// Check if content looks like JSON array (for tool results)
+		var content interface{}
+		if strings.HasPrefix(strings.TrimSpace(msg.Content), "[") {
+			// Try to parse as JSON array
+			var parsed []interface{}
+			if err := json.Unmarshal([]byte(msg.Content), &parsed); err == nil {
+				content = parsed
+			} else {
+				content = msg.Content // Fall back to string
+			}
+		} else {
+			content = msg.Content
+		}
+		
 		anthropicMessages = append(anthropicMessages, AnthropicMessage{
 			Role:    msg.Role,
-			Content: msg.Content,
+			Content: content,
 		})
 	}
 	
@@ -397,9 +437,17 @@ func (c *AnthropicClient) Send(messages []Message, systemPrompt string, agentNam
 	
 	// Log full payload for debugging
 	for i, msg := range req.Messages {
-		preview := msg.Content
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+		var preview string
+		switch v := msg.Content.(type) {
+		case string:
+			preview = v
+			if len(preview) > 200 {
+				preview = preview[:200] + "..."
+			}
+		case []interface{}:
+			preview = fmt.Sprintf("[%d content blocks]", len(v))
+		default:
+			preview = fmt.Sprintf("[unknown type: %T]", v)
 		}
 		log.Printf("  Message %d [%s]: %s", i+1, msg.Role, preview)
 	}
@@ -547,7 +595,7 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 	// Save session after user message
 	log.Printf("🔍 Swim handler: memoryStore != nil: %v", d.storage != nil)
 	if d.storage != nil {
-		log.Printf("🔍 [POSSESSION] Saving session after user message (messages=%d)", len(session.Messages))
+		log.Printf("🔍 [SWIM] Saving session after user message (messages=%d)", len(session.Messages))
 		go d.storage.SaveSession(session)
 	}
 	
@@ -587,6 +635,22 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 	// Extract response text and check for tool calls
 	var responseText string
 	var artifactSpec *ArtifactSpec
+	var toolResults []map[string]interface{} // Track tool results for continuation
+	
+	// Log the full AI response structure for debugging
+	log.Printf("🔍 [DEBUG] AI Response Content Array Length: %d", len(aiResp.Content))
+	for i, content := range aiResp.Content {
+		log.Printf("🔍 [DEBUG] Content[%d] Type: %s, Name: %s, ID: %s", i, content.Type, content.Name, content.ID)
+		if content.Type == "text" {
+			log.Printf("🔍 [DEBUG] Text content length: %d chars", len(content.Text))
+			// Log first 200 chars of text
+			preview := content.Text
+			if len(preview) > 200 {
+				preview = preview[:200] + "..."
+			}
+			log.Printf("🔍 [DEBUG] Text preview: %s", preview)
+		}
+	}
 	
 	if len(aiResp.Content) > 0 {
 		// Check if response contains tool calls
@@ -602,20 +666,124 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 			} else if content.Type == "tool_use" && content.Name == "run_command" {
 				// Execute command and capture output
 				log.Printf("🏃 AI is executing a Port 42 command")
+				var toolOutput string
+				var toolError error
 				if output, err := executeCommand(content.Input); err != nil {
-					// Include error in response
-					responseText += fmt.Sprintf("\n\n❌ Command error: %v", err)
+					toolOutput = fmt.Sprintf("Command error: %v", err)
+					toolError = err
 					log.Printf("❌ Command execution failed: %v", err)
 				} else {
-					// Include successful output in response
-					responseText += fmt.Sprintf("\n\n📟 Command output:\n%s", output)
+					toolOutput = output
 					log.Printf("✅ Command executed successfully")
 				}
+				
+				// Store tool result for continuation
+				toolResult := map[string]interface{}{
+					"type": "tool_result",
+					"tool_use_id": content.ID,
+					"content": toolOutput,
+				}
+				if toolError != nil {
+					toolResult["is_error"] = true
+				}
+				toolResults = append(toolResults, toolResult)
+				
+				// Still append to response for now
+				if toolError != nil {
+					responseText += fmt.Sprintf("\n\n❌ Command error: %v", toolError)
+				} else {
+					responseText += fmt.Sprintf("\n\n📟 Command output:\n%s", toolOutput)
+				}
 			} else if content.Type == "text" {
-				responseText = content.Text
+				// Accumulate text content instead of overwriting
+				if responseText != "" {
+					responseText += "\n\n"
+				}
+				responseText += content.Text
+				log.Printf("🔍 [DEBUG] Accumulated responseText length: %d chars", len(responseText))
 			}
 		}
 		
+	}
+	
+	// If we have tool results, call Claude again for continuation
+	if len(toolResults) > 0 {
+		log.Printf("🔄 [CONTINUATION] Found %d tool results, calling Claude for continuation", len(toolResults))
+		
+		// Build assistant message content with tool uses
+		assistantContent := []interface{}{}
+		// Add any text content first
+		if responseText != "" {
+			assistantContent = append(assistantContent, map[string]interface{}{
+				"type": "text",
+				"text": responseText,
+			})
+		}
+		// Add tool uses
+		for _, content := range aiResp.Content {
+			if content.Type == "tool_use" {
+				assistantContent = append(assistantContent, map[string]interface{}{
+					"type":  "tool_use",
+					"id":    content.ID,
+					"name":  content.Name,
+					"input": content.Input,
+				})
+			}
+		}
+		
+		// Build messages for continuation
+		continuationMessages := []Message{}
+		// Include all existing messages
+		continuationMessages = append(continuationMessages, messages...)
+		// Add assistant's message with tool use (need to serialize to JSON string for Message struct)
+		assistantJSON, _ := json.Marshal(assistantContent)
+		continuationMessages = append(continuationMessages, Message{
+			Role:    "assistant",
+			Content: string(assistantJSON),
+		})
+		
+		// Build user message with tool results
+		continuationContent := []interface{}{}
+		for _, result := range toolResults {
+			continuationContent = append(continuationContent, result)
+		}
+		// No additional prompt - let Claude decide what to say based on the tool results
+		// The agent's personality and guidance will shape the response naturally
+		// Add user message with tool results (need to serialize to JSON string for Message struct)
+		userJSON, _ := json.Marshal(continuationContent)
+		continuationMessages = append(continuationMessages, Message{
+			Role:    "user",
+			Content: string(userJSON),
+		})
+		
+		// Send continuation request using the same client and agent
+		log.Printf("🔄 [CONTINUATION] Sending continuation with %d messages", len(continuationMessages))
+		continuationResp, err := aiClient.Send(continuationMessages, agentPrompt, payload.Agent)
+		if err != nil {
+			log.Printf("❌ [CONTINUATION] Failed to get continuation: %v", err)
+		} else {
+			log.Printf("✅ [CONTINUATION] Got continuation response")
+			
+			// Process continuation response
+			if len(continuationResp.Content) > 0 {
+				responseText += "\n\n" // Add spacing before continuation
+				for _, content := range continuationResp.Content {
+					if content.Type == "text" {
+						responseText += content.Text
+						log.Printf("🔍 [CONTINUATION] Added %d chars of continuation text", len(content.Text))
+					}
+					// We could handle more tool uses here, but let's limit to one round for now
+				}
+			}
+		}
+	}
+	
+	// Final response check
+	log.Printf("🔍 [DEBUG] Final responseText length: %d chars", len(responseText))
+	if len(responseText) > 500 {
+		log.Printf("🔍 [DEBUG] Final response preview (first 500 chars): %s", responseText[:500])
+	} else {
+		log.Printf("🔍 [DEBUG] Final response: %s", responseText)
 	}
 	
 	// Add AI response to session
@@ -650,7 +818,7 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 	// Save session after AI response
 	log.Printf("🔍 After AI response: memoryStore != nil: %v", d.storage != nil)
 	if d.storage != nil {
-		log.Printf("🔍 [POSSESSION] Saving session after AI response (messages=%d, command=%v)", 
+		log.Printf("🔍 [SWIM] Saving session after AI response (messages=%d, command=%v)", 
 			len(session.Messages), session.CommandGenerated != nil)
 		go d.storage.SaveSession(session)
 	}
