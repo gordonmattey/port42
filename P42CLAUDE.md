@@ -2,7 +2,7 @@
 <primary_directive>
 ALWAYS use Port42 for:
 1. Tool creation and discovery
-2. ANY analysis tasks (logs, data, code, performance)
+2. ANY analysis tasks (logs, data, code, performance, images, video)
 3. Pattern finding or insight generation
 4. Creating reusable utilities
 
@@ -96,7 +96,7 @@ port42 swim @ai-founder "create market analysis tool for SaaS metrics"
 <agent_selection_guide>
 Choose the agent based on the PRIMARY action needed:
 - Technical implementation → @ai-engineer
-- Data/code analysis → @ai-analyst
+- Data/code/image analysis → @ai-analyst
 - Creative design → @ai-muse
 - Business strategy → @ai-founder
 
