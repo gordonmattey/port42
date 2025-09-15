@@ -48,10 +48,24 @@ const (
 
 // SwimPayload for swim requests
 type SwimPayload struct {
-	Agent         string   `json:"agent"`
-	Message       string   `json:"message"`
-	SessionID     string   `json:"session_id,omitempty"`
-	MemoryContext []string `json:"memory_context,omitempty"`
+	Agent            string            `json:"agent"`
+	Message          string            `json:"message"`
+	SessionID        string            `json:"session_id,omitempty"`
+	MemoryContext    []string          `json:"memory_context,omitempty"`
+	ApprovalResponse *ApprovalResponse `json:"approval_response,omitempty"`
+}
+
+// ApprovalRequest sent from daemon to CLI when bash command needs approval
+type ApprovalRequest struct {
+	Command   string   `json:"command"`     // "bash"
+	Args      []string `json:"args"`        // ["-c", "..."]
+	RequestID string   `json:"request_id"`  // Unique ID for this request
+}
+
+// ApprovalResponse sent from CLI to daemon with user's decision
+type ApprovalResponse struct {
+	RequestID string `json:"request_id"`
+	Approved  bool   `json:"approved"`
 }
 
 // StatusData for status responses

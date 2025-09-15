@@ -16,6 +16,34 @@ import (
 	"time"
 )
 
+// PendingApproval tracks a bash command waiting for user approval
+type PendingApproval struct {
+	RequestID  string
+	Command    string
+	Args       []string
+	SessionID  string
+	ResultChan chan ApprovalResult
+}
+
+// ApprovalResult contains the user's decision
+type ApprovalResult struct {
+	Approved bool
+}
+
+// Global map to track pending approvals
+var pendingApprovals = sync.Map{} // requestID -> *PendingApproval
+
+// ApprovalNeededError is returned when bash command needs approval
+type ApprovalNeededError struct {
+	RequestID string
+	Command   string
+	Args      []string
+}
+
+func (e *ApprovalNeededError) Error() string {
+	return fmt.Sprintf("approval needed for: %s %s", e.Command, strings.Join(e.Args, " "))
+}
+
 // Helper to get keys from map[string]interface{}
 func getMapKeys(m map[string]interface{}) []string {
 	keys := make([]string, 0, len(m))
@@ -528,6 +556,79 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 		return resp
 	}
 	
+	// Check if this is an approval response
+	if payload.ApprovalResponse != nil {
+		log.Printf("🔑 Received approval response for request: %s", payload.ApprovalResponse.RequestID)
+		
+		// Look up pending approval
+		if pending, ok := pendingApprovals.Load(payload.ApprovalResponse.RequestID); ok {
+			p := pending.(*PendingApproval)
+			
+			// Send result to waiting goroutine (if any)
+			select {
+			case p.ResultChan <- ApprovalResult{Approved: payload.ApprovalResponse.Approved}:
+				log.Printf("✅ Sent approval result to waiting command")
+			default:
+				log.Printf("⚠️ No waiting command for approval")
+			}
+			
+			// Remove from pending
+			pendingApprovals.Delete(payload.ApprovalResponse.RequestID)
+			
+			// If approved, execute the bash command and return result
+			if payload.ApprovalResponse.Approved {
+				log.Printf("✅ Bash command approved, executing: %s %s", p.Command, strings.Join(p.Args, " "))
+				
+				// Execute the bash command
+				cmdPath, err := exec.LookPath(p.Command)
+				if err != nil {
+					resp.SetError(fmt.Sprintf("bash command not found: %v", err))
+					return resp
+				}
+				
+				// Create command with timeout
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				
+				cmd := exec.CommandContext(ctx, cmdPath, p.Args...)
+				cmd.Env = os.Environ()
+				
+				// Capture output
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					data := map[string]interface{}{
+						"message":    fmt.Sprintf("❌ Bash command failed: %v\nOutput: %s", err, string(output)),
+						"agent":      payload.Agent,
+						"session_id": p.SessionID,
+					}
+					resp.SetData(data)
+					return resp
+				}
+				
+				// Return successful output
+				data := map[string]interface{}{
+					"message":    fmt.Sprintf("📟 Bash command output:\n%s", string(output)),
+					"agent":      payload.Agent,
+					"session_id": p.SessionID,
+				}
+				resp.SetData(data)
+				return resp
+			} else {
+				// Command was denied
+				data := map[string]interface{}{
+					"message":    "❌ Bash command denied by user",
+					"agent":      payload.Agent,
+					"session_id": payload.SessionID,
+				}
+				resp.SetData(data)
+				return resp
+			}
+		} else {
+			resp.SetError(fmt.Sprintf("No pending approval found for request: %s", payload.ApprovalResponse.RequestID))
+			return resp
+		}
+	}
+	
 	// Get or create session - use session_id from payload if provided, otherwise use request ID
 	sessionID := req.ID
 	if payload.SessionID != "" {
@@ -668,7 +769,37 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 				log.Printf("🏃 AI is executing a Port 42 command")
 				var toolOutput string
 				var toolError error
-				if output, err := executeCommand(content.Input); err != nil {
+				if output, err := executeCommand(content.Input, session.ID); err != nil {
+					// Check if this is an approval needed error
+					if approvalErr, ok := err.(*ApprovalNeededError); ok {
+						// Need to return approval request to CLI
+						log.Printf("🔒 Bash command needs approval: %s", approvalErr.Error())
+						
+						// Create pending approval
+						pending := &PendingApproval{
+							RequestID:  approvalErr.RequestID,
+							Command:    approvalErr.Command,
+							Args:       approvalErr.Args,
+							SessionID:  session.ID,
+							ResultChan: make(chan ApprovalResult, 1),
+						}
+						pendingApprovals.Store(approvalErr.RequestID, pending)
+						
+						// Return approval request in response
+						data := map[string]interface{}{
+							"message":    responseText + "\n\n🔒 AI requests permission to execute bash command",
+							"agent":      payload.Agent,
+							"session_id": session.ID,
+							"approval_needed": &ApprovalRequest{
+								Command:   approvalErr.Command,
+								Args:      approvalErr.Args,
+								RequestID: approvalErr.RequestID,
+							},
+						}
+						resp.SetData(data)
+						return resp
+					}
+					
 					toolOutput = fmt.Sprintf("Command error: %v", err)
 					toolError = err
 					log.Printf("❌ Command execution failed: %v", err)
@@ -1085,7 +1216,7 @@ func extractArtifactSpecFromToolCall(toolInput json.RawMessage) (*ArtifactSpec, 
 }
 
 // executeCommand safely executes a Port 42 command
-func executeCommand(input json.RawMessage) (string, error) {
+func executeCommand(input json.RawMessage, sessionID string) (string, error) {
 	// DEBUG: Log the raw JSON input to see what Claude is sending
 	log.Printf("🔍 [DEBUG] executeCommand received JSON: %s", string(input))
 	
@@ -1131,6 +1262,19 @@ func executeCommand(input json.RawMessage) (string, error) {
 	
 	// Check if it's an allowed system command
 	if allowedSystemCommands[params.Command] {
+		// Special handling for bash - needs approval
+		if params.Command == "bash" {
+			// Generate unique request ID
+			requestID := fmt.Sprintf("bash-%d", time.Now().UnixNano())
+			
+			// Return special error that indicates approval is needed
+			return "", &ApprovalNeededError{
+				RequestID: requestID,
+				Command:   params.Command,
+				Args:      params.Args,
+			}
+		}
+		
 		// Look for the system command in PATH
 		systemPath, err := exec.LookPath(params.Command)
 		if err != nil {
