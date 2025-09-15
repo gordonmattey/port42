@@ -1108,10 +1108,40 @@ func executeCommand(input json.RawMessage) (string, error) {
 		return executePort42Command(params.Args, params.Stdin)
 	}
 	
-	// Security: verify command exists in Port 42 commands directory
-	cmdPath := filepath.Join(os.Getenv("HOME"), ".port42/commands", params.Command)
-	if _, err := os.Stat(cmdPath); err != nil {
-		return "", fmt.Errorf("command not found: %s", params.Command)
+	// Whitelist of allowed system commands for AI to use
+	allowedSystemCommands := map[string]bool{
+		"cat":   true,
+		"ls":    true,
+		"grep":  true,
+		"head":  true,
+		"tail":  true,
+		"wc":    true,
+		"sort":  true,
+		"uniq":  true,
+		"find":  true,
+		"echo":  true,
+		"pwd":   true,
+		"which": true,
+		"file":  true,
+		"stat":  true,
+	}
+	
+	var cmdPath string
+	
+	// Check if it's an allowed system command
+	if allowedSystemCommands[params.Command] {
+		// Look for the system command in PATH
+		systemPath, err := exec.LookPath(params.Command)
+		if err != nil {
+			return "", fmt.Errorf("system command not found: %s", params.Command)
+		}
+		cmdPath = systemPath
+	} else {
+		// Security: verify command exists in Port 42 commands directory
+		cmdPath = filepath.Join(os.Getenv("HOME"), ".port42/commands", params.Command)
+		if _, err := os.Stat(cmdPath); err != nil {
+			return "", fmt.Errorf("command not found: %s", params.Command)
+		}
 	}
 	
 	// Create command with timeout
@@ -1133,6 +1163,9 @@ func executeCommand(input json.RawMessage) (string, error) {
 	}
 	
 	cmd := exec.CommandContext(ctx, cmdPath, expandedArgs...)
+	
+	// Set up environment with proper PATH
+	cmd.Env = os.Environ() // Inherit current environment including PATH
 	
 	// Set up stdin if provided
 	if params.Stdin != "" {
@@ -1195,6 +1228,9 @@ func executePort42Command(args []string, stdin string) (string, error) {
 	}
 	
 	cmd := exec.CommandContext(ctx, cliPath, expandedArgs...)
+	
+	// Set up environment with proper PATH
+	cmd.Env = os.Environ() // Inherit current environment including PATH
 	
 	// Set up stdin if provided
 	if stdin != "" {
