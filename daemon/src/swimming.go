@@ -1110,7 +1110,7 @@ func executeCommand(input json.RawMessage) (string, error) {
 	
 	// Whitelist of allowed system commands for AI to use
 	allowedSystemCommands := map[string]bool{
-		"bash":  true,
+		"bash":  true, // Requires PORT42_ALLOW_BASH=true
 		"cat":   true,
 		"ls":    true,
 		"grep":  true,
@@ -1131,6 +1131,18 @@ func executeCommand(input json.RawMessage) (string, error) {
 	
 	// Check if it's an allowed system command
 	if allowedSystemCommands[params.Command] {
+		// Special handling for bash - check if it's enabled
+		if params.Command == "bash" {
+			// Check environment variable to enable bash
+			if os.Getenv("PORT42_ALLOW_BASH") != "true" {
+				// Provide helpful error message
+				return "", fmt.Errorf("bash access denied. AI agents cannot execute arbitrary bash commands for security.\n" +
+					"If you trust this operation, restart daemon with: PORT42_ALLOW_BASH=true port42d\n" +
+					"Command attempted: bash %s", strings.Join(params.Args, " "))
+			}
+			log.Printf("⚠️  [BASH] AI executing bash command: %s", strings.Join(params.Args, " "))
+		}
+		
 		// Look for the system command in PATH
 		systemPath, err := exec.LookPath(params.Command)
 		if err != nil {
