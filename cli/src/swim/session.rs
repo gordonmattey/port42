@@ -1,12 +1,13 @@
 use crate::client::DaemonClient;
 use crate::swim::display::SwimDisplay;
 use crate::swim::{SimpleDisplay, AnimatedDisplay};
-use crate::protocol::{RequestBuilder, ResponseParser, swim::{SwimRequest, SwimResponse}};
+use crate::protocol::{RequestBuilder, ResponseParser, swim::{SwimRequest, SwimResponse, ApprovalResponse}};
 use crate::common::{generate_id, errors::Port42Error};
 use crate::display::{OutputFormat, Displayable};
 use crate::ui::WaveSpinner;
 use anyhow::{Result, anyhow};
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::io::{self, Write};
 use colored::*;
 
 pub struct SessionHandler {
@@ -45,6 +46,7 @@ impl SessionHandler {
             message: message.to_string(),
             memory_context,
             references,
+            approval_response: None,
         };
         
         let request_id = generate_id();
@@ -85,7 +87,71 @@ impl SessionHandler {
         
         // Parse response using protocol trait
         let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
-        let swim_response = SwimResponse::parse_response(&data)?;
+        let mut swim_response = SwimResponse::parse_response(&data)?;
+        
+        // Check if approval is needed
+        if let Some(approval_req) = &swim_response.approval_needed {
+            // Format the command for display
+            let cmd_display = format!("bash -c \"{}\"", approval_req.args.join(" "));
+            
+            // Show approval prompt
+            println!("\n{}", "=".repeat(60).bright_black());
+            println!("{} {}", "🔒".bright_yellow(), "AI REQUESTS BASH ACCESS".bold());
+            println!("{}", "-".repeat(60).bright_black());
+            println!("Command: {}", cmd_display.bright_cyan());
+            println!("{}", "-".repeat(60).bright_black());
+            println!("{} {}", "⚠️".bright_red(), "Bash commands have full system access".yellow());
+            println!("{}", "=".repeat(60).bright_black());
+            print!("\nApprove? [y/N]: ");
+            io::stdout().flush()?;
+            
+            // Read user input
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            let approved = input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes";
+            
+            if approved {
+                println!("{} Bash command approved\n", "✅".green());
+            } else {
+                println!("{} Bash command denied\n", "❌".red());
+            }
+            
+            // Send approval response
+            let approval_response = ApprovalResponse {
+                request_id: approval_req.request_id.clone(),
+                approved,
+            };
+            
+            // Build new request with approval
+            let approval_req = SwimRequest {
+                agent: agent.to_string(),
+                message: String::new(), // Empty message for continuation
+                memory_context: None,
+                references: None,
+                approval_response: Some(approval_response),
+            };
+            
+            let request_id = generate_id();
+            let mut request = approval_req.build_request(request_id)?;
+            
+            // Add session_id to payload
+            if let Some(obj) = request.payload.as_object_mut() {
+                obj.insert("session_id".to_string(), serde_json::Value::String(session_id.to_string()));
+            }
+            
+            // Send approval and get new response
+            let response = self.client.request(request)?;
+            
+            if !response.success {
+                let error = response.error.unwrap_or_else(|| "Unknown error".to_string());
+                self.display.show_error(&error);
+                return Err(anyhow!(error));
+            }
+            
+            // Parse the new response
+            let data = response.data.ok_or_else(|| anyhow!("No data in response"))?;
+            swim_response = SwimResponse::parse_response(&data)?;
+        }
         
         // Display results based on output format
         match self.output_format {

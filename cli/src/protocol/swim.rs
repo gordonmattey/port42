@@ -7,6 +7,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use colored::*;
 
+// Approval types for bash commands
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ApprovalRequest {
+    pub command: String,
+    pub args: Vec<String>,
+    pub request_id: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ApprovalResponse {
+    pub request_id: String,
+    pub approved: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct SwimRequest {
     pub agent: String,
@@ -15,6 +29,8 @@ pub struct SwimRequest {
     pub memory_context: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub references: Option<Vec<Reference>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_response: Option<ApprovalResponse>,
 }
 
 impl RequestBuilder for SwimRequest {
@@ -27,6 +43,11 @@ impl RequestBuilder for SwimRequest {
         // Add memory context if present
         if let Some(ref context) = self.memory_context {
             payload["memory_context"] = json!(context);
+        }
+        
+        // Add approval response if present
+        if let Some(ref approval) = self.approval_response {
+            payload["approval_response"] = json!(approval);
         }
         
         Ok(DaemonRequest {
@@ -51,6 +72,7 @@ pub struct SwimResponse {
     #[serde(default)]
     pub artifact_generated: bool,
     pub artifact_spec: Option<ArtifactSpec>,
+    pub approval_needed: Option<ApprovalRequest>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -112,6 +134,9 @@ impl ResponseParser for SwimResponse {
             None
         };
         
+        let approval_needed = data.get("approval_needed")
+            .and_then(|approval| serde_json::from_value(approval.clone()).ok());
+        
         Ok(SwimResponse {
             message,
             session_id,
@@ -120,6 +145,7 @@ impl ResponseParser for SwimResponse {
             command_spec,
             artifact_generated,
             artifact_spec,
+            approval_needed,
         })
     }
 }
