@@ -1110,6 +1110,7 @@ func executeCommand(input json.RawMessage) (string, error) {
 	
 	// Whitelist of allowed system commands for AI to use
 	allowedSystemCommands := map[string]bool{
+		"bash":  true,
 		"cat":   true,
 		"ls":    true,
 		"grep":  true,
