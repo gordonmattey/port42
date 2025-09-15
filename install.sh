@@ -53,7 +53,7 @@ print_section_header() {
     local color="$2"
     echo
     print_section_divider "$color"
-    echo -e "${BOLD}${title}${NC}"
+    echo -e "${color}${BOLD}${title}${NC}"
     echo
 }
 
@@ -264,7 +264,7 @@ download() {
 
 # Build from local repository
 build_local() {
-    print_section_header "🔨 Building Port42" "$CYAN"
+    print_section_header "🔨 Building Port42" "$MAGENTA"
     
     if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
         print_error "build.sh not found. Are you in the Port 42 repository?"
@@ -599,7 +599,7 @@ update_path() {
 
 # Install binaries
 install_binaries() {
-    print_section_header "📦 Installing Port42" "$BLUE"
+    print_section_header "📦 Installing Port42" "$MAGENTA"
     
     # Check if binaries exist
     if [ ! -f "$SCRIPT_DIR/bin/port42d" ] || [ ! -f "$SCRIPT_DIR/bin/port42" ]; then
@@ -749,10 +749,18 @@ configure_claude_settings() {
     echo "  • Allow Port42 commands without approval prompts"
     echo "  • Set appropriate timeout values for long-running operations"
     echo
-    read -p "$(echo -e ${BOLD}"Update Claude Code settings? (y/n): "${NC})" -n 1 -r
+    echo -e "${BOLD}Options:${NC}"
+    echo "  1) Update Claude Code settings (recommended)"
+    echo "  2) Skip configuration"
     echo
+    read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" -r
     
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    # Default to 1 if empty
+    if [[ -z "$REPLY" ]]; then
+        REPLY="1"
+    fi
+    
+    if [[ "$REPLY" != "1" ]]; then
         print_info "Skipping Claude Code settings configuration"
         print_info "You can manually add Port42 commands to: $settings_file"
         return
@@ -872,7 +880,7 @@ EOF
 
 # Consolidated Claude Code setup
 setup_claude_code() {
-    print_section_header "🤖 Setting up Claude Code Integration" "$MAGENTA"
+    print_section_header "🤖 Setting up Claude Code Integration" "$GREEN"
     
     # Check if Claude Code is installed
     local claude_installed=false
@@ -1008,8 +1016,9 @@ configure_api_key() {
 
 # Start daemon for general use
 start_daemon_for_use() {
-    print_section_header "🚀 Starting Port42 Server" "$GREEN"
-    
+    # print_section_header "🚀 Starting Port42 Server" "$GREEN"
+    print_section_divider "$MAGENTA"
+
     # Check if daemon is running
     
     # Export path so we can use port42 command
@@ -1017,7 +1026,7 @@ start_daemon_for_use() {
     
     # Check if daemon is already running
     if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Daemon is already running${NC}"
+        echo -e "${GREEN}✅ Server is already running${NC}"
         
         # Ask if they want to restart with new binaries
         echo
@@ -1030,7 +1039,7 @@ start_daemon_for_use() {
         restart_choice=${restart_choice:-1}
         
         if [ "$restart_choice" = "1" ]; then
-            echo -e "${BLUE}Stopping daemon gracefully...${NC}"
+            echo -e "${BLUE}Stopping Poert42 Server gracefully...${NC}"
             
             # First try graceful stop
             if "$HOME/.port42/bin/port42" daemon stop >/dev/null 2>&1; then
@@ -1046,27 +1055,31 @@ start_daemon_for_use() {
                 fi
             fi
             
-            echo -e "${BLUE}Starting daemon with new binaries...${NC}"
+            echo -e "${MAGENTA}${BOLD}Starting Port42 Server with new binaries...${NC}"
             if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
                 sleep 2
                 # Verify it's actually running
                 if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
-                    print_success "Daemon started with new binaries"
+                    print_success "Server started with new binaries"
+                    print_section_divider "$MAGENTA"
                 else
-                    echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
+                    echo -e "${YELLOW}⚠️  Server started but may not be fully ready yet${NC}"
                     echo -e "${YELLOW}   Try: port42 daemon start -b${NC}"
+                    print_section_divider "$MAGENTA"
                 fi
             else
-                echo -e "${YELLOW}⚠️  Could not start daemon automatically${NC}"
+                echo -e "${YELLOW}⚠️  Could not start Server automatically${NC}"
                 echo -e "${YELLOW}   Please start manually: port42 daemon start -b${NC}"
+                print_section_divider "$MAGENTA"
             fi
         else
             echo -e "${BLUE}Keeping existing daemon running${NC}"
             echo -e "${YELLOW}Note: You're still using the old version until you restart${NC}"
+            print_section_divider "$MAGENTA"
         fi
     else
         # Daemon not running, start it
-        echo -e "${BLUE}Starting Port42 daemon...${NC}"
+        echo -e "${MAGENTA}${BOLD}Starting Port42 Server...${NC}"
         if "$HOME/.port42/bin/port42" daemon start -b >/dev/null 2>&1; then
             # Wait for daemon to be ready
             sleep 3
@@ -1075,10 +1088,10 @@ start_daemon_for_use() {
             if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
                 print_success "Daemon started"
             else
-                echo -e "${YELLOW}⚠️  Daemon started but may not be fully ready yet${NC}"
+                echo -e "${YELLOW}⚠️  Server started but may not be fully ready yet${NC}"
             fi
         else
-            echo -e "${YELLOW}⚠️  Could not start daemon (you can start it later with: port42 daemon start -b)${NC}"
+            echo -e "${YELLOW}⚠️  Could not start Server (you can start it later with: port42 daemon start -b)${NC}"
         fi
     fi
 }
@@ -1139,6 +1152,13 @@ show_next_steps() {
     echo -e "   ${BOLD}port42 context --watch${NC}"
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
     echo -e "   ${GRAY}We like to run this in a split terminal with the Claude Code session${NC}"
+    
+    print_section_divider "$YELLOW"
+    echo -e "${BLUE}${BOLD}⚡ Quick Activation${NC}"
+    echo
+    echo -e "   Need Port42 in a new terminal quickly?"
+    echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
+    echo -e "   ${GRAY}Instantly loads Port42 without restarting your shell${NC}"
     
     print_section_divider "$YELLOW"
     echo
@@ -1230,7 +1250,7 @@ main() {
     else
         # No explicit flags - ask the user what they prefer
         echo
-        echo -e "${BLUE}${BOLD}Installation Method${NC}"
+        echo -e "${CYAN}${BOLD}Installation Method${NC}"
         echo
         
         # Check if pre-built binaries are available
