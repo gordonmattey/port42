@@ -291,12 +291,10 @@ impl App {
         
         // Add memory accesses
         for mem in context.accessed_memories {
-            // Memory accesses don't have timestamps in the data, use current time
-            // This is a limitation we should fix in the daemon later
             self.activities.push(Activity {
-                timestamp: chrono::Local::now(),
+                timestamp: mem.last_accessed.with_timezone(&chrono::Local),
                 activity_type: "MEMORY".to_string(),
-                description: format!("Accessed: {}", mem.path),
+                description: format!("Accessed: {}", mem.display_name.unwrap_or(mem.path)),
                 color: Color::Green,
             });
         }

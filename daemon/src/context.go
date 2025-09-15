@@ -40,10 +40,11 @@ type ToolRecord struct {
 
 // MemoryAccess tracks accessed memory/artifact paths
 type MemoryAccess struct {
-	Path        string `json:"path"`
-	Type        string `json:"type"`
-	AccessCount int    `json:"access_count"`
-	DisplayName string `json:"display_name,omitempty"` // Human-readable name
+	Path         string    `json:"path"`
+	Type         string    `json:"type"`
+	AccessCount  int       `json:"access_count"`
+	DisplayName  string    `json:"display_name,omitempty"` // Human-readable name
+	LastAccessed time.Time `json:"last_accessed"`          // When this was last accessed
 }
 
 // ContextSuggestion provides smart command suggestions

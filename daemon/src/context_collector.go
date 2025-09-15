@@ -83,18 +83,22 @@ func (cc *ContextCollector) TrackMemoryAccess(path string, accessType string) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	
+	now := time.Now()
+	
 	// Update or create memory access record
 	if access, exists := cc.accessedMemories[path]; exists {
 		access.AccessCount++
+		access.LastAccessed = now
 	} else {
 		// Generate human-readable display name
 		displayName := cc.generateDisplayName(path, accessType)
 		
 		cc.accessedMemories[path] = &MemoryAccess{
-			Path:        path,
-			Type:        accessType,
-			AccessCount: 1,
-			DisplayName: displayName,
+			Path:         path,
+			Type:         accessType,
+			AccessCount:  1,
+			DisplayName:  displayName,
+			LastAccessed: now,
 		}
 	}
 	
@@ -163,11 +167,11 @@ func (cc *ContextCollector) Collect() *ContextData {
 	}
 	cc.mu.RUnlock()
 	
-	// Sort accessed memories by access count (most accessed first)
+	// Sort accessed memories by last accessed time (most recent first)
 	if len(data.AccessedMemories) > 1 {
 		for i := 0; i < len(data.AccessedMemories)-1; i++ {
 			for j := i + 1; j < len(data.AccessedMemories); j++ {
-				if data.AccessedMemories[j].AccessCount > data.AccessedMemories[i].AccessCount {
+				if data.AccessedMemories[j].LastAccessed.After(data.AccessedMemories[i].LastAccessed) {
 					data.AccessedMemories[i], data.AccessedMemories[j] = data.AccessedMemories[j], data.AccessedMemories[i]
 				}
 			}

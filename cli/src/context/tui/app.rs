@@ -328,7 +328,7 @@ impl App {
         // Add memory accesses as activities
         for mem in &context_data.accessed_memories {
             activities.push(ActivityRecord {
-                timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
+                timestamp: mem.last_accessed.with_timezone(&chrono::Local).format("%H:%M:%S").to_string(),
                 activity_type: ActivityType::FileAccess,
                 description: format!("Accessed {}", mem.path),
                 details: mem.display_name.clone(),

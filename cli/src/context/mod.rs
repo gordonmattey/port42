@@ -54,6 +54,7 @@ pub struct MemoryAccess {
     pub access_count: i32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    pub last_accessed: chrono::DateTime<chrono::Utc>,
 }
 
 /// Smart command suggestion

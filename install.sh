@@ -542,12 +542,7 @@ create_directories() {
         exit 1
     fi
     
-    mkdir -p "$PORT42_HOME"/{bin,commands,memory/sessions,artifacts,metadata,objects,tools}
-    
-    # Create initial memory index
-    if [ ! -f "$PORT42_HOME/memory/index.json" ]; then
-        echo '{"sessions":[],"stats":{"total_sessions":0,"total_commands":0}}' > "$PORT42_HOME/memory/index.json"
-    fi
+    mkdir -p "$PORT42_HOME"/{bin,commands,artifacts,metadata,objects,tools}
     
     # Create activation helper
     cat > "$PORT42_HOME/activate.sh" << 'EOF'
