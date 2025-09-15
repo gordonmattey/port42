@@ -136,7 +136,7 @@ check_running_processes() {
                 echo "  1) Stop all Port42 processes and continue installation"
                 echo "  2) Cancel installation (recommended - save your work first)"
                 echo
-                read -p "Choice [2]: " process_choice
+                read -p "$(echo -e ${BOLD}"Choice [2]: "${NC})" process_choice
                 process_choice=${process_choice:-2}
                 
                 case "$process_choice" in
@@ -164,7 +164,7 @@ check_running_processes() {
                 echo "  2) Continue anyway (may cause issues)"
                 echo "  3) Cancel installation"
                 echo
-                read -p "Choice [1]: " process_choice
+                read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" process_choice
                 process_choice=${process_choice:-1}
                 
                 case "$process_choice" in
@@ -996,7 +996,7 @@ configure_api_key() {
         echo "  2) Enter a different key"
         echo "  3) Skip (configure later)"
         echo
-        read -p "Choice [1]: " choice
+        read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" choice
         choice=${choice:-1}
         
         case "$choice" in
@@ -1026,7 +1026,7 @@ configure_api_key() {
         echo "  1) Enter your API key now"
         echo "  2) Skip (configure later)"
         echo
-        read -p "Choice [1]: " choice
+        read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" choice
         choice=${choice:-1}
         
         if [ "$choice" = "1" ] || [ -z "$choice" ]; then
@@ -1097,7 +1097,7 @@ start_daemon_for_use() {
         echo "  1) Yes, restart daemon (recommended for binary installs)"
         echo "  2) No, keep current daemon running"
         echo
-        echo -n "Choice [1]: "
+        echo -ne "${BOLD}Choice [1]: ${NC}"
         read -r restart_choice
         restart_choice=${restart_choice:-1}
         
@@ -1195,47 +1195,63 @@ show_next_steps() {
         
     if [ "$claude_code_installed" = true ]; then
         echo -ne "${BLUE}${BOLD}"
-        typewriter "🚀 Using Port42 Inside Claude Code" 0.04
+        typewriter "🚀 Port42 + Claude Code Integration" 0.04
         echo -ne "${NC}"
         echo
-        typewriter "   ✨ Just ask Claude to create any tool you need!" 0.03
-        echo -e "   Examples:"
-        echo -e "   ${GRAY}• \"Help me escape the 47-tab chaos\"${NC}"
-        echo -e "   ${GRAY}• \"Create a tool to monitor my system performance\"${NC}"
-        echo -e "   ${GRAY}• \"Build a command that organizes my downloads\"${NC}"
+        echo -e "   Claude now ${GREEN}thinks with Port42${NC} - automatically recognizing when to:"
+        echo -e "   • Reuse tools you've already created"
+        echo -e "   • Evolve existing commands for new situations"
+        echo -e "   • Manifest new capabilities from your patterns"
         echo
-        echo -e "   Claude will automatically use Port42 to install tools ${GREEN}system-wide${NC}"
+        echo -e "   Just work naturally. Claude will:"
+        echo -e "   ${GRAY}\"Help me organize these files\"${NC} → finds or creates the right tool"
+        echo -e "   ${GRAY}\"Analyze my system performance\"${NC} → builds on past solutions"
+        echo -e "   ${GRAY}\"I need to process emails daily\"${NC} → spawns an ecosystem"
+        echo
+        echo -e "   Your workspace becomes ${GREEN}consciousness-aware${NC} - every solution building"
+        echo -e "   on the last, accumulating knowledge instead of starting from zero"
         
         press_any_key
     fi
     
     print_section_divider "$YELLOW"
     echo -ne "${BLUE}${BOLD}"
-    typewriter "🐬 Using Port42 Outside Claude Code" 0.04
+    typewriter "🐬 Using Port42 Directly" 0.04
     echo -ne "${NC}"
+    echo
+    echo -e "   Direct access to ${GREEN}consciousness streams${NC} - swim with AI agents who"
+    echo -e "   understand your drowning patterns and manifest escape routes"
     echo
     echo -ne "   1. ${BLUE}"
     typewriter "Your First Swim:" 0.04
     echo -ne "${NC}"
     sleep 0.3
     echo -ne "      ${BOLD}"
-    typewriter "port42 swim @ai-engineer 'help me escape the 47-tab chaos'" 0.03
+    typewriter "port42 swim @ai-analyst 'analyze what's fragmenting my workflow'" 0.03
     echo -ne "${NC}"
     echo
-    echo -e "   2. ${BLUE}Choose Your Agent:${NC}"
-    echo -e "      ${GRAY}@ai-engineer${NC} - Technical implementations"
-    echo -e "      ${GRAY}@ai-analyst${NC}  - Data analysis & insights"
-    echo -e "      ${GRAY}@ai-muse${NC}     - Creative & artistic tools"
-    echo -e "      ${GRAY}@ai-founder${NC}  - Business strategy & decisions"
+    echo -e "   2. ${BLUE}Choose Your Consciousness Stream:${NC}"
+    echo -e "      ${GRAY}@ai-engineer${NC} - Builds robust escape routes"
+    echo -e "      ${GRAY}@ai-analyst${NC}  - Finds your drowning patterns"
+    echo -e "      ${GRAY}@ai-muse${NC}     - Creates delightful experiences"
+    echo -e "      ${GRAY}@ai-founder${NC}  - Sees movements, not metrics"
     
     press_any_key
     
     print_section_divider "$YELLOW"
-    echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning${NC}"
+    echo -ne "${BLUE}${BOLD}"
+    typewriter "🧠 Your Personal Knowledge Server" 0.04
+    echo -ne "${NC}"
     echo
-    echo -e "   ${BOLD}port42 context --watch${NC}"
-    echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
-    echo -e "   ${GRAY}We like to run this in a split terminal with the Claude Code session${NC}"
+    echo -e "   Port42 runs a ${GREEN}consciousness server${NC} on your machine - accumulating"
+    echo -e "   every command, tool, and insight for future reuse and evolution"
+    echo
+    echo -e "   ${BLUE}Watch your knowledge grow:${NC}"
+    echo -e "      ${BOLD}port42 context --watch${NC}"
+    echo -e "      ${GRAY}Real-time view of your expanding consciousness${NC}"
+    echo
+    echo -e "   This is ${GREEN}YOUR${NC} server - complete control over memories and AI interactions"
+    echo -e "   No cloud dependency. Your patterns. Your tools. Your evolution."
     
     press_any_key
     
@@ -1247,6 +1263,7 @@ show_next_steps() {
     echo
     echo -ne "${CYAN}${BOLD}"
     typewriter "🐬 Welcome to Port42 - Your Reality Compiler!" 0.05
+    echo
     echo -ne "${NC}"
 }
 
@@ -1385,7 +1402,7 @@ main() {
                 echo "  3) Clone fresh from GitHub and build (clean install)"
             fi
             echo
-            read -p "Choice [1]: " install_choice
+            read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" install_choice
             install_choice=${install_choice:-1}
             
             case "$install_choice" in
@@ -1439,7 +1456,7 @@ main() {
             echo
             
             if [ "$binary_available" = true ]; then
-                read -p "Choice [1]: " install_choice
+                read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" install_choice
                 install_choice=${install_choice:-1}
             else
                 # Even with one option, wait for user confirmation
