@@ -77,7 +77,7 @@ impl RealityData {
     fn display_empty(&self) {
         println!("{}", "No commands found".dimmed());
         println!("\n{}", "Generate your first command:".yellow());
-        println!("  {}", "port42 possess @ai-muse".bright_white());
+        println!("  {}", "port42 swim @ai-muse".bright_white());
     }
     
     fn display_path_hint(&self) {

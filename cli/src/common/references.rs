@@ -3,7 +3,7 @@ use anyhow::{Result, bail};
 use colored::*;
 
 /// Parse reference strings into Reference structs
-/// Common logic used by both declare and possess modes
+/// Common logic used by both declare and swim modes
 pub fn parse_references(ref_strings: Vec<String>, show_output: bool) -> Result<Vec<Reference>> {
     let mut refs = Vec::new();
     

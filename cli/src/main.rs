@@ -106,7 +106,7 @@ pub enum Commands {
     #[command(about = crate::help_text::SWIM_DESC)]
     /// Swim into an AI agent's consciousness stream
     Swim {
-        /// AI agent to possess (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder)
+        /// AI agent to swim (@ai-engineer, @ai-muse, @ai-analyst, @ai-founder)
         agent: String,
         
         /// Session ID to resume, or 'last' for most recent

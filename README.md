@@ -651,7 +651,7 @@ sudo -E port42 daemon start -b
 port42 memory
 
 # Continue a specific session
-port42 possess @ai-muse --session myproject
+port42 swim @ai-muse --session myproject
 
 # Sessions persist across daemon restarts!
 ```
@@ -720,7 +720,7 @@ export PORT42_DEV=1  # Enables debug logging
 
 # 3. In another terminal, test CLI commands
 ./bin/port42 status
-./bin/port42 possess @ai-muse "test message"
+./bin/port42 swim @ai-muse "test message"
 
 # 4. Run test suite
 ./tests/run_all_tests.sh

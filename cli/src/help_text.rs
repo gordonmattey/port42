@@ -307,7 +307,7 @@ pub const MSG_CHECKING_STATUS: &str = "🐬 Sensing the gateway's presence...";
 pub const MSG_DAEMON_RUNNING: &str = "✨ Gateway pulses with living energy";
 pub const MSG_DAEMON_LOGS: &str = "📜 Gateway's quantum memory stream";
 
-// Session & Possession
+// Session & Swimming
 pub const MSG_SESSION_CONTINUING: &str = "✨ Swimming session resuming: {}";
 
 // Memory & Search

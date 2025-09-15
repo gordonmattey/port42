@@ -37,7 +37,7 @@ pub fn handle_help_request() -> bool {
         
         // Map command to our help
         match command.as_str() {
-            "possess" | "memory" | "ls" | "cat" | "info" | "search" | "reality" | "status" | "init" | "daemon" => {
+            "swim" | "memory" | "ls" | "cat" | "info" | "search" | "reality" | "status" | "init" | "daemon" => {
                 help_text::show_command_help(command);
                 return true;
             }

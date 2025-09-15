@@ -238,14 +238,14 @@ func (cc *ContextCollector) generateSuggestions(data *ContextData) []ContextSugg
 		
 		// Suggest continuing session
 		suggestions = append(suggestions, ContextSuggestion{
-			Command:    fmt.Sprintf("port42 possess %s --session last", data.ActiveSession.Agent),
+			Command:    fmt.Sprintf("port42 swim %s --session last", data.ActiveSession.Agent),
 			Reason:     "Continue your conversation",
 			Confidence: 0.85,
 		})
 	} else {
 		// No active session - suggest starting one
 		suggestions = append(suggestions, ContextSuggestion{
-			Command:    "port42 possess @ai-engineer \"How can I help?\"",
+			Command:    "port42 swim @ai-engineer \"How can I help?\"",
 			Reason:     "Start a new AI session",
 			Confidence: 0.8,
 		})

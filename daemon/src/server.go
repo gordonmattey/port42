@@ -33,7 +33,7 @@ type Daemon struct {
 	contextCollector *ContextCollector // Step 2: Context tracking and suggestions
 }
 
-// Session represents an active possession session
+// Session represents an active swim session
 type Session struct {
 	ID               string       `json:"id"`
 	Agent            string       `json:"agent"`

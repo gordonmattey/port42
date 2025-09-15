@@ -261,9 +261,3 @@ fn validate_agent(agent: &str) -> Result<()> {
     
     Ok(())
 }
-
-
-
-
-
-// Removed handle_possess_search_mode - now using unified flow via handle_possess_with_boot_and_context
