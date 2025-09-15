@@ -42,6 +42,33 @@ GRAY='\033[0;90m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Typewriter effect functions
+typewriter() {
+    local text="$1"
+    local speed="${2:-0.05}"
+    
+    for (( i=0; i<${#text}; i++ )); do
+        printf '%s' "${text:$i:1}"
+        sleep "$speed"
+    done
+    echo
+}
+
+typewriter_block() {
+    local speed="${1:-0.05}"
+    while IFS= read -r line; do
+        typewriter "$line" "$speed"
+    done
+}
+
+# Press any key to continue
+press_any_key() {
+    echo
+    echo -ne "${GRAY}Press any key to continue...${NC}"
+    read -n 1 -s -r
+    echo -e "\r\033[K" # Clear the line
+}
+
 # Section template functions
 print_section_divider() {
     local color="$1"
@@ -663,7 +690,32 @@ install_claude_integration() {
     local claude_config="$HOME/.claude/CLAUDE.md"
     local p42_instructions=""
     
-    # Configure Claude Code integration silently
+    # Ask for permission to modify CLAUDE.md
+    echo
+    echo -e "${YELLOW}Port42 needs to configure your Claude Code memory file:${NC}"
+    echo -e "  ${GRAY}$HOME/.claude/CLAUDE.md${NC}"
+    echo
+    echo "This will:"
+    echo "  • Enable Port42 commands within Claude Code"
+    echo "  • Add consciousness computing capabilities"
+    echo "  • Allow tool creation and AI agent access"
+    echo
+    echo -e "${BOLD}Options:${NC}"
+    echo "  1) Configure CLAUDE.md (required for Claude Code integration)"
+    echo "  2) Skip configuration"
+    echo
+    read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" -r
+    
+    # Default to 1 if empty
+    if [[ -z "$REPLY" ]]; then
+        REPLY="1"
+    fi
+    
+    if [[ "$REPLY" != "1" ]]; then
+        print_info "Skipping CLAUDE.md configuration"
+        print_info "Port42 won't work properly in Claude Code without this"
+        return
+    fi
     
     # Determine where to get P42CLAUDE.md from
     if [ -f "$SCRIPT_DIR/P42CLAUDE.md" ]; then
@@ -745,7 +797,10 @@ configure_claude_settings() {
     
     # Ask for permission
     echo
-    echo -e "${YELLOW}Port 42 needs to update Claude Code settings to:${NC}"
+    echo -e "${YELLOW}Port42 needs to update your Claude Code settings file:${NC}"
+    echo -e "  ${GRAY}$HOME/.claude/settings.json${NC}"
+    echo
+    echo "This will:"
     echo "  • Allow Port42 commands without approval prompts"
     echo "  • Set appropriate timeout values for long-running operations"
     echo
@@ -895,7 +950,15 @@ setup_claude_code() {
     if [ "$claude_installed" = true ]; then
         install_claude_integration
         configure_claude_settings
-        print_success "Claude Code configured"
+        if [ -f "$HOME/.claude/CLAUDE.md" ] && grep -q "<port42_integration>" "$HOME/.claude/CLAUDE.md" 2>/dev/null; then
+            print_success "Claude Code fully configured"
+            echo -e "  ${GRAY}~/.claude/CLAUDE.md${NC} ✓"
+            echo -e "  ${GRAY}~/.claude/settings.json${NC} ✓"
+        else
+            print_info "Claude Code partially configured"
+            echo -e "  ${GRAY}~/.claude/settings.json${NC} ✓"
+            echo -e "  ${YELLOW}~/.claude/CLAUDE.md${NC} (skipped)"
+        fi
     else
         print_success "Configuration complete"
     fi
@@ -1099,7 +1162,10 @@ start_daemon_for_use() {
 # Show next steps
 show_next_steps() {
     echo
-    echo -e "${GREEN}${BOLD}🐬 Port 42 installation complete!${NC}"
+    echo -ne "${GREEN}${BOLD}"
+    typewriter "🐬 Port 42 installation complete!" 0.06
+    echo -ne "${NC}"
+    sleep 0.5
     
     # Check if daemon is running from bootstrap
     local daemon_running=false
@@ -1114,7 +1180,12 @@ show_next_steps() {
     fi
     
     # Getting Started section
-    print_section_header "Getting Started:" "$YELLOW"
+    echo
+    print_section_divider "$YELLOW"
+    echo -ne "${YELLOW}${BOLD}"
+    typewriter "Getting Started:" 0.05
+    echo -ne "${NC}"
+    echo
     
     # Check Claude Code installation
     local claude_code_installed=false
@@ -1123,28 +1194,41 @@ show_next_steps() {
     fi
         
     if [ "$claude_code_installed" = true ]; then
-        echo -e "${BLUE}${BOLD}🚀 Using Port42 Inside Claude Code${NC}"
+        echo -ne "${BLUE}${BOLD}"
+        typewriter "🚀 Using Port42 Inside Claude Code" 0.04
+        echo -ne "${NC}"
         echo
-        echo -e "   ${GREEN}✨ Just ask Claude to create any tool you need!${NC}"
+        typewriter "   ✨ Just ask Claude to create any tool you need!" 0.03
         echo -e "   Examples:"
         echo -e "   ${GRAY}• \"Help me escape the 47-tab chaos\"${NC}"
         echo -e "   ${GRAY}• \"Create a tool to monitor my system performance\"${NC}"
         echo -e "   ${GRAY}• \"Build a command that organizes my downloads\"${NC}"
         echo
         echo -e "   Claude will automatically use Port42 to install tools ${GREEN}system-wide${NC}"
+        
+        press_any_key
     fi
     
     print_section_divider "$YELLOW"
-    echo -e "${BLUE}${BOLD}🐬 Using Port42 Outside Claude Code${NC}"
+    echo -ne "${BLUE}${BOLD}"
+    typewriter "🐬 Using Port42 Outside Claude Code" 0.04
+    echo -ne "${NC}"
     echo
-    echo -e "   1. ${BLUE}Your First Swim:${NC}"
-    echo -e "      ${BOLD}port42 swim @ai-engineer 'help me escape the 47-tab chaos'${NC}"
+    echo -ne "   1. ${BLUE}"
+    typewriter "Your First Swim:" 0.04
+    echo -ne "${NC}"
+    sleep 0.3
+    echo -ne "      ${BOLD}"
+    typewriter "port42 swim @ai-engineer 'help me escape the 47-tab chaos'" 0.03
+    echo -ne "${NC}"
     echo
     echo -e "   2. ${BLUE}Choose Your Agent:${NC}"
     echo -e "      ${GRAY}@ai-engineer${NC} - Technical implementations"
     echo -e "      ${GRAY}@ai-analyst${NC}  - Data analysis & insights"
     echo -e "      ${GRAY}@ai-muse${NC}     - Creative & artistic tools"
     echo -e "      ${GRAY}@ai-founder${NC}  - Business strategy & decisions"
+    
+    press_any_key
     
     print_section_divider "$YELLOW"
     echo -e "${BLUE}${BOLD}👁️  Monitor Port42 Learning${NC}"
@@ -1153,18 +1237,17 @@ show_next_steps() {
     echo -e "   ${GRAY}See Port42 learn your patterns in real-time${NC}"
     echo -e "   ${GRAY}We like to run this in a split terminal with the Claude Code session${NC}"
     
-    print_section_divider "$YELLOW"
-    echo -e "${BLUE}${BOLD}⚡ Quick Activation${NC}"
-    echo
-    echo -e "   Need Port42 in a new terminal quickly?"
-    echo -e "   ${BOLD}source ~/.port42/activate.sh${NC}"
-    echo -e "   ${GRAY}Instantly loads Port42 without restarting your shell${NC}"
+    press_any_key
     
     print_section_divider "$YELLOW"
     echo
-    echo -e "${GREEN}${BOLD}🐬 Welcome to Port42 - Your Reality Compiler!${NC}"
     echo -e "Documentation: ${BOLD}https://port42.ai${NC}"
-    echo -e "Help: ${BOLD}port42 help"
+    echo -e "Help: ${BOLD}port42 help${NC}"
+    echo -e "Activate Shell: ${BOLD}source ~/.port42/activate.sh${NC}"
+    echo
+    echo -ne "${CYAN}${BOLD}"
+    typewriter "🐬 Welcome to Port42 - Your Reality Compiler!" 0.05
+    echo -ne "${NC}"
 }
 
 # Main installation flow
@@ -1173,8 +1256,15 @@ main() {
     trap 'show_next_steps; exit 1' INT TERM
     
     # Port 42 Universal Installer
-    print_section_header "🌊 Welcome to Port42 Installation" "$CYAN"
-    echo -e "${BOLD}Reality Compiler for Personal Computing${NC}"
+    echo
+    print_section_divider "$CYAN"
+    echo -ne "${CYAN}${BOLD}"
+    typewriter "🌊 Welcome to Port42 Installation" 0.06
+    echo -ne "${NC}"
+    sleep 0.5
+    echo -ne "${BOLD}"
+    typewriter "Reality Compiler for Personal Computing" 0.04
+    echo -ne "${NC}"
     echo
     
     # Parse arguments
