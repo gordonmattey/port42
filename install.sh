@@ -1230,11 +1230,11 @@ show_next_steps() {
     typewriter "port42 swim @ai-analyst 'analyze what's fragmenting my workflow'" 0.03
     echo -ne "${NC}"
     echo
-    echo -e "   2. ${BLUE}Choose Your Consciousness Stream:${NC}"
-    echo -e "      ${GRAY}@ai-engineer${NC} - Builds robust escape routes"
-    echo -e "      ${GRAY}@ai-analyst${NC}  - Finds your drowning patterns"
-    echo -e "      ${GRAY}@ai-muse${NC}     - Creates delightful experiences"
-    echo -e "      ${GRAY}@ai-founder${NC}  - Sees movements, not metrics"
+    echo -e "   2. ${BLUE}Choose Your AI Agent:${NC}"
+    echo -e "      ${GRAY}@ai-engineer${NC} - Creates robust tools and commands"
+    echo -e "      ${GRAY}@ai-analyst${NC}  - Analyzes data and finds patterns"
+    echo -e "      ${GRAY}@ai-muse${NC}     - Builds creative and visual tools"
+    echo -e "      ${GRAY}@ai-founder${NC}  - Develops business and strategy tools"
     
     press_any_key
     
