@@ -618,7 +618,7 @@ func (d *Daemon) handleSwimWithAI(req Request) Response {
 				data := map[string]interface{}{
 					"message":    "❌ Bash command denied by user",
 					"agent":      payload.Agent,
-					"session_id": payload.SessionID,
+					"session_id": p.SessionID,
 				}
 				resp.SetData(data)
 				return resp

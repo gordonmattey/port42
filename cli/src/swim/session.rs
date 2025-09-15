@@ -108,7 +108,10 @@ impl SessionHandler {
             // Read user input
             let mut input = String::new();
             io::stdin().read_line(&mut input)?;
-            let approved = input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes";
+            let trimmed = input.trim().to_lowercase();
+            eprintln!("DEBUG: User input was: '{}' (trimmed: '{}')", input.trim(), trimmed);
+            let approved = trimmed == "y" || trimmed == "yes";
+            eprintln!("DEBUG: Approved = {}", approved);
             
             if approved {
                 println!("{} Bash command approved\n", "✅".green());

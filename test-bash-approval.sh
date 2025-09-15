@@ -20,7 +20,7 @@ echo "------------------------------------------------"
 echo "When prompted, type 'y' to approve the bash command"
 echo ""
 
-./bin/port42 swim @ai-analyst "analyze my shell history for patterns"
+./bin/port42 swim @ai-analyst "analyze my shell history for patterns using bash -c "
 
 echo ""
 echo "✅ Test complete!"
