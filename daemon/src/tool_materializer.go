@@ -596,7 +596,7 @@ Respond with a JSON object in this EXACT format (no additional text):
   "description": "Brief description of what this tool does",
   "language": "your_selected_language_here",
   "tags": ["semantic-tag1", "domain-tag", "tool-type", "functionality"],
-  "implementation": "Your complete implementation here\\nUse \\\\n for line breaks, escape quotes with \\\\\\\"\\nDo NOT include shebang - it will be added automatically"
+  "implementation": "Your complete implementation here. Do NOT include shebang - it will be added automatically"
 }
 ` + "```", name)
 
