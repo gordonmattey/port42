@@ -111,10 +111,11 @@ check_running_processes() {
     local running_processes=()
     local has_critical_processes=false
     
-    # Check for port42 CLI processes (excluding the installer itself)
-    if pgrep -f "port42" | grep -v $$ > /dev/null 2>&1; then
-        # Get detailed process list
-        local processes=$(ps aux | grep -E "port42" | grep -v grep | grep -v "install.sh")
+    # Check for port42 CLI processes (only long-running ones: daemon, interactive mode, or context --watch)
+    # Exclude installer, log viewers, and short-lived commands
+    if pgrep -f "port42d" > /dev/null 2>&1 || ps aux | grep -E "port42($| context --watch)" | grep -v grep | grep -v installer | grep -v tail | grep -v $$ > /dev/null 2>&1; then
+        # Get detailed process list of only long-running processes
+        local processes=$(ps aux | grep -E "(port42d|port42($| context --watch))" | grep -v grep | grep -v installer | grep -v tail | grep -v $$)
         
         if [ -n "$processes" ]; then
             # Check for interactive processes like context --watch
