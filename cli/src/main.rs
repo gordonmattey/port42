@@ -219,19 +219,22 @@ pub enum DaemonAction {
         #[arg(short, long)]
         background: bool,
     },
-    
+
     /// Stop the daemon
     Stop,
-    
+
     /// Restart the daemon
     Restart,
-    
+
+    /// Check daemon status
+    Status,
+
     /// Show daemon logs
     Logs {
         /// Number of lines to show
         #[arg(short = 'n', long, default_value = "50")]
         lines: usize,
-        
+
         /// Follow log output
         #[arg(short, long)]
         follow: bool,

@@ -558,13 +558,28 @@ case "$(basename "$SHELL")" in
     *) echo "Please source your shell profile manually" ;;
 esac
 
+# Check if PATH is configured
+if command -v port42 >/dev/null 2>&1; then
+    echo "✅ Port42 commands available in PATH"
+else
+    echo "⚠️  Port42 not in PATH - restart your terminal or check your shell configuration"
+fi
+
 # Check if API key is available
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-    echo "✅ API key loaded"
-    echo "Run 'port42 daemon start' to start the daemon with AI features"
+if [ -n "${PORT42_ANTHROPIC_API_KEY:-}" ]; then
+    echo "✅ API key loaded (PORT42_ANTHROPIC_API_KEY)"
+elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo "✅ API key loaded (ANTHROPIC_API_KEY)"
 else
     echo "⚠️  No API key found"
-    echo "Set ANTHROPIC_API_KEY to enable AI features"
+    echo "Set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY to enable AI features"
+fi
+
+# Check if daemon is running
+if pgrep -f "port42d" >/dev/null 2>&1 || port42 status >/dev/null 2>&1; then
+    echo "✅ Port42 daemon is running"
+else
+    echo "Run 'port42 daemon start' to start the daemon"
 fi
 EOF
     chmod +x "$PORT42_HOME/activate.sh"
@@ -577,9 +592,12 @@ update_path() {
     local shell_name=$(basename "$SHELL")
     local shell_rc=""
     local path_additions=""
-    
+
     # Both binaries and commands are in .port42
     local port42_paths="$PORT42_HOME/bin:$PORT42_HOME/commands"
+
+    # Export for current session immediately
+    export PATH="$PATH:$port42_paths"
     
     case "$shell_name" in
         bash)
@@ -1001,6 +1019,7 @@ configure_api_key() {
                 if [ -n "$new_key" ]; then
                     API_KEY_TO_SAVE="$new_key"
                     SAVE_API_KEY=true
+                    export PORT42_ANTHROPIC_API_KEY="$new_key"
                 fi
                 ;;
             3)
@@ -1013,24 +1032,23 @@ configure_api_key() {
                     API_KEY_TO_SAVE="$current_key"
                     SAVE_API_KEY=true
                 fi
+                # Export for current session
+                export PORT42_ANTHROPIC_API_KEY="${current_key}"
                 ;;
         esac
     else
         echo "No API key found. Port 42 requires an Anthropic API key for AI features."
         echo
-        echo "Would you like to:"
-        echo "  1) Enter your API key now"
-        echo "  2) Skip (configure later)"
-        echo
-        read -p "$(echo -e ${BOLD}"Choice [1]: "${NC})" choice
-        choice=${choice:-1}
-        
-        if [ "$choice" = "1" ] || [ -z "$choice" ]; then
-            read -p "Enter your Anthropic API key: " new_key
-            if [ -n "$new_key" ]; then
-                API_KEY_TO_SAVE="$new_key"
-                SAVE_API_KEY=true
-            fi
+        echo "Enter your API key now (or press Enter to skip):"
+        read -p "$(echo -e ${BOLD}"API Key: "${NC})" api_key_input
+
+        if [ -n "$api_key_input" ]; then
+            # User entered an API key
+            API_KEY_TO_SAVE="$api_key_input"
+            SAVE_API_KEY=true
+            # Export immediately for current session
+            export PORT42_ANTHROPIC_API_KEY="$api_key_input"
+            print_success "API key configured"
         else
             print_warning "No API key configured. You'll need to set PORT42_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY to use AI features."
         fi
@@ -1079,10 +1097,8 @@ start_daemon_for_use() {
     print_section_divider "$MAGENTA"
 
     # Check if daemon is running
-    
-    # Export path so we can use port42 command
-    export PATH="$HOME/.port42/bin:$PATH"
-    
+    # PATH already exported by update_path() function
+
     # Check if daemon is already running
     if "$HOME/.port42/bin/port42" status >/dev/null 2>&1; then
         echo -e "${GREEN}✅ Server is already running${NC}"
@@ -1253,9 +1269,17 @@ show_next_steps() {
     
     print_section_divider "$YELLOW"
     echo
+
+    # Always show activation info since PATH might not be fully available
+    echo -e "${YELLOW}⚡ Quick Start:${NC}"
+    echo -e "   To use port42 commands in this terminal:"
+    echo -e "   ${BOLD}${GREEN}source ~/.port42/activate.sh${NC}"
+    echo
+    echo -e "   Or simply open a new terminal window"
+    echo
+
     echo -e "Documentation: ${BOLD}https://port42.ai${NC}"
     echo -e "Help: ${BOLD}port42 help${NC}"
-    echo -e "Activate Shell: ${BOLD}source ~/.port42/activate.sh${NC}"
     echo
     echo -ne "${CYAN}${BOLD}"
     typewriter "🐬 Welcome to Port42 - Your Reality Compiler!" 0.05

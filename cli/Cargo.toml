@@ -1,8 +1,8 @@
 [package]
 name = "port42"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-authors = ["goldendaorgn"]
+authors = ["gordonmattey"]
 description = "Your personal AI consciousness router"
 homepage = "https://github.com/yourusername/port42"
 repository = "https://github.com/yourusername/port42"

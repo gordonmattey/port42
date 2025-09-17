@@ -266,25 +266,30 @@ fn show_logs(lines: usize, follow: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_daemon(action: DaemonAction, _port: u16) -> Result<()> {
+pub fn handle_daemon(action: DaemonAction, port: u16) -> Result<()> {
     match action {
         DaemonAction::Start { background } => {
             start_daemon(background)?;
         }
-        
+
         DaemonAction::Stop => {
             stop_daemon()?;
         }
-        
+
+        DaemonAction::Status => {
+            // Call the same status handler as the main status command
+            crate::commands::status::handle_status(port, false)?;
+        }
+
         DaemonAction::Restart => {
             println!("{}", MSG_DAEMON_RESTARTING.yellow().bold());
-            
+
             // Stop if running
             if is_daemon_running() {
                 stop_daemon()?;
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
-            
+
             // Start again
             start_daemon(true)?;
         }

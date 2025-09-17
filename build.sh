@@ -76,6 +76,18 @@ esac
 # Get version from version.txt or default
 VERSION=$(cat version.txt 2>/dev/null || echo "0.1.0")
 
+# Update Cargo.toml version to match version.txt
+if [ -f "cli/Cargo.toml" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed requires backup extension
+        sed -i '' "s/^version = \".*\"/version = \"$VERSION\"/" cli/Cargo.toml
+    else
+        # Linux sed
+        sed -i "s/^version = \".*\"/version = \"$VERSION\"/" cli/Cargo.toml
+    fi
+    echo -e "${BLUE}Updated Cargo.toml version to ${VERSION}${NC}"
+fi
+
 # Package binaries if requested or by default
 PACKAGE_BINARIES=${PACKAGE:-true}
 RELEASE_MODE=${RELEASE:-false}
