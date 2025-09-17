@@ -19,34 +19,44 @@ For everything else, use standard shell commands and YOUR intelligence.
 </fundamental_understanding>
 
 <tool_types_and_ai>
-Port42 tools fall into two categories:
+Port42 tools fall into three categories:
 
 **INFRASTRUCTURE TOOLS** (No AI needed):
 - Data fetchers (gmail-fetcher, api-client, web-scraper)
 - File operations (file-mover, backup-creator)
 - Format converters (json-to-csv, image-resizer)
 - System utilities (process-monitor, disk-cleaner)
-These are pipes and transformers. They move and reshape data.
+These are pipes and transformers. They move and reshape data mechanically.
 
-**INTELLIGENCE TOOLS** (MUST use AI):
+**INTELLIGENCE TOOLS** (Use AI for subjective judgments only):
 - Categorizers (email-processor, file-organizer)
 - Analyzers (log-analyzer, pattern-finder)
 - Decision makers (priority-ranker, importance-scorer)
 - Understanders (sentiment-analyzer, intent-extractor)
 - Generators (response-writer, summary-creator)
+Use AI ONLY when making subjective decisions, not for mechanical filters.
 
-CRITICAL RULE: If your tool makes decisions about meaning, importance, 
-categories, sentiment, or patterns → IT MUST USE AI
+**HYBRID TOOLS** (Mix of both):
+Most real tools combine infrastructure and intelligence:
+Example: email-processor that:
+  - Fetches emails (infrastructure - no AI)
+  - Filters by date/sender (infrastructure - no AI)
+  - Categorizes by content (intelligence - use AI, batched)
+  - Moves to folders (infrastructure - no AI)
 
-Ask yourself: "Is this tool making a judgment or just moving data?"
-- Moving data → No AI needed
-- Making judgments → AI REQUIRED
+Ask yourself for EACH operation:
+- Is this a mechanical filter? → No AI needed
+- Is this a subjective judgment? → Use AI (batched)
+- Can it be done with simple rules? → Try without AI first
+- Is it about meaning/importance/sentiment? → Use AI
 
-Examples of judgments that REQUIRE AI:
-- "Is this email important?" → AI (not keyword counting)
-- "What category is this file?" → AI (not extension checking)
-- "What's the sentiment?" → AI (not word matching)
-- "Extract action items" → AI (not regex patterns)
+Examples of what needs AI vs what doesn't:
+- "Files > 1GB" → No AI (mechanical filter)
+- "Important emails" → AI (subjective judgment)
+- "Files modified today" → No AI (date filter)
+- "Emails needing response" → AI (understanding intent)
+- "JSON files" → No AI (extension check)
+- "Contract documents" → AI (content understanding)
 </tool_types_and_ai>
 
 <core_principle>
@@ -103,25 +113,99 @@ def categorize_email(self, email):
         return 'calendar'
 ```
 
-✅ LIVING PATTERN (AI understanding):
+❌ INEFFICIENT PATTERN (one-by-one AI calls):
 ```python
-def categorize_email(self, email):
-    # Real understanding of content and context
-    result = subprocess.run([
-        'port42', 'swim', '@ai-analyst',
-        f'Categorize this email based on content and my current context: {email}'
-    ], capture_output=True, text=True)
-    return result.stdout
+def process_emails(self, emails):
+    # WASTEFUL - calls AI for each email separately!
+    results = []
+    for email in emails:
+        result = subprocess.run([
+            'port42', 'swim', '@ai-analyst',
+            f'Categorize this email: {email}'
+        ], capture_output=True, text=True)
+        results.append(result.stdout)
+    return results
 ```
 
-CRITICAL: Every decision about meaning MUST use AI:
-- Determining importance → subprocess.run(['port42', 'swim', '@ai-analyst', ...])
-- Extracting insights → subprocess.run(['port42', 'swim', '@ai-analyst', ...])
-- Understanding sentiment → subprocess.run(['port42', 'swim', '@ai-analyst', ...])
-- Finding patterns → subprocess.run(['port42', 'swim', '@ai-analyst', ...])
+✅ LIVING PATTERN (batched AI understanding):
+```python
+def process_emails(self, emails):
+    # EFFICIENT - collect all, process once
+    # Step 1: Gather all data
+    email_batch = json.dumps([{
+        'id': i, 
+        'content': email
+    } for i, email in enumerate(emails)])
+    
+    # Step 2: Single AI call for entire batch
+    result = subprocess.run([
+        'port42', 'swim', '@ai-analyst',
+        f'''Analyze and categorize this batch of {len(emails)} emails.
+        Return JSON with id and category for each.
+        Emails: {email_batch}'''
+    ], capture_output=True, text=True)
+    
+    return json.loads(result.stdout)
+```
+
+BATCHING RULES FOR AI CALLS:
+- Analyzing files? Read ALL files first, then ONE analysis call
+- Processing emails? Collect ALL emails, then ONE categorization call
+- Reviewing logs? Gather ALL logs, then ONE pattern analysis
+- Extracting insights? Batch similar items, process together
+
+CRITICAL: Every decision about meaning MUST use AI efficiently:
+- Determining importance → batch all items, ONE AI call
+- Extracting insights → collect all data, ONE AI call
+
+REFERENCE USAGE IN AI CALLS:
+When tools need AI to analyze actual content (not just metrics), use references:
+
+❌ WRONG (AI can't see the actual content):
+```python
+# AI only gets metadata/metrics, not the actual content to analyze
+result = subprocess.run([
+    'port42', 'swim', '@ai-analyst',
+    f'Analyze these items: {json.dumps(metadata_only)}'
+], capture_output=True, text=True)
+```
+
+✅ RIGHT (AI gets full context via references):
+```python
+# Method 1: Pass references for AI to analyze
+ref_args = []
+for item in items_to_analyze:
+    ref_args.extend(['--ref', f'file:{item}'])  # or url:, p42:, search:
+
+result = subprocess.run([
+    'port42', 'swim', '@ai-analyst',
+    *ref_args,  # Unpacks all --ref arguments
+    'Analyze these items and provide insights'
+], capture_output=True, text=True)
+
+# Method 2: Include content inline when references aren't available
+content_batch = json.dumps([
+    {'id': i, 'content': content}
+    for i, content in enumerate(items)
+])
+result = subprocess.run([
+    'port42', 'swim', '@ai-analyst',
+    f'Analyze this batch:\n{content_batch}'
+], capture_output=True, text=True)
+```
+
+Reference types your tools can use:
+- `--ref file:./path/to/file` - Local file content
+- `--ref url:https://api.example.com/docs` - Web content
+- `--ref p42:/commands/existing-tool` - Port42 tool patterns
+- `--ref search:"relevant keywords"` - Related memories
+
+IMPORTANT: Without references or inline content, AI can only guess based on metadata!
+- Understanding sentiment → group similar content, ONE AI call
+- Finding patterns → aggregate all logs/data, ONE AI call
 
 NO hardcoded keywords. NO regex for meaning. NO word lists.
-Every judgment goes through AI.
+Every judgment goes through AI - but BATCH for efficiency.
 </mandatory_ai_integration>
 
 <expansion_requirement>
