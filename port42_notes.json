@@ -1,0 +1,139 @@
+[
+  {
+    "id": 1,
+    "content": "asking for port42 approval in claude code",
+    "category": "insight",
+    "tags": [],
+    "context": {
+      "timestamp": "2025-09-17T22:16:29.852808",
+      "directory": "/Users/gordon",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 2,
+    "content": "create a command to record my screen and build tools beyond auto clip etc'",
+    "category": "insight",
+    "tags": [],
+    "context": {
+      "timestamp": "2025-09-17T22:17:04.429464",
+      "directory": "/Users/gordon",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 3,
+    "content": "i want to create a command to switch to the next window based on what im doing.. riht now i have a marketing terminak window, i have one working on testing commands, i have one for building tools we need along the wayclaudy and one tetmintal window doing testing on port42, i have this window taking notes",
+    "category": "insight",
+    "tags": [],
+    "context": {
+      "timestamp": "2025-09-17T22:26:56.916594",
+      "directory": "/Users/gordon",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 4,
+    "content": "Port42 swim tool update bug: When trying to update an existing tool using 'port42 swim @ai-engineer --ref p42:/commands/video-splicer' to fix a path issue, the system generates a completely different tool (doc-validator) instead of updating the referenced tool. The logs show it's parsing the reference correctly but then creating the wrong command entirely. This appears to be a critical bug in how swim handles tool updates with --ref parameters.",
+    "category": "bug",
+    "tags": [
+      "port42",
+      "swim",
+      "tool-update"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T22:28:04.907035",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 5,
+    "content": "p42-notes interface mismatch: The implemented interface for p42-notes doesn't match the requested specification. The tool uses -c/--category instead of --type, and doesn't support --title and --content flags as separate parameters. The actual interface requires positional content argument instead of named parameters. This is a discrepancy between requested functionality and what was implemented.",
+    "category": "bug",
+    "tags": [
+      "port42",
+      "p42-notes",
+      "interface"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T22:28:10.286478",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 6,
+    "content": "Claude Code not automatically searching Port42 tools despite CLAUDE.md guidance stating: 'ALWAYS complete ALL discovery steps BEFORE calling swim' and tool_discovery_workflow priority='1' required='true' - needs to search before creating",
+    "category": "bug",
+    "tags": [],
+    "context": {
+      "timestamp": "2025-09-17T22:32:18.394297",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 7,
+    "content": "Command retirement and lifecycle management: Need ability to retire/deprecate commands while keeping them available. Should support: 1) Retiring commands (mark as deprecated but keep accessible), 2) Symlinking for backwards compatibility when replacing tools, 3) Deletion from index while preserving in object store for recovery, 4) Version management so video-splicer and video-concat could coexist with one being marked deprecated. This would solve issues like having both video-splicer (broken) and video-concat (working) without confusion.",
+    "category": "feature",
+    "tags": [
+      "port42",
+      "commands",
+      "lifecycle",
+      "versioning"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T22:35:43.815736",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 8,
+    "content": "Connection reset error: Getting 'Reality link severed. The dolphins have gone silent' with 'IO error while reading response: Connection reset by peer (os error 54)'. This appears to be the daemon dropping connections, possibly during long-running operations or when handling large responses. The connection is being forcibly closed by the daemon side. This could be related to timeout settings, buffer overflow, or daemon crash during request processing.",
+    "category": "bug",
+    "tags": [
+      "port42",
+      "connection",
+      "daemon",
+      "stability"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T22:39:21.930688",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 9,
+    "content": "Command execution failure after creation: After swim creates a tool (video-splicer), the logs show 'Successfully parsed command: cat, args: [/commands/video-splicer]' followed by 'Command execution failed: command failed: exit status 1'. It appears swim or the AI agent may be trying to execute or validate the newly created command (possibly running --help) but it's failing. The command gets created successfully but something in the post-creation workflow is broken.",
+    "category": "bug",
+    "tags": [
+      "port42",
+      "command-execution",
+      "swim",
+      "ai-engineer"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T22:40:23.251398",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  },
+  {
+    "id": 10,
+    "content": "env-vault import error: The tool has incorrect import statement - should be 'from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC' not just 'PBKDF2'. This is a code generation error from the AI.",
+    "category": "bug",
+    "tags": [
+      "port42",
+      "env-vault",
+      "import"
+    ],
+    "context": {
+      "timestamp": "2025-09-17T23:44:59.765708",
+      "directory": "/Users/gordon/Dropbox/Work/Hacking/workspace/port42-tools",
+      "git_branch": null
+    }
+  }
+]
