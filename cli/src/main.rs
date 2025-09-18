@@ -135,6 +135,12 @@ pub enum Commands {
         /// Session ID to show, or 'search' followed by query
         args: Vec<String>,
     },
+
+    /// Recall a session transcript by ID or prefix
+    Session {
+        /// Session ID or prefix (e.g., '1754' matches 'cli-1754280556310')
+        id_prefix: String,
+    },
     
     #[command(about = crate::help_text::LS_DESC)]
     /// List contents of the virtual filesystem
@@ -641,6 +647,10 @@ fn main() -> Result<()> {
         }
         
         
+        Some(Commands::Session { id_prefix }) => {
+            session::handle_session(port, id_prefix)?;
+        }
+
         Some(Commands::Ls { path }) => {
             let mut client = client::DaemonClient::new(port);
             if cli.json {

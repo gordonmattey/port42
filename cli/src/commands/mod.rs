@@ -4,6 +4,7 @@ pub mod reality;
 pub mod memory;
 pub mod swim;
 pub mod status;
+pub mod session;
 pub mod ls;
 pub mod cat;
 pub mod info;
