@@ -1,13 +1,20 @@
-# Port42 Tool Versioning System Design
+# Port42 VFS Versioning System Design
 
 ## Overview
-Implement VMS-style version numbering for Port42 tools, enabling version history tracking, retrieval of specific versions, and safe iterative development. Version syntax follows the pattern `tool-name:version` where version is a simple incrementing integer.
+Implement VMS-style version numbering for ALL Port42 VFS objects (tools, knowledge, artifacts, documents), enabling version history tracking, retrieval of specific versions, and safe iterative development. Version syntax follows the pattern `object-name:version` where version is a simple incrementing integer.
 
-## Version Syntax
-- **Latest version**: `tool-name` or `tool-name:latest`
-- **Specific version**: `tool-name:2` (version 2)
-- **Previous version**: `tool-name:previous` or `tool-name:-1`
-- **Version listing**: `/commands/tool-name:versions`
+## Version Syntax (Universal for all VFS paths)
+- **Latest version**: `object-name` or `object-name:latest`
+- **Specific version**: `object-name:2` (version 2)
+- **Previous version**: `object-name:previous` or `object-name:-1`
+- **Version listing**: `object-name:versions`
+
+### Examples across VFS
+- **Commands**: `/commands/analyzer:2`, `/commands/log-tool:previous`
+- **Knowledge**: `/knowledge/patterns:3`, `/knowledge/api-docs:latest`
+- **Artifacts**: `/artifacts/document/design:1`, `/artifacts/report/analysis:versions`
+- **Memory**: `/memory/cli-session:2` (versioned edits of memories)
+- **Tools**: `/tools/data-processor:4`
 
 ## Storage Structure
 
@@ -31,9 +38,19 @@ Implement VMS-style version numbering for Port42 tools, enabling version history
 │           ├── 1              # Version 1 executable
 │           ├── 2              # Version 2 executable
 │           └── metadata.json  # Version history
+├── artifacts/
+│   ├── document/
+│   │   ├── design.md          # Symlink to latest version
+│   │   └── .history/
+│   │       └── design.md/
+│   │           ├── 1          # Version 1
+│   │           ├── 2          # Version 2
+│   │           └── metadata.json
+│   └── report/
+│       └── ...
 └── storage/
     └── objects/
-        └── [hash]/            # Content-addressed storage
+        └── [hash]/            # Content-addressed storage (universal)
             └── versions/
                 ├── 1.json     # Version 1 metadata
                 ├── 2.json     # Version 2 metadata
@@ -43,7 +60,9 @@ Implement VMS-style version numbering for Port42 tools, enabling version history
 ### Version Metadata Structure
 ```json
 {
-  "tool": "tool-name",
+  "object_type": "tool|document|artifact|knowledge|memory",
+  "name": "object-name",
+  "path": "/commands/tool-name",
   "version": 2,
   "hash": "abc123...",
   "previous_version": 1,
@@ -51,11 +70,12 @@ Implement VMS-style version numbering for Port42 tools, enabling version history
   "created_at": "2025-09-18T10:00:00Z",
   "created_by": "@ai-engineer",
   "session_id": "cli-1758179769287",
-  "prompt": "Update tool to add feature X",
+  "prompt": "Update to add feature X",
   "references": ["p42:/commands/tool-name:1"],
-  "transforms": ["python", "file", "parse"],
+  "transforms": ["python", "file", "parse"],  // For tools
+  "content_type": "text/markdown",  // For documents
   "size": 4096,
-  "executable": true
+  "executable": true  // For commands
 }
 ```
 
@@ -102,26 +122,32 @@ func (tm *ToolMaterializer) materialize(relation *VersionedRelation) error {
 **Current**: Simple path-based retrieval
 **Changes**:
 ```go
-// Parse version from path
-func parseVersionedPath(path string) (name string, version string) {
+// Parse version from ANY VFS path
+func parseVersionedPath(path string) (basePath string, objectName string, version string) {
     // Handle paths like:
     // - /commands/tool-name:2
-    // - /commands/tool-name:latest
-    // - /commands/tool-name:versions
+    // - /artifacts/document/design:latest
+    // - /knowledge/api-docs:versions
+    // - /memory/cli-session:previous
+    // Works for ANY VFS path, not just commands
 }
 
-// Modified VFS handlers
-func handleCommandCat(path string) {
-    name, version := parseVersionedPath(path)
+// Universal VFS version handler
+func handleVFSPath(path string) {
+    basePath, name, version := parseVersionedPath(path)
+
+    // Determine object type from base path
+    objectType := getObjectType(basePath)
+
     switch version {
     case "versions":
-        return listVersions(name)
+        return listVersions(basePath, name)
     case "latest", "":
-        return getLatestVersion(name)
+        return getLatestVersion(basePath, name)
     case "previous", "-1":
-        return getPreviousVersion(name)
+        return getPreviousVersion(basePath, name)
     default:
-        return getSpecificVersion(name, version)
+        return getSpecificVersion(basePath, name, version)
     }
 }
 ```
@@ -299,14 +325,24 @@ pub struct VersionInfo {
    - Auto-increment version numbers
    - Store version metadata
 4. Support versioned references (CRITICAL)
-   - Parse `--ref p42:/commands/tool:1` in swimming.go
+   - Parse versioned references in swimming.go
    - Load specific versions for AI context
    - Pass version metadata to agents
-   - Enable iterative tool development:
+   - Enable iterative development across ALL object types:
      ```bash
      # Update a tool based on specific version
      port42 swim @ai-engineer --ref p42:/commands/analyzer:2 "improve error handling"
      # Creates analyzer:3 automatically
+
+     # Update a document based on specific version
+     port42 swim @ai-muse --ref p42:/artifacts/document/readme:1 "add installation section"
+     # Creates readme:2 automatically
+
+     # Reference multiple versions for context
+     port42 swim @ai-analyst \
+       --ref p42:/knowledge/patterns:3 \
+       --ref p42:/artifacts/report/analysis:previous \
+       "compare these versions and identify changes"
      ```
 
 ### Phase 3: CLI Infrastructure
@@ -338,9 +374,10 @@ pub struct VersionInfo {
 
 ### Automatic Migration on Startup
 1. **Timestamp-based versioning**:
-   - Scan `/tools/` and `/commands/` on daemon startup
+   - Scan entire VFS on daemon startup (`/tools/`, `/commands/`, `/artifacts/`, `/knowledge/`, etc.)
    - Use creation timestamps from storage to determine version order
-   - Oldest version becomes version 1, incrementing from there
+   - Group objects by path and name
+   - Oldest version of each object becomes version 1, incrementing from there
    - Preserve all existing hashes and metadata
 
 2. **Migration process**:
