@@ -11,10 +11,10 @@ Implement VMS-style version numbering for ALL Port42 VFS objects (tools, knowled
 
 ### Examples across VFS
 - **Commands**: `/commands/analyzer:2`, `/commands/log-tool:previous`
-- **Knowledge**: `/knowledge/patterns:3`, `/knowledge/api-docs:latest`
-- **Artifacts**: `/artifacts/document/design:1`, `/artifacts/report/analysis:versions`
-- **Memory**: `/memory/cli-session:2` (versioned edits of memories)
-- **Tools**: `/tools/data-processor:4`
+- **Tools**: `/tools/data-processor:4`, `/tools/by-transform/python:versions`
+- **Artifacts**: `/artifacts/document/design:1`, `/artifacts/report/analysis:latest`
+- **Memory**: `/memory/cli-1758:2` (versioned edits of memories)
+- **Relations**: `/relations/spawned-tool-abc:1`
 
 ## Storage Structure
 
@@ -127,9 +127,9 @@ func parseVersionedPath(path string) (basePath string, objectName string, versio
     // Handle paths like:
     // - /commands/tool-name:2
     // - /artifacts/document/design:latest
-    // - /knowledge/api-docs:versions
-    // - /memory/cli-session:previous
-    // Works for ANY VFS path, not just commands
+    // - /tools/data-processor:versions
+    // - /memory/cli-1758:previous
+    // Works for ANY VFS path
 }
 
 // Universal VFS version handler
@@ -340,7 +340,7 @@ pub struct VersionInfo {
 
      # Reference multiple versions for context
      port42 swim @ai-analyst \
-       --ref p42:/knowledge/patterns:3 \
+       --ref p42:/tools/analyzer:3 \
        --ref p42:/artifacts/report/analysis:previous \
        "compare these versions and identify changes"
      ```
@@ -374,7 +374,7 @@ pub struct VersionInfo {
 
 ### Automatic Migration on Startup
 1. **Timestamp-based versioning**:
-   - Scan entire VFS on daemon startup (`/tools/`, `/commands/`, `/artifacts/`, `/knowledge/`, etc.)
+   - Scan entire VFS on daemon startup (`/tools/`, `/commands/`, `/artifacts/`, `/memory/`, `/relations/`)
    - Use creation timestamps from storage to determine version order
    - Group objects by path and name
    - Oldest version of each object becomes version 1, incrementing from there
@@ -440,19 +440,19 @@ Store in `~/.port42/schema_version`:
 }
 ```
 
-#### Tool Versioning Migration (Migration #2)
+#### VFS Versioning Migration (Migration #2)
 ```go
-var toolVersioningMigration = Migration{
+var vfsVersioningMigration = Migration{
     Version: 2,
-    Name: "tool_versioning",
+    Name: "vfs_versioning",
     Apply: func(s *Storage) error {
-        // 1. Create .history directory structure
-        // 2. Scan all existing tools
-        // 3. Group by name, sort by timestamp
-        // 4. Assign version numbers
+        // 1. Create .history directory structure across VFS
+        // 2. Scan all existing VFS objects
+        // 3. Group by path and name, sort by timestamp
+        // 4. Assign version numbers per object
         // 5. Create metadata files
-        // 6. Set up symlinks
-        return migrateToolVersions(s)
+        // 6. Set up symlinks to latest versions
+        return migrateVFSVersions(s)
     },
 }
 ```
